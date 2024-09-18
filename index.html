@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escolha Seu Save de Football Manager</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Escolha Seu Save de Football Manager</h1>
+    <form id="saveForm">
+        <label for="localizacao">Onde você quer jogar?</label>
+        <select id="localizacao" name="localizacao">
+            <option value="brasil">Brasil</option>
+            <option value="fora">Fora do Brasil</option>
+        </select>
+
+        <label for="desafio">Desafios Adicionais:</label>
+        <select id="desafio" name="desafio">
+            <option value="base">Só usar jogadores da base</option>
+            <option value="locais">Só contratar jogadores locais</option>
+            <option value="copa">Vencer a Copa do Mundo</option>
+            <option value="divisao">Melhorar a divisão do time</option>
+        </select>
+
+        <!-- Adicione mais opções conforme necessário -->
+
+        <button type="submit">Encontrar Save</button>
+    </form>
+
+    <div id="resultado"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
