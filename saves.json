@@ -1,0 +1,17 @@
+[
+    {
+        "nome": "Save Brasil Base",
+        "localizacao": "brasil",
+        "desafio": "base",
+        "descricao": "Gerencie um time brasileiro focando apenas em jogadores da base.",
+        "link": "https://link-para-download-save1"
+    },
+    {
+        "nome": "Save Internacional Copa",
+        "localizacao": "fora",
+        "desafio": "copa",
+        "descricao": "Desafie-se a levar um time estrangeiro até a conquista da Copa do Mundo.",
+        "link": "https://link-para-download-save2"
+    }
+    // Adicione mais objetos conforme necessário
+]
