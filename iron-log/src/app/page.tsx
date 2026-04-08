@@ -1,42 +1,24 @@
 import Link from "next/link";
+import { ArrowRight, Calendar, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-const MUSCLE_LABELS: Record<string, string> = {
-  chest: "Peito",
-  lats: "Costas",
-  front_delts: "Ombro Ant.",
-  side_delts: "Ombro Lat.",
-  rear_delts: "Ombro Post.",
-  biceps: "Bíceps",
-  triceps: "Tríceps",
-  traps: "Trapézio",
-  quads: "Quadríceps",
-  hamstrings: "Posterior",
-  glutes: "Glúteo",
-  calves: "Panturrilha",
-  lower_back: "Lombar",
-};
-
-const DAYS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
-const MONTHS = [
-  "jan",
-  "fev",
-  "mar",
-  "abr",
-  "mai",
-  "jun",
-  "jul",
-  "ago",
-  "set",
-  "out",
-  "nov",
-  "dez",
+const WEEKDAYS = [
+  "domingo",
+  "segunda",
+  "terça",
+  "quarta",
+  "quinta",
+  "sexta",
+  "sábado",
 ];
 
-function formatDate(date: Date) {
-  return `${DAYS[date.getDay()]} · ${date.getDate()} ${MONTHS[date.getMonth()]}`;
+function formatHeaderDate(date: Date) {
+  const weekday = WEEKDAYS[date.getDay()];
+  const day = date.getDate();
+  const month = date.toLocaleDateString("pt-BR", { month: "long" });
+  return { weekday, day, month };
 }
 
 export default async function HomePage() {
@@ -48,109 +30,145 @@ export default async function HomePage() {
 
   const { data: recentSessions } = await supabase
     .from("workout_sessions")
-    .select("id, started_at, finished_at, duration_minutes, template_id")
+    .select("id, started_at, duration_minutes")
     .order("started_at", { ascending: false })
     .limit(5);
 
   const now = new Date();
-  const hasExercises = (exerciseCount ?? 0) > 0;
+  const { weekday, day, month } = formatHeaderDate(now);
   const sessions = recentSessions ?? [];
+  const exercisesTotal = exerciseCount ?? 0;
+  const firstRun = sessions.length === 0;
 
   return (
-    <div className="px-5 pt-8">
-      <header className="mb-8">
-        <h1 className="text-3xl font-black tracking-tight">
-          Felippe&apos;s Log
+    <div className="px-6 pt-10">
+      {/* Header */}
+      <header className="mb-10">
+        <p className="label mb-2">{weekday}</p>
+        <h1 className="display text-[44px] leading-[1.05] tracking-tighter">
+          Felippe&apos;s
+          <br />
+          Log
         </h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1 capitalize">
-          {formatDate(now)}
+        <p className="text-sm text-[var(--text-muted)] mt-3 tnum">
+          {day} de {month}
         </p>
       </header>
 
-      {/* Next workout card */}
+      {/* Primary CTA card */}
       <section className="mb-8">
-        <h2 className="text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-3">
-          Próximo Treino
-        </h2>
-        <div className="border border-[var(--border)] bg-[var(--bg-elevated)] rounded-lg p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <div className="text-2xl font-bold">
-                {sessions.length === 0 ? "Primeiro treino" : "Upper A"}
-              </div>
-              <div className="text-sm text-[var(--text-muted)] mt-1">
-                {sessions.length === 0
-                  ? "Configure seus templates primeiro"
-                  : "—"}
-              </div>
-            </div>
-          </div>
-          <Link
-            href="/treinar"
-            className="block w-full text-center bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-black font-bold py-3 rounded uppercase tracking-wider transition-colors"
-          >
-            {sessions.length === 0 ? "Ver treinar" : "▶ Iniciar"}
-          </Link>
+        <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-6">
+          <p className="label mb-3">Próximo treino</p>
+          {firstRun ? (
+            <>
+              <h2 className="display-sm text-2xl mb-1">Ainda vazio</h2>
+              <p className="text-sm text-[var(--text-muted)] mb-6 leading-relaxed">
+                Para começar, cadastre seus exercícios, monte um template de
+                rotina e inicie sua primeira sessão.
+              </p>
+              <Link
+                href="/exercicios"
+                className="group inline-flex items-center gap-2 text-[var(--text)] font-semibold text-sm"
+              >
+                Configurar exercícios
+                <ArrowRight
+                  size={16}
+                  className="transition-transform group-hover:translate-x-1"
+                />
+              </Link>
+            </>
+          ) : (
+            <>
+              <h2 className="display-sm text-3xl mb-1">Upper A</h2>
+              <p className="text-sm text-[var(--text-muted)] mb-6">
+                7 exercícios · aproximadamente 55 minutos
+              </p>
+              <Link
+                href="/treinar"
+                className="block w-full text-center bg-[var(--accent)] text-[var(--accent-fg)] font-semibold py-3.5 rounded-xl hover:bg-[var(--accent-hover)] transition-colors"
+              >
+                Iniciar sessão
+              </Link>
+            </>
+          )}
         </div>
       </section>
 
-      {/* Quick stats */}
-      <section className="mb-8 grid grid-cols-2 gap-3">
-        <Link
+      {/* Stats row */}
+      <section className="mb-10 grid grid-cols-2 gap-3">
+        <StatCard
+          label="Exercícios"
+          value={exercisesTotal}
           href="/exercicios"
-          className="border border-[var(--border)] bg-[var(--bg-elevated)] rounded-lg p-4 hover:border-[var(--border-strong)] transition-colors"
-        >
-          <div className="text-3xl font-black tabular">
-            {exerciseCount ?? 0}
-          </div>
-          <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider mt-1">
-            Exercícios
-          </div>
-        </Link>
-        <Link
+        />
+        <StatCard
+          label="Sessões"
+          value={sessions.length}
           href="/progresso"
-          className="border border-[var(--border)] bg-[var(--bg-elevated)] rounded-lg p-4 hover:border-[var(--border-strong)] transition-colors"
-        >
-          <div className="text-3xl font-black tabular">{sessions.length}</div>
-          <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider mt-1">
-            Sessões recentes
-          </div>
-        </Link>
+          suffix={sessions.length > 0 ? " recentes" : ""}
+        />
       </section>
 
-      {/* Empty state or volume overview */}
-      {sessions.length === 0 ? (
-        <section className="mb-8 border border-dashed border-[var(--border-strong)] rounded-lg p-6 text-center">
-          <div className="text-4xl mb-2">💪</div>
-          <h3 className="font-bold mb-1">Nenhum treino ainda</h3>
-          <p className="text-sm text-[var(--text-muted)] mb-4">
-            {hasExercises
-              ? "Você tem exercícios cadastrados. Próximo passo: criar templates e iniciar um treino."
-              : "Comece cadastrando seus exercícios."}
-          </p>
-          <Link
-            href={hasExercises ? "/treinar" : "/exercicios"}
-            className="inline-block border border-[var(--accent)] text-[var(--accent)] font-semibold px-4 py-2 rounded text-sm uppercase tracking-wider hover:bg-[var(--accent)] hover:text-black transition-colors"
-          >
-            {hasExercises ? "Ir para Treinar" : "Ver exercícios"}
-          </Link>
+      {/* Recent activity or onboarding checklist */}
+      {firstRun ? (
+        <section>
+          <p className="label mb-4">Primeiros passos</p>
+          <ol className="space-y-3">
+            <ChecklistItem
+              index={1}
+              title="Revisar catálogo de exercícios"
+              subtitle={`Você tem ${exercisesTotal} cadastrados. Adicione os que faltam.`}
+              href="/exercicios"
+              complete={exercisesTotal > 0}
+            />
+            <ChecklistItem
+              index={2}
+              title="Criar um template de treino"
+              subtitle="Organize exercícios em rotinas: Upper A, Lower A..."
+              href="/treinar"
+              complete={false}
+            />
+            <ChecklistItem
+              index={3}
+              title="Registrar primeira sessão"
+              subtitle="O histórico e as progressões começam a partir daqui."
+              href="/treinar"
+              complete={false}
+            />
+          </ol>
         </section>
       ) : (
-        <section className="mb-8">
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-3">
-            Últimos Treinos
-          </h2>
-          <ul className="space-y-2">
+        <section>
+          <div className="flex items-baseline justify-between mb-4">
+            <p className="label">Atividade recente</p>
+            <Link
+              href="/progresso"
+              className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+            >
+              Ver tudo
+            </Link>
+          </div>
+          <ul className="space-y-1">
             {sessions.map((s) => (
               <li
                 key={s.id}
-                className="border border-[var(--border)] bg-[var(--bg-elevated)] rounded p-3 flex justify-between items-center"
+                className="flex items-center justify-between py-3 border-b border-[var(--border)] last:border-0"
               >
-                <span className="text-sm">
-                  {new Date(s.started_at).toLocaleDateString("pt-BR")}
-                </span>
-                <span className="text-xs text-[var(--text-muted)]">
-                  {s.duration_minutes ? `${s.duration_minutes} min` : "—"}
+                <div className="flex items-center gap-3">
+                  <Calendar
+                    size={14}
+                    className="text-[var(--text-dim)]"
+                    strokeWidth={1.75}
+                  />
+                  <span className="text-sm tnum">
+                    {new Date(s.started_at).toLocaleDateString("pt-BR", {
+                      day: "2-digit",
+                      month: "short",
+                    })}
+                  </span>
+                </div>
+                <span className="text-xs text-[var(--text-muted)] tnum">
+                  {s.duration_minutes ? `${s.duration_minutes}min` : "—"}
                 </span>
               </li>
             ))}
@@ -158,5 +176,81 @@ export default async function HomePage() {
         </section>
       )}
     </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  href,
+  suffix = "",
+}: {
+  label: string;
+  value: number;
+  href: string;
+  suffix?: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-5 hover:border-[var(--border-strong)] transition-colors"
+    >
+      <div className="flex items-start justify-between mb-3">
+        <p className="label">{label}</p>
+        <ArrowRight
+          size={14}
+          className="text-[var(--text-dim)] group-hover:text-[var(--text-soft)] transition-colors"
+          strokeWidth={2}
+        />
+      </div>
+      <div className="display text-4xl tnum">{value}</div>
+      {suffix && (
+        <div className="text-xs text-[var(--text-muted)] mt-1">{suffix}</div>
+      )}
+    </Link>
+  );
+}
+
+function ChecklistItem({
+  index,
+  title,
+  subtitle,
+  href,
+  complete,
+}: {
+  index: number;
+  title: string;
+  subtitle: string;
+  href: string;
+  complete: boolean;
+}) {
+  return (
+    <li>
+      <Link
+        href={href}
+        className="group flex items-start gap-4 p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-raised)] hover:border-[var(--border-strong)] transition-colors"
+      >
+        <div
+          className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold tnum ${
+            complete
+              ? "bg-[var(--text)] text-[var(--bg)]"
+              : "border border-[var(--border-strong)] text-[var(--text-muted)]"
+          }`}
+        >
+          {complete ? "✓" : index}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-sm mb-0.5">{title}</p>
+          <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+            {subtitle}
+          </p>
+        </div>
+        <ArrowRight
+          size={16}
+          className="shrink-0 text-[var(--text-dim)] group-hover:text-[var(--text-soft)] transition-all group-hover:translate-x-0.5 mt-1"
+          strokeWidth={1.75}
+        />
+      </Link>
+    </li>
   );
 }

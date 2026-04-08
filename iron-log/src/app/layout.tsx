@@ -4,7 +4,7 @@ import { BottomNav } from "@/components/BottomNav";
 
 export const metadata: Metadata = {
   title: "Felippe's Log",
-  description: "Upper/Lower workout tracker with double progression",
+  description: "Upper / Lower training tracker with double progression",
 };
 
 export const viewport: Viewport = {
@@ -12,6 +12,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -20,9 +21,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className="h-full antialiased">
+    <html lang="pt-BR" className="h-full">
       <body className="min-h-full bg-[var(--bg)] text-[var(--text)]">
-        <main className="max-w-2xl mx-auto pb-24">{children}</main>
+        <main className="max-w-xl mx-auto pb-24">{children}</main>
         <BottomNav />
       </body>
     </html>

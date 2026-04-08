@@ -1,52 +1,119 @@
 @import "tailwindcss";
 
 :root {
+  /* Grayscale (zinc-inspired) */
   --bg: #0a0a0a;
-  --bg-elevated: #141414;
-  --bg-card: #1a1a1a;
-  --border: #262626;
-  --border-strong: #404040;
-  --text: #f5f5f5;
-  --text-muted: #737373;
-  --text-dim: #525252;
-  --accent: #f59e0b;
-  --accent-hover: #fbbf24;
-  --success: #10b981;
-  --danger: #ef4444;
-  --info: #3b82f6;
+  --bg-raised: #121212;
+  --bg-card: #171717;
+  --bg-hover: #1f1f1f;
+
+  --border: #232323;
+  --border-strong: #2e2e2e;
+
+  --text: #fafafa;
+  --text-soft: #a1a1aa;
+  --text-muted: #71717a;
+  --text-dim: #52525b;
+  --text-faint: #3f3f46;
+
+  /* Primary accent — pure white Linear-style for CTAs */
+  --accent: #ffffff;
+  --accent-hover: #e5e5e5;
+  --accent-fg: #0a0a0a;
+
+  /* Semantic status colors — used sparingly */
+  --status-ready: #a3e635;     /* lime-400 — ready to progress */
+  --status-building: #d4d4d8;  /* zinc-300 — working toward goal */
+  --status-progressed: #60a5fa;/* blue-400 — just leveled up */
+  --status-stalled: #fb7185;   /* rose-400 — plateau */
+  --danger: #f87171;
 }
 
 @theme inline {
   --color-background: var(--bg);
   --color-foreground: var(--text);
-  --color-bg: var(--bg);
-  --color-bg-elevated: var(--bg-elevated);
-  --color-bg-card: var(--bg-card);
-  --color-border: var(--border);
-  --color-border-strong: var(--border-strong);
-  --color-text: var(--text);
-  --color-text-muted: var(--text-muted);
-  --color-text-dim: var(--text-dim);
-  --color-accent: var(--accent);
-  --color-accent-hover: var(--accent-hover);
-  --color-success: var(--success);
-  --color-danger: var(--danger);
-  --color-info: var(--info);
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter",
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-html, body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
+* {
   -webkit-tap-highlight-color: transparent;
 }
 
-input, button, textarea, select {
-  font: inherit;
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter",
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-/* Tabular numerals for weights/reps */
-.tabular {
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* Utility: tabular numerals for weights / reps / times */
+.tnum {
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Utility: tight display tracking */
+.display {
+  letter-spacing: -0.035em;
+  font-weight: 800;
+}
+
+.display-sm {
+  letter-spacing: -0.025em;
+  font-weight: 700;
+}
+
+/* Utility: caps label */
+.label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Hide scrollbars on mobile scroll containers where relevant */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Subtle hairline */
+.hairline {
+  border-color: var(--border);
+}
+
+/* Make selects use the same style as inputs */
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 36px;
 }

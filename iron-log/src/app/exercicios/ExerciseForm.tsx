@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { AlertCircle } from "lucide-react";
 import { MUSCLES, MOVEMENT_PATTERNS, EQUIPMENT } from "@/lib/muscles";
 import { createExercise, updateExercise, type ActionResult } from "./actions";
 
@@ -54,101 +55,90 @@ export function ExerciseForm({
   }
 
   return (
-    <form action={handleSubmit} className="space-y-5">
+    <form action={handleSubmit} className="space-y-6">
       {error && (
-        <div className="border border-[var(--danger)] bg-red-950/40 text-red-300 p-3 rounded text-sm">
-          {error}
+        <div className="flex items-start gap-3 rounded-xl border border-[var(--danger)]/40 bg-red-950/20 text-red-300 p-4 text-sm">
+          <AlertCircle size={16} className="mt-0.5 shrink-0" />
+          <span>{error}</span>
         </div>
       )}
 
-      <div>
-        <label className="block text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">
-          Nome
-        </label>
+      <Field label="Nome">
         <input
           name="name"
           type="text"
           required
           defaultValue={exercise?.name ?? ""}
-          placeholder="Ex: Supino Reto com Barra"
-          className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded px-4 py-3 text-base focus:outline-none focus:border-[var(--accent)]"
+          placeholder="Supino reto com barra"
+          className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3.5 text-base placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--text-muted)] transition-colors"
         />
-      </div>
+      </Field>
 
-      <div>
-        <label className="block text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">
-          Tipo de Treino
-        </label>
-        <div className="grid grid-cols-2 gap-2">
-          {(["upper", "lower"] as const).map((t) => (
-            <label
-              key={t}
-              className={`cursor-pointer text-center py-3 rounded border font-semibold uppercase text-sm tracking-wider ${
-                sessionType === t
-                  ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
-                  : "border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-muted)]"
-              }`}
-            >
-              <input
-                type="radio"
-                name="session_type"
-                value={t}
-                checked={sessionType === t}
-                onChange={() => setSessionType(t)}
-                className="sr-only"
-              />
-              {t === "upper" ? "Upper" : "Lower"}
-            </label>
-          ))}
+      <Field label="Tipo">
+        <div className="grid grid-cols-2 gap-2 p-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl">
+          {(["upper", "lower"] as const).map((t) => {
+            const active = sessionType === t;
+            return (
+              <label
+                key={t}
+                className={`cursor-pointer text-center py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  active
+                    ? "bg-[var(--text)] text-[var(--bg)]"
+                    : "text-[var(--text-muted)] hover:text-[var(--text)]"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="session_type"
+                  value={t}
+                  checked={active}
+                  onChange={() => setSessionType(t)}
+                  className="sr-only"
+                />
+                {t === "upper" ? "Upper" : "Lower"}
+              </label>
+            );
+          })}
         </div>
-      </div>
+      </Field>
 
-      <div>
-        <label className="block text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">
-          Padrão de Movimento
-        </label>
+      <Field label="Padrão de movimento">
         <select
           name="movement_pattern"
           required
           defaultValue={exercise?.movement_pattern ?? ""}
-          className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded px-4 py-3 text-base focus:outline-none focus:border-[var(--accent)]"
+          className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3.5 text-base focus:outline-none focus:border-[var(--text-muted)] transition-colors"
         >
-          <option value="">Selecione...</option>
+          <option value="">Selecionar</option>
           {filteredPatterns.map((p) => (
             <option key={p.value} value={p.value}>
               {p.label}
             </option>
           ))}
         </select>
-      </div>
+      </Field>
 
-      <div>
-        <label className="block text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">
-          Músculo Primário
-        </label>
+      <Field label="Músculo primário">
         <select
           name="primary_muscle"
           required
           defaultValue={exercise?.primary_muscle ?? ""}
-          className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded px-4 py-3 text-base focus:outline-none focus:border-[var(--accent)]"
+          className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3.5 text-base focus:outline-none focus:border-[var(--text-muted)] transition-colors"
         >
-          <option value="">Selecione...</option>
+          <option value="">Selecionar</option>
           {MUSCLES.map((m) => (
             <option key={m.value} value={m.value}>
               {m.label}
             </option>
           ))}
         </select>
-      </div>
+      </Field>
 
-      <div>
-        <label className="block text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">
-          Equipamento
-        </label>
+      <Field label="Equipamento">
         <select
           name="equipment"
           defaultValue={exercise?.equipment ?? ""}
-          className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded px-4 py-3 text-base focus:outline-none focus:border-[var(--accent)]"
+          className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3.5 text-base focus:outline-none focus:border-[var(--text-muted)] transition-colors"
         >
           <option value="">—</option>
           {EQUIPMENT.map((e) => (
@@ -157,55 +147,84 @@ export function ExerciseForm({
             </option>
           ))}
         </select>
-      </div>
+      </Field>
 
-      <div>
-        <label className="block text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">
-          Incremento de carga (kg)
-        </label>
-        <input
-          name="load_increment"
-          type="number"
-          step="0.25"
-          min="0.25"
-          defaultValue={exercise?.load_increment?.toString() ?? "2.5"}
-          className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded px-4 py-3 text-base tabular focus:outline-none focus:border-[var(--accent)]"
-        />
-        <p className="text-xs text-[var(--text-dim)] mt-1">
-          Quanto adicionar quando bater o topo do rep range (ex: 2.5kg
-          compostos, 1kg isolados)
-        </p>
-      </div>
+      <Field
+        label="Incremento"
+        hint="Quanto subir quando bater o topo do rep range"
+      >
+        <div className="relative">
+          <input
+            name="load_increment"
+            type="number"
+            step="0.25"
+            min="0.25"
+            defaultValue={exercise?.load_increment?.toString() ?? "2.5"}
+            className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3.5 pr-12 text-base tnum focus:outline-none focus:border-[var(--text-muted)] transition-colors"
+          />
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-[var(--text-muted)]">
+            kg
+          </span>
+        </div>
+      </Field>
 
-      <div>
-        <label className="block text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">
-          Notas (opcional)
-        </label>
+      <Field label="Notas" optional>
         <textarea
           name="notes"
-          rows={2}
+          rows={3}
           defaultValue={exercise?.notes ?? ""}
-          placeholder="Observações sobre execução, cuidados, etc."
-          className="w-full bg-[var(--bg-elevated)] border border-[var(--border)] rounded px-4 py-3 text-sm focus:outline-none focus:border-[var(--accent)] resize-none"
+          placeholder="Execução, cuidados, dicas..."
+          className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3.5 text-sm placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--text-muted)] transition-colors resize-none"
         />
-      </div>
+      </Field>
 
-      <div className="flex gap-3 pt-2">
+      <div className="flex gap-3 pt-4">
         <button
           type="button"
           onClick={() => router.back()}
-          className="flex-1 border border-[var(--border)] py-3 rounded font-semibold uppercase text-sm tracking-wider text-[var(--text-muted)] hover:text-[var(--text)]"
+          className="flex-1 border border-[var(--border)] py-3.5 rounded-xl font-medium text-sm text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--border-strong)] transition-colors"
         >
           Cancelar
         </button>
         <button
           type="submit"
           disabled={isPending}
-          className="flex-1 bg-[var(--accent)] hover:bg-[var(--accent-hover)] disabled:opacity-60 text-black py-3 rounded font-bold uppercase text-sm tracking-wider transition-colors"
+          className="flex-1 bg-[var(--accent)] hover:bg-[var(--accent-hover)] disabled:opacity-60 text-[var(--accent-fg)] py-3.5 rounded-xl font-semibold text-sm transition-colors"
         >
-          {isPending ? "Salvando..." : mode === "edit" ? "Salvar" : "Criar"}
+          {isPending ? "Salvando…" : mode === "edit" ? "Salvar" : "Criar"}
         </button>
       </div>
     </form>
+  );
+}
+
+function Field({
+  label,
+  hint,
+  optional,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  optional?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-2">
+        <label className="label">{label}</label>
+        {optional && (
+          <span className="text-[10px] text-[var(--text-dim)] italic">
+            opcional
+          </span>
+        )}
+      </div>
+      {children}
+      {hint && (
+        <p className="text-xs text-[var(--text-dim)] mt-2 leading-relaxed">
+          {hint}
+        </p>
+      )}
+    </div>
   );
 }
