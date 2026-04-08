@@ -1,5 +1,7 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 export type SimpleResult = { ok: true } | { ok: false; error: string };
@@ -89,3 +91,62 @@ export async function deleteSet(setId: string): Promise<SimpleResult> {
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
+
+export type FinishSessionInput = {
+  overallFeeling: number | null;
+  notes: string | null;
+};
+
+/**
+ * Marks a workout session as finished, computing duration from started_at and
+ * storing the optional RIR/feeling and notes. Redirects to home on success.
+ */
+export async function finishSession(
+  sessionId: string,
+  input: FinishSessionInput
+): Promise<SimpleResult> {
+  const supabase = await createClient();
+
+  const { data: session, error: fetchErr } = await supabase
+    .from("workout_sessions")
+    .select("id, started_at, finished_at")
+    .eq("id", sessionId)
+    .maybeSingle();
+
+  if (fetchErr) return { ok: false, error: fetchErr.message };
+  if (!session) return { ok: false, error: "Sessão não encontrada." };
+  if (session.finished_at)
+    return { ok: false, error: "Sessão já finalizada." };
+
+  if (
+    input.overallFeeling !== null &&
+    (input.overallFeeling < 1 || input.overallFeeling > 5)
+  ) {
+    return { ok: false, error: "Feeling inválido." };
+  }
+
+  const startedAt = new Date(session.started_at);
+  const now = new Date();
+  const durationMinutes = Math.max(
+    1,
+    Math.round((now.getTime() - startedAt.getTime()) / 60000)
+  );
+
+  const { error } = await supabase
+    .from("workout_sessions")
+    .update({
+      finished_at: now.toISOString(),
+      duration_minutes: durationMinutes,
+      overall_feeling: input.overallFeeling,
+      notes: input.notes,
+    })
+    .eq("id", sessionId);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/");
+  revalidatePath("/treinar");
+  revalidatePath("/progresso");
+  redirect("/");
+}
+

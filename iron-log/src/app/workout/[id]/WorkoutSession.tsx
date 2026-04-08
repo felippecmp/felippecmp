@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Loader2, Plus, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, Loader2, Plus, Timer, Trash2, X } from "lucide-react";
 import { muscleLabel } from "@/lib/muscles";
 import { deleteSet, logSet, updateSet } from "./actions";
 
@@ -84,6 +84,14 @@ function parseReps(s: string): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+type RestState = {
+  // Incremented each time a rest starts; used to reset timer effects.
+  token: number;
+  exerciseName: string;
+  totalSeconds: number;
+  startedAt: number;
+};
+
 export function WorkoutSession({
   sessionId,
   exercises,
@@ -93,18 +101,152 @@ export function WorkoutSession({
   exercises: ExerciseBlockData[];
   disabled?: boolean;
 }) {
+  const [rest, setRest] = useState<RestState | null>(null);
+  const restTokenRef = useRef(0);
+
+  function startRest(seconds: number, exerciseName: string) {
+    if (seconds <= 0) return;
+    restTokenRef.current += 1;
+    setRest({
+      token: restTokenRef.current,
+      exerciseName,
+      totalSeconds: seconds,
+      // Only ever called from event handlers (onSetLogged), not during render.
+      // eslint-disable-next-line react-hooks/purity
+      startedAt: Date.now(),
+    });
+  }
+
+  function dismissRest() {
+    setRest(null);
+  }
+
   return (
-    <ul className="space-y-3 mb-8">
-      {exercises.map((ex, idx) => (
-        <ExerciseCard
-          key={ex.templateExerciseId}
-          number={idx + 1}
-          sessionId={sessionId}
-          exercise={ex}
-          disabled={disabled}
-        />
-      ))}
-    </ul>
+    <>
+      <ul className="space-y-3 mb-8">
+        {exercises.map((ex, idx) => (
+          <ExerciseCard
+            key={ex.templateExerciseId}
+            number={idx + 1}
+            sessionId={sessionId}
+            exercise={ex}
+            disabled={disabled}
+            onSetLogged={() => startRest(ex.restSeconds, ex.exerciseName)}
+          />
+        ))}
+      </ul>
+      <RestTimer rest={rest} onDismiss={dismissRest} />
+    </>
+  );
+}
+
+function formatMMSS(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${r.toString().padStart(2, "0")}`;
+}
+
+function RestTimer({
+  rest,
+  onDismiss,
+}: {
+  rest: RestState | null;
+  onDismiss: () => void;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+  const firedRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!rest) return;
+    const id = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(id);
+  }, [rest]);
+
+  useEffect(() => {
+    if (!rest) {
+      firedRef.current = null;
+      return;
+    }
+    const elapsed = Math.floor((now - rest.startedAt) / 1000);
+    const remaining = rest.totalSeconds - elapsed;
+    if (remaining <= 0 && firedRef.current !== rest.token) {
+      firedRef.current = rest.token;
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+        try {
+          navigator.vibrate([180, 80, 180]);
+        } catch {
+          // no-op on unsupported browsers
+        }
+      }
+    }
+  }, [now, rest]);
+
+  if (!rest) return null;
+
+  const elapsed = Math.floor((now - rest.startedAt) / 1000);
+  const remaining = rest.totalSeconds - elapsed;
+  const done = remaining <= 0;
+  const progress = Math.min(
+    100,
+    Math.max(0, (Math.min(elapsed, rest.totalSeconds) / rest.totalSeconds) * 100)
+  );
+
+  return (
+    <div
+      className="fixed inset-x-0 z-40 px-4 pointer-events-none"
+      style={{ bottom: "calc(68px + env(safe-area-inset-bottom))" }}
+    >
+      <div className="pointer-events-auto max-w-xl mx-auto">
+        <div
+          className={`relative overflow-hidden rounded-xl border bg-[var(--bg-card)] shadow-lg flex items-center gap-3 px-4 py-3 ${
+            done
+              ? "border-[var(--status-ready)]/60"
+              : "border-[var(--border-strong)]"
+          }`}
+        >
+          <div
+            className={`absolute inset-y-0 left-0 transition-all ${
+              done
+                ? "bg-[var(--status-ready)]/15"
+                : "bg-[var(--text)]/5"
+            }`}
+            style={{ width: `${progress}%` }}
+            aria-hidden="true"
+          />
+          <Timer
+            size={16}
+            strokeWidth={1.75}
+            className={`shrink-0 relative ${
+              done ? "text-[var(--status-ready)]" : "text-[var(--text-soft)]"
+            }`}
+          />
+          <div className="flex-1 min-w-0 relative">
+            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
+              {done ? "Pronto" : "Descanso"}
+            </p>
+            <p className="text-xs text-[var(--text-soft)] truncate">
+              {rest.exerciseName}
+            </p>
+          </div>
+          <div
+            className={`tnum display-sm text-xl shrink-0 relative ${
+              done ? "text-[var(--status-ready)]" : ""
+            }`}
+          >
+            {formatMMSS(Math.max(0, remaining))}
+          </div>
+          <button
+            type="button"
+            onClick={onDismiss}
+            aria-label="Dispensar timer"
+            className="relative shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--text)] transition-colors"
+          >
+            <X size={14} strokeWidth={1.75} />
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -113,11 +255,13 @@ function ExerciseCard({
   sessionId,
   exercise,
   disabled,
+  onSetLogged,
 }: {
   number: number;
   sessionId: string;
   exercise: ExerciseBlockData;
   disabled: boolean;
+  onSetLogged: () => void;
 }) {
   const [rows, setRows] = useState<RowState[]>(() => initialRows(exercise));
   const [nextExtraId, setNextExtraId] = useState(0);
@@ -162,6 +306,7 @@ function ExerciseCard({
       });
       if (result.ok) {
         patchRow(row.key, { id: result.id, saving: false, error: null });
+        onSetLogged();
       } else {
         patchRow(row.key, { saving: false, error: result.error });
       }

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ChevronLeft, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { AbandonSessionButton } from "./AbandonSessionButton";
+import { FinishSessionButton } from "./FinishSessionButton";
 import {
   WorkoutSession,
   type ExerciseBlockData,
@@ -248,7 +249,15 @@ export default async function WorkoutSessionPage({
         />
       )}
 
-      {!isFinished && <AbandonSessionButton sessionId={session.id} />}
+      {!isFinished && (
+        <div className="space-y-3 mt-8 pt-6 border-t border-[var(--border)]">
+          <FinishSessionButton
+            sessionId={session.id}
+            totalLogged={totalLogged}
+          />
+          <AbandonSessionButton sessionId={session.id} />
+        </div>
+      )}
     </div>
   );
 }
