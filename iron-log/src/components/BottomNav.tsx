@@ -11,8 +11,14 @@ const tabs = [
   { href: "/exercicios", label: "Exercícios", Icon: ListChecks },
 ];
 
+const HIDDEN_ON = ["/login"];
+
 export function BottomNav() {
   const pathname = usePathname();
+
+  if (HIDDEN_ON.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+    return null;
+  }
 
   return (
     <nav

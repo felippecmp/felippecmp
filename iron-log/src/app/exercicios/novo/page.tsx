@@ -1,8 +1,13 @@
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
+import { getUserSettings } from "@/lib/settings";
 import { ExerciseForm } from "../ExerciseForm";
 
-export default function NovoExercicioPage() {
+export const dynamic = "force-dynamic";
+
+export default async function NovoExercicioPage() {
+  const settings = await getUserSettings();
+
   return (
     <div className="px-6 pt-10">
       <Link
@@ -17,7 +22,10 @@ export default function NovoExercicioPage() {
         <h1 className="display text-4xl leading-none">Criar exercício</h1>
       </header>
 
-      <ExerciseForm mode="create" />
+      <ExerciseForm
+        mode="create"
+        exercise={{ load_increment: settings.default_load_increment }}
+      />
     </div>
   );
 }
