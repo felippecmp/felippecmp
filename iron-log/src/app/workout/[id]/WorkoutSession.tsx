@@ -1,13 +1,23 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Loader2, Plus, Timer, Trash2, X } from "lucide-react";
+import {
+  Check,
+  CloudOff,
+  Loader2,
+  Plus,
+  Timer,
+  Trash2,
+  WifiOff,
+  X,
+} from "lucide-react";
 import { muscleLabel } from "@/lib/muscles";
 import {
   statusCssVar,
   statusLabel,
   type ProgressionSuggestion,
 } from "@/lib/progression";
+import { useOnlineStatus } from "@/lib/use-online-status";
 import { deleteSet, logSet, updateSet } from "./actions";
 
 export type ReferenceSet = {
@@ -48,7 +58,11 @@ type RowState = {
   rir: number | null;
   saving: boolean;
   error: string | null;
+  // True when a save attempt failed due to network — queued for auto-retry.
+  pendingOffline: boolean;
 };
+
+type PersistedRow = Omit<RowState, "saving" | "error">;
 
 function initialRows(exercise: ExerciseBlockData): RowState[] {
   const rows: RowState[] = [...exercise.existingSets]
@@ -61,6 +75,7 @@ function initialRows(exercise: ExerciseBlockData): RowState[] {
       rir: s.rir,
       saving: false,
       error: null,
+      pendingOffline: false,
     }));
 
   // Pre-fill empty rows with the suggested weight so the user only types reps.
@@ -79,9 +94,53 @@ function initialRows(exercise: ExerciseBlockData): RowState[] {
       rir: null,
       saving: false,
       error: null,
+      pendingOffline: false,
     });
   }
   return rows;
+}
+
+function draftKey(sessionId: string, exerciseId: string): string {
+  return `flog:draft:${sessionId}:${exerciseId}`;
+}
+
+function hydrateRowsFromDraft(key: string): RowState[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedRow[];
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    return parsed.map((r) => ({
+      key: r.key,
+      id: r.id,
+      weight: r.weight,
+      reps: r.reps,
+      rir: r.rir,
+      saving: false,
+      error: null,
+      pendingOffline: r.pendingOffline ?? false,
+    }));
+  } catch {
+    return null;
+  }
+}
+
+function persistRowsToDraft(key: string, rows: RowState[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    const toPersist: PersistedRow[] = rows.map((r) => ({
+      key: r.key,
+      id: r.id,
+      weight: r.weight,
+      reps: r.reps,
+      rir: r.rir,
+      pendingOffline: r.pendingOffline,
+    }));
+    localStorage.setItem(key, JSON.stringify(toPersist));
+  } catch {
+    // quota exceeded / private mode — ignore, offline is best-effort
+  }
 }
 
 function parseWeight(s: string): number | null {
@@ -115,6 +174,7 @@ export function WorkoutSession({
 }) {
   const [rest, setRest] = useState<RestState | null>(null);
   const restTokenRef = useRef(0);
+  const online = useOnlineStatus();
 
   function startRest(seconds: number, exerciseName: string) {
     if (seconds <= 0) return;
@@ -135,6 +195,7 @@ export function WorkoutSession({
 
   return (
     <>
+      {!online && <OfflineBanner />}
       <ul className="space-y-3 mb-8">
         {exercises.map((ex, idx) => (
           <ExerciseCard
@@ -149,6 +210,26 @@ export function WorkoutSession({
       </ul>
       <RestTimer rest={rest} onDismiss={dismissRest} />
     </>
+  );
+}
+
+function OfflineBanner() {
+  return (
+    <div className="mb-4 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-card)] px-4 py-3 flex items-center gap-3">
+      <WifiOff
+        size={14}
+        strokeWidth={1.75}
+        className="shrink-0 text-[var(--status-stalled)]"
+      />
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
+          Sem conexão
+        </p>
+        <p className="text-xs text-[var(--text-soft)] leading-snug">
+          Sets salvos localmente serão sincronizados quando voltar.
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -275,8 +356,32 @@ function ExerciseCard({
   disabled: boolean;
   onSetLogged: () => void;
 }) {
+  const DRAFT_KEY = draftKey(sessionId, exercise.exerciseId);
   const [rows, setRows] = useState<RowState[]>(() => initialRows(exercise));
   const [nextExtraId, setNextExtraId] = useState(0);
+  const hydratedRef = useRef(false);
+
+  // Hydrate from localStorage draft on mount (client-only). Runs after the
+  // first render so SSR and first client render agree on initialRows — no
+  // hydration warning. Only overrides if there's actually a draft.
+  useEffect(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
+    const hydrated = hydrateRowsFromDraft(DRAFT_KEY);
+    if (hydrated) {
+      // One-shot external-state hydration; React's "don't setState in an
+      // effect" rule would prefer useSyncExternalStore, but that's overkill
+      // for a single read with no subscription.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRows(hydrated);
+    }
+  }, [DRAFT_KEY]);
+
+  // Persist rows on change so refreshes / crashes don't lose user input.
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    persistRowsToDraft(DRAFT_KEY, rows);
+  }, [DRAFT_KEY, rows]);
 
   function patchRow(key: string, patch: Partial<RowState>) {
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -297,44 +402,75 @@ function ExerciseCard({
 
     patchRow(row.key, { saving: true, error: null });
 
-    if (row.id) {
-      const result = await updateSet(row.id, {
-        weightKg: weight,
-        reps,
-        rir: row.rir,
-      });
+    try {
+      if (row.id) {
+        const result = await updateSet(row.id, {
+          weightKg: weight,
+          reps,
+          rir: row.rir,
+        });
+        patchRow(row.key, {
+          saving: false,
+          error: result.ok ? null : result.error,
+          pendingOffline: false,
+        });
+      } else {
+        const result = await logSet({
+          sessionId,
+          exerciseId: exercise.exerciseId,
+          setNumber: rowIndex + 1,
+          weightKg: weight,
+          reps,
+          rir: row.rir,
+        });
+        if (result.ok) {
+          patchRow(row.key, {
+            id: result.id,
+            saving: false,
+            error: null,
+            pendingOffline: false,
+          });
+          onSetLogged();
+        } else {
+          patchRow(row.key, { saving: false, error: result.error });
+        }
+      }
+    } catch {
+      // Network failure (or dev-tools offline). Keep the row data in the
+      // draft; it'll be retried on the next "online" event.
+      const offline =
+        typeof navigator !== "undefined" && !navigator.onLine;
       patchRow(row.key, {
         saving: false,
-        error: result.ok ? null : result.error,
+        pendingOffline: offline,
+        error: offline ? null : "Falha ao salvar. Tente novamente.",
       });
-    } else {
-      const result = await logSet({
-        sessionId,
-        exerciseId: exercise.exerciseId,
-        setNumber: rowIndex + 1,
-        weightKg: weight,
-        reps,
-        rir: row.rir,
-      });
-      if (result.ok) {
-        patchRow(row.key, { id: result.id, saving: false, error: null });
-        onSetLogged();
-      } else {
-        patchRow(row.key, { saving: false, error: result.error });
-      }
     }
   }
 
   async function handleRemove(row: RowState) {
-    if (row.id) {
-      patchRow(row.key, { saving: true, error: null });
+    // If the row was never saved on the server, just drop it locally.
+    if (!row.id) {
+      setRows((prev) => prev.filter((r) => r.key !== row.key));
+      return;
+    }
+
+    patchRow(row.key, { saving: true, error: null });
+    try {
       const result = await deleteSet(row.id);
       if (!result.ok) {
         patchRow(row.key, { saving: false, error: result.error });
         return;
       }
+      setRows((prev) => prev.filter((r) => r.key !== row.key));
+    } catch {
+      // Offline delete: we don't queue deletes in this sprint — surface the
+      // error so the user knows to retry once back online.
+      patchRow(row.key, {
+        saving: false,
+        error: "Sem conexão, tente remover depois.",
+      });
     }
-    setRows((prev) => prev.filter((r) => r.key !== row.key));
   }
 
   function handleAddExtra() {
@@ -358,9 +494,43 @@ function ExerciseCard({
         rir: null,
         saving: false,
         error: null,
+        pendingOffline: false,
       },
     ]);
   }
+
+  // Auto-retry pending rows when the browser comes back online. We keep a
+  // ref to the latest handler so the event listener isn't re-attached on
+  // every rows change.
+  const retryRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    retryRef.current = () => {
+      rows.forEach((row, idx) => {
+        if (row.pendingOffline && !row.saving) {
+          handleSave(row, idx);
+        }
+      });
+    };
+  });
+
+  useEffect(() => {
+    function onOnline() {
+      retryRef.current();
+    }
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, []);
+
+  // One-shot retry on mount if we ended up with pending rows while already
+  // online (e.g., after a refresh while Wi-Fi came back).
+  const didInitialRetry = useRef(false);
+  useEffect(() => {
+    if (didInitialRetry.current) return;
+    if (typeof navigator === "undefined" || !navigator.onLine) return;
+    if (!rows.some((r) => r.pendingOffline && !r.saving)) return;
+    didInitialRetry.current = true;
+    retryRef.current();
+  }, [rows]);
 
   const reference = exercise.previousSets;
   const suggestion = exercise.suggestion;
@@ -480,6 +650,7 @@ function SetRowInput({
   onRemove: () => void;
 }) {
   const saved = row.id !== null && !row.saving;
+  const pending = row.pendingOffline;
 
   return (
     <div className="px-4 py-3">
@@ -514,15 +685,25 @@ function SetRowInput({
           type="button"
           onClick={onSave}
           disabled={row.saving || disabled}
-          aria-label={saved ? "Atualizar set" : "Salvar set"}
+          aria-label={
+            pending
+              ? "Aguardando sincronização"
+              : saved
+                ? "Atualizar set"
+                : "Salvar set"
+          }
           className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50 ${
-            saved
-              ? "border border-[var(--status-ready)]/50 text-[var(--status-ready)] bg-transparent"
-              : "bg-[var(--accent)] text-[var(--accent-fg)] hover:bg-[var(--accent-hover)]"
+            pending
+              ? "border border-[var(--status-stalled)]/60 text-[var(--status-stalled)] bg-transparent"
+              : saved
+                ? "border border-[var(--status-ready)]/50 text-[var(--status-ready)] bg-transparent"
+                : "bg-[var(--accent)] text-[var(--accent-fg)] hover:bg-[var(--accent-hover)]"
           }`}
         >
           {row.saving ? (
             <Loader2 size={14} className="animate-spin" strokeWidth={2.5} />
+          ) : pending ? (
+            <CloudOff size={14} strokeWidth={2} />
           ) : (
             <Check size={14} strokeWidth={2.5} />
           )}

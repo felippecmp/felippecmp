@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { BottomNav } from "@/components/BottomNav";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 
 export const metadata: Metadata = {
   title: "Felippe's Log",
@@ -25,6 +26,7 @@ export default function RootLayout({
       <body className="min-h-full bg-[var(--bg)] text-[var(--text)]">
         <main className="max-w-xl mx-auto pb-24">{children}</main>
         <BottomNav />
+        <ServiceWorkerRegister />
       </body>
     </html>
   );
