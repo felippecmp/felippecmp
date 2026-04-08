@@ -26,8 +26,8 @@ export default async function Home() {
     <main className="min-h-screen bg-neutral-950 text-neutral-100 font-sans">
       <div className="max-w-2xl mx-auto px-6 py-12">
         <header className="mb-10 border-b border-neutral-800 pb-6">
-          <h1 className="text-4xl font-black tracking-tight uppercase">
-            Iron Log
+          <h1 className="text-4xl font-black tracking-tight">
+            Felippe&apos;s Log
           </h1>
           <p className="text-neutral-500 mt-1 text-sm">
             Upper / Lower · Double Progression 4-8

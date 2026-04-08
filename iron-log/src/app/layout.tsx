@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Iron Log",
+  title: "Felippe's Log",
   description: "Upper/Lower workout tracker with double progression",
 };
 
