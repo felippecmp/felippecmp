@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Calendar, Plus } from "lucide-react";
+import { ArrowRight, Calendar, Settings as SettingsIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -43,16 +43,25 @@ export default async function HomePage() {
   return (
     <div className="px-6 pt-10">
       {/* Header */}
-      <header className="mb-10">
-        <p className="label mb-2">{weekday}</p>
-        <h1 className="display text-[44px] leading-[1.05] tracking-tighter">
-          Felippe&apos;s
-          <br />
-          Log
-        </h1>
-        <p className="text-sm text-[var(--text-muted)] mt-3 tnum">
-          {day} de {month}
-        </p>
+      <header className="mb-10 flex items-start justify-between">
+        <div>
+          <p className="label mb-2">{weekday}</p>
+          <h1 className="display text-[44px] leading-[1.05] tracking-tighter">
+            Felippe&apos;s
+            <br />
+            Log
+          </h1>
+          <p className="text-sm text-[var(--text-muted)] mt-3 tnum">
+            {day} de {month}
+          </p>
+        </div>
+        <Link
+          href="/settings"
+          aria-label="Configurações"
+          className="shrink-0 w-10 h-10 rounded-xl border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--border-strong)] flex items-center justify-center transition-colors"
+        >
+          <SettingsIcon size={16} strokeWidth={1.75} />
+        </Link>
       </header>
 
       {/* Primary CTA card */}

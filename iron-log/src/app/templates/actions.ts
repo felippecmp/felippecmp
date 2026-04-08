@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getUserSettings } from "@/lib/settings";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -81,6 +82,7 @@ export async function addExerciseToTemplate(
   exerciseId: string
 ): Promise<ActionResult> {
   const supabase = await createClient();
+  const settings = await getUserSettings();
 
   const { data: existing } = await supabase
     .from("template_exercises")
@@ -96,10 +98,10 @@ export async function addExerciseToTemplate(
     template_id: templateId,
     exercise_id: exerciseId,
     slot_order: nextSlot,
-    target_sets: 2,
-    rep_range_low: 4,
-    rep_range_high: 8,
-    rest_seconds: 180,
+    target_sets: settings.default_target_sets,
+    rep_range_low: settings.default_rep_range_low,
+    rep_range_high: settings.default_rep_range_high,
+    rest_seconds: settings.default_rest_seconds,
   });
 
   if (error) return { ok: false, error: error.message };
