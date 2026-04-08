@@ -3,6 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Loader2, Plus, Timer, Trash2, X } from "lucide-react";
 import { muscleLabel } from "@/lib/muscles";
+import {
+  statusCssVar,
+  statusLabel,
+  type ProgressionSuggestion,
+} from "@/lib/progression";
 import { deleteSet, logSet, updateSet } from "./actions";
 
 export type ReferenceSet = {
@@ -30,6 +35,7 @@ export type ExerciseBlockData = {
   restSeconds: number;
   previousSets: ReferenceSet[];
   existingSets: ExistingSet[];
+  suggestion: ProgressionSuggestion;
 };
 
 type RowState = {
@@ -57,12 +63,18 @@ function initialRows(exercise: ExerciseBlockData): RowState[] {
       error: null,
     }));
 
+  // Pre-fill empty rows with the suggested weight so the user only types reps.
+  const seedWeight =
+    exercise.suggestion.suggestedWeight !== null
+      ? String(exercise.suggestion.suggestedWeight)
+      : "";
+
   const missing = Math.max(0, exercise.targetSets - rows.length);
   for (let i = 0; i < missing; i++) {
     rows.push({
       key: `empty-${i}`,
       id: null,
-      weight: "",
+      weight: seedWeight,
       reps: "",
       rir: null,
       saving: false,
@@ -328,12 +340,20 @@ function ExerciseCard({
   function handleAddExtra() {
     const id = nextExtraId;
     setNextExtraId(id + 1);
+    // Seed from the last saved row's weight when available, otherwise from
+    // the progression suggestion. Falls back to an empty string.
+    const lastSaved = [...rows].reverse().find((r) => r.id !== null);
+    const seedWeight = lastSaved
+      ? lastSaved.weight
+      : exercise.suggestion.suggestedWeight !== null
+        ? String(exercise.suggestion.suggestedWeight)
+        : "";
     setRows((prev) => [
       ...prev,
       {
         key: `extra-${id}`,
         id: null,
-        weight: "",
+        weight: seedWeight,
         reps: "",
         rir: null,
         saving: false,
@@ -343,6 +363,7 @@ function ExerciseCard({
   }
 
   const reference = exercise.previousSets;
+  const suggestion = exercise.suggestion;
 
   return (
     <li className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
@@ -359,6 +380,22 @@ function ExerciseCard({
               {muscleLabel(exercise.primaryMuscle)} · {exercise.targetSets} sets ·{" "}
               {exercise.repRangeLow}-{exercise.repRangeHigh} reps
             </div>
+
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              <StatusBadge suggestion={suggestion} />
+              {suggestion.suggestedWeight !== null && (
+                <span className="text-[11px] text-[var(--text-soft)] tnum">
+                  Hoje:{" "}
+                  <strong className="text-[var(--text)]">
+                    {suggestion.suggestedWeight}kg
+                  </strong>
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
+              {suggestion.message}
+            </p>
+
             <p className="text-[11px] text-[var(--text-dim)] mt-2 tnum">
               {reference.length > 0 ? (
                 <>
@@ -404,6 +441,26 @@ function ExerciseCard({
         Set extra
       </button>
     </li>
+  );
+}
+
+function StatusBadge({ suggestion }: { suggestion: ProgressionSuggestion }) {
+  const color = statusCssVar(suggestion.status);
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md border"
+      style={{
+        color,
+        borderColor: color,
+      }}
+    >
+      <span
+        className="w-1.5 h-1.5 rounded-full"
+        style={{ background: color }}
+        aria-hidden="true"
+      />
+      {statusLabel(suggestion.status)}
+    </span>
   );
 }
 

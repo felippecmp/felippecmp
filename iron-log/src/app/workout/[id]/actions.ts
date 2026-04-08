@@ -3,6 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import {
+  computeProgressionState,
+  EMPTY_STATE,
+  type ProgressionStateRow,
+  type ProgressionStatus,
+  type WorkingSet,
+} from "@/lib/progression";
 
 export type SimpleResult = { ok: true } | { ok: false; error: string };
 
@@ -98,8 +105,9 @@ export type FinishSessionInput = {
 };
 
 /**
- * Marks a workout session as finished, computing duration from started_at and
- * storing the optional RIR/feeling and notes. Redirects to home on success.
+ * Marks a workout session as finished, computing duration from started_at,
+ * storing the optional RIR/feeling and notes, updating progression_state
+ * for each exercise performed, then redirecting to home on success.
  */
 export async function finishSession(
   sessionId: string,
@@ -109,7 +117,7 @@ export async function finishSession(
 
   const { data: session, error: fetchErr } = await supabase
     .from("workout_sessions")
-    .select("id, started_at, finished_at")
+    .select("id, started_at, finished_at, template_id")
     .eq("id", sessionId)
     .maybeSingle();
 
@@ -144,9 +152,148 @@ export async function finishSession(
 
   if (error) return { ok: false, error: error.message };
 
+  // Progression state updates — a failure here must not block finalize,
+  // since the session is already marked finished. We swallow errors and
+  // let the next session render still work with stale state.
+  try {
+    await updateProgressionForSession(sessionId, session.template_id, now);
+  } catch {
+    // intentionally swallowed
+  }
+
   revalidatePath("/");
   revalidatePath("/treinar");
   revalidatePath("/progresso");
   redirect("/");
+}
+
+type ProgressionRowRaw = {
+  id: string;
+  exercise_id: string | null;
+  current_weight_kg: number | string | null;
+  current_status: ProgressionStatus | null;
+  last_top_set_reps: number | null;
+  streak_at_top_range: number | null;
+  stall_count: number | null;
+  sessions_at_current_weight: number | null;
+  last_session_date: string | null;
+};
+
+/**
+ * Recompute progression_state for every exercise that had working sets in
+ * the just-finished session. We do this in one action, sequentially, because:
+ *  - Only a handful of exercises per session (≤ ~10)
+ *  - Ordering doesn't matter
+ *  - No RPC/view to do it in pure SQL yet
+ */
+async function updateProgressionForSession(
+  sessionId: string,
+  templateId: string | null,
+  finishedAt: Date
+) {
+  if (!templateId) return;
+  const supabase = await createClient();
+
+  const [{ data: setsRows }, { data: teRows }] = await Promise.all([
+    supabase
+      .from("workout_sets")
+      .select("exercise_id, weight_kg, reps, rir")
+      .eq("session_id", sessionId)
+      .eq("is_warmup", false),
+    supabase
+      .from("template_exercises")
+      .select(
+        "exercise_id, target_sets, rep_range_low, rep_range_high, exercises(load_increment)"
+      )
+      .eq("template_id", templateId),
+  ]);
+
+  const byExercise = new Map<string, WorkingSet[]>();
+  for (const s of setsRows ?? []) {
+    if (!s.exercise_id) continue;
+    const arr = byExercise.get(s.exercise_id) ?? [];
+    arr.push({
+      weight_kg: Number(s.weight_kg),
+      reps: s.reps,
+      rir: s.rir,
+    });
+    byExercise.set(s.exercise_id, arr);
+  }
+
+  if (byExercise.size === 0) return;
+
+  const sessionDate = finishedAt.toISOString().slice(0, 10);
+
+  for (const [exerciseId, workingSets] of byExercise.entries()) {
+    const te = (teRows ?? []).find((r) => r.exercise_id === exerciseId);
+    if (!te) continue;
+
+    const exercisesJoin = Array.isArray(te.exercises)
+      ? te.exercises[0]
+      : te.exercises;
+    const loadIncrement = exercisesJoin
+      ? Number((exercisesJoin as { load_increment: number }).load_increment) ||
+        2.5
+      : 2.5;
+
+    // Fetch prior state (single-user mode: we don't filter by user_id because
+    // the existing records have user_id = null; RLS still scopes correctly).
+    const { data: priorRaw } = await supabase
+      .from("progression_state")
+      .select(
+        "id, exercise_id, current_weight_kg, current_status, last_top_set_reps, streak_at_top_range, stall_count, sessions_at_current_weight, last_session_date"
+      )
+      .eq("exercise_id", exerciseId)
+      .maybeSingle();
+
+    const prior = priorRaw as ProgressionRowRaw | null;
+    const currentState: ProgressionStateRow = prior
+      ? {
+          current_weight_kg:
+            prior.current_weight_kg !== null
+              ? Number(prior.current_weight_kg)
+              : null,
+          current_status: (prior.current_status ?? "building") as ProgressionStatus,
+          last_top_set_reps: prior.last_top_set_reps,
+          streak_at_top_range: prior.streak_at_top_range ?? 0,
+          stall_count: prior.stall_count ?? 0,
+          sessions_at_current_weight: prior.sessions_at_current_weight ?? 0,
+          last_session_date: prior.last_session_date,
+        }
+      : EMPTY_STATE;
+
+    const newState = computeProgressionState({
+      exercise: { load_increment: loadIncrement },
+      templateExercise: {
+        target_sets: te.target_sets,
+        rep_range_low: te.rep_range_low,
+        rep_range_high: te.rep_range_high,
+      },
+      workingSets,
+      currentState,
+      sessionDate,
+    });
+
+    const payload = {
+      exercise_id: exerciseId,
+      current_weight_kg: newState.current_weight_kg,
+      current_status: newState.current_status,
+      last_top_set_reps: newState.last_top_set_reps,
+      streak_at_top_range: newState.streak_at_top_range,
+      stall_count: newState.stall_count,
+      sessions_at_current_weight: newState.sessions_at_current_weight,
+      last_session_date: newState.last_session_date,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (prior) {
+      await supabase
+        .from("progression_state")
+        .update(payload)
+        .eq("id", prior.id);
+    } else {
+      await supabase.from("progression_state").insert(payload);
+    }
+  }
 }
 

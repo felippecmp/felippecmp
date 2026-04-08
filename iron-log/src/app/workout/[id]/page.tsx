@@ -2,6 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import {
+  EMPTY_STATE,
+  evaluateProgression,
+  type ProgressionStateRow,
+  type ProgressionStatus,
+} from "@/lib/progression";
 import { AbandonSessionButton } from "./AbandonSessionButton";
 import { FinishSessionButton } from "./FinishSessionButton";
 import {
@@ -12,6 +18,13 @@ import {
 
 export const dynamic = "force-dynamic";
 
+type ExerciseJoin = {
+  id: string;
+  name: string;
+  primary_muscle: string;
+  load_increment: number | string | null;
+};
+
 type TemplateExerciseJoin = {
   id: string;
   slot_order: number;
@@ -20,10 +33,18 @@ type TemplateExerciseJoin = {
   rep_range_high: number;
   rest_seconds: number;
   exercise_id: string | null;
-  exercises:
-    | { id: string; name: string; primary_muscle: string }
-    | { id: string; name: string; primary_muscle: string }[]
-    | null;
+  exercises: ExerciseJoin | ExerciseJoin[] | null;
+};
+
+type ProgressionStateRaw = {
+  exercise_id: string | null;
+  current_weight_kg: number | string | null;
+  current_status: ProgressionStatus | null;
+  last_top_set_reps: number | null;
+  streak_at_top_range: number | null;
+  stall_count: number | null;
+  sessions_at_current_weight: number | null;
+  last_session_date: string | null;
 };
 
 type CurrentSetRow = {
@@ -84,7 +105,7 @@ export default async function WorkoutSessionPage({
     ? await supabase
         .from("template_exercises")
         .select(
-          "id, slot_order, target_sets, rep_range_low, rep_range_high, rest_seconds, exercise_id, exercises(id, name, primary_muscle)"
+          "id, slot_order, target_sets, rep_range_low, rep_range_high, rest_seconds, exercise_id, exercises(id, name, primary_muscle, load_increment)"
         )
         .eq("template_id", session.template_id)
         .order("slot_order", { ascending: true })
@@ -122,6 +143,32 @@ export default async function WorkoutSessionPage({
       : null;
 
   const refRows = (refResult?.data ?? []) as ReferenceRow[];
+
+  const progressionResult =
+    exerciseIds.length > 0
+      ? await supabase
+          .from("progression_state")
+          .select(
+            "exercise_id, current_weight_kg, current_status, last_top_set_reps, streak_at_top_range, stall_count, sessions_at_current_weight, last_session_date"
+          )
+          .in("exercise_id", exerciseIds)
+      : null;
+
+  const progressionRows = (progressionResult?.data ?? []) as ProgressionStateRaw[];
+  const progressionByExercise = new Map<string, ProgressionStateRow>();
+  for (const p of progressionRows) {
+    if (!p.exercise_id) continue;
+    progressionByExercise.set(p.exercise_id, {
+      current_weight_kg:
+        p.current_weight_kg !== null ? Number(p.current_weight_kg) : null,
+      current_status: (p.current_status ?? "building") as ProgressionStatus,
+      last_top_set_reps: p.last_top_set_reps,
+      streak_at_top_range: p.streak_at_top_range ?? 0,
+      stall_count: p.stall_count ?? 0,
+      sessions_at_current_weight: p.sessions_at_current_weight ?? 0,
+      last_session_date: p.last_session_date,
+    });
+  }
 
   // For each exercise, find the most recent other session that included it.
   const latestSessionByExercise = new Map<
@@ -186,6 +233,23 @@ export default async function WorkoutSessionPage({
         reps: s.reps,
         rir: s.rir,
       }));
+
+    const state =
+      progressionByExercise.get(te.exercise_id) ?? EMPTY_STATE;
+    const loadIncrement =
+      ex.load_increment !== null && ex.load_increment !== undefined
+        ? Number(ex.load_increment) || 2.5
+        : 2.5;
+    const suggestion = evaluateProgression({
+      exercise: { load_increment: loadIncrement },
+      templateExercise: {
+        target_sets: te.target_sets,
+        rep_range_low: te.rep_range_low,
+        rep_range_high: te.rep_range_high,
+      },
+      currentState: state,
+    });
+
     exercises.push({
       templateExerciseId: te.id,
       exerciseId: te.exercise_id,
@@ -197,6 +261,7 @@ export default async function WorkoutSessionPage({
       restSeconds: te.rest_seconds,
       previousSets: referenceByExercise.get(te.exercise_id) ?? [],
       existingSets: existing,
+      suggestion,
     });
   }
 
