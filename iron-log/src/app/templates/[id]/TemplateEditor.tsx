@@ -28,6 +28,7 @@ import {
   updateTemplate,
   updateTemplateExercise,
 } from "../actions";
+import { DuplicateButton } from "../DuplicateButton";
 
 type Exercise = {
   id: string;
@@ -198,8 +199,10 @@ export function TemplateEditor({
         </>
       )}
 
-      {/* Danger zone */}
-      <div className="pt-6 border-t border-[var(--border)]">
+      {/* Actions */}
+      <div className="pt-6 border-t border-[var(--border)] space-y-3">
+        <DuplicateButton templateId={template.id} variant="full" />
+
         {!confirmArchive ? (
           <button
             type="button"

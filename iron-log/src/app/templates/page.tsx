@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Plus, ChevronRight, Layers } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { DuplicateButton } from "./DuplicateButton";
 
 export const dynamic = "force-dynamic";
 
@@ -113,10 +114,10 @@ function TemplateGroup({
       </div>
       <ul className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border)]">
         {items.map((t) => (
-          <li key={t.id}>
+          <li key={t.id} className="flex items-center pr-2">
             <Link
               href={`/templates/${t.id}`}
-              className="flex items-center gap-3 px-4 py-3.5 hover:bg-[var(--bg-hover)] transition-colors"
+              className="flex items-center gap-3 px-4 py-3.5 hover:bg-[var(--bg-hover)] transition-colors flex-1 min-w-0"
             >
               <div className="min-w-0 flex-1">
                 <div className="font-medium text-[15px] leading-tight">
@@ -132,6 +133,7 @@ function TemplateGroup({
                 strokeWidth={1.75}
               />
             </Link>
+            <DuplicateButton templateId={t.id} />
           </li>
         ))}
       </ul>

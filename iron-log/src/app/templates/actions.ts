@@ -42,6 +42,75 @@ export async function createTemplate(formData: FormData): Promise<ActionResult> 
   redirect(`/templates/${data.id}`);
 }
 
+/**
+ * Duplicates an existing template: creates a new workout_templates row
+ * with "Cópia de X" as the default name, then bulk-inserts the source
+ * template's template_exercises under the new id, preserving slot order
+ * and all per-slot config (target_sets, rep_range_low/high, rest_seconds).
+ *
+ * Redirects to the new template's editor on success so the user can
+ * immediately rename it and tweak which exercises to swap.
+ */
+export async function duplicateTemplate(id: string): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const { data: source, error: sourceErr } = await supabase
+    .from("workout_templates")
+    .select("id, name, session_type, sort_order")
+    .eq("id", id)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (sourceErr) return { ok: false, error: sourceErr.message };
+  if (!source) return { ok: false, error: "Template não encontrado." };
+
+  const { data: sourceExercises, error: teErr } = await supabase
+    .from("template_exercises")
+    .select(
+      "exercise_id, slot_order, target_sets, rep_range_low, rep_range_high, rest_seconds"
+    )
+    .eq("template_id", id)
+    .order("slot_order", { ascending: true });
+
+  if (teErr) return { ok: false, error: teErr.message };
+
+  const { data: newTemplate, error: insertErr } = await supabase
+    .from("workout_templates")
+    .insert({
+      name: `Cópia de ${source.name}`,
+      session_type: source.session_type,
+      sort_order: (source.sort_order ?? 0) + 1,
+      is_active: true,
+    })
+    .select("id")
+    .single();
+
+  if (insertErr) return { ok: false, error: insertErr.message };
+
+  if (sourceExercises && sourceExercises.length > 0) {
+    const { error: copyErr } = await supabase.from("template_exercises").insert(
+      sourceExercises.map((te) => ({
+        template_id: newTemplate.id,
+        exercise_id: te.exercise_id,
+        slot_order: te.slot_order,
+        target_sets: te.target_sets,
+        rep_range_low: te.rep_range_low,
+        rep_range_high: te.rep_range_high,
+        rest_seconds: te.rest_seconds,
+      }))
+    );
+    if (copyErr) {
+      // Best effort: leave the empty new template in place and surface the
+      // error so the user knows the exercises didn't copy.
+      return { ok: false, error: copyErr.message };
+    }
+  }
+
+  revalidatePath("/templates");
+  revalidatePath("/treinar");
+  redirect(`/templates/${newTemplate.id}`);
+}
+
 export async function updateTemplate(
   id: string,
   formData: FormData
