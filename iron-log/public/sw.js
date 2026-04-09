@@ -1,17 +1,20 @@
 /* Felippe's Log service worker.
  *
- * Lean cache-the-shell SW. Strategy:
- *  - GET + same-origin only. Let POSTs (server actions) go straight to net.
- *  - Next.js static assets (/_next/static/*) → cache-first, immutable.
- *  - Page navigations → network-first, fall back to cache when offline.
- *  - RSC refetches (?_rsc=...) are skipped entirely; they fail fast so the
- *    client can render from its existing state.
- *  - Everything else (fonts, svgs) → stale-while-revalidate.
+ * Simplified strategy (v3): cache ONLY Next.js static assets, never the
+ * HTML. HTML is always fetched network — stale HTML is the source of CSS
+ * drift bugs because it pins the page to a specific CSS hash.
  *
- * Bumping CACHE_VERSION evicts old caches on activate.
+ * - GET + same-origin only. POSTs (server actions) pass through.
+ * - Next.js static assets (/_next/static/*, images, fonts) → cache-first,
+ *   keyed by the hashed filename, so they're immutable and safe.
+ * - Page navigations → pass through (browser HTTP cache only, no SW).
+ * - API routes and RSC refetches → pass through untouched.
+ *
+ * Bumping CACHE_VERSION evicts old caches on activate. v3 moves away from
+ * caching navigations — previously stale HTML would keep pointing at old
+ * CSS chunks, producing subtle visual regressions across deploys.
  */
-const CACHE_VERSION = "felippes-log-v2";
-const OFFLINE_FALLBACK = "/";
+const CACHE_VERSION = "felippes-log-v3";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
@@ -44,38 +47,13 @@ async function cacheFirst(request) {
     const res = await fetch(request);
     if (res && res.ok) cache.put(request, res.clone());
     return res;
-  } catch (err) {
+  } catch {
     return (
       cached ||
       new Response("Offline", {
         status: 503,
         headers: { "content-type": "text/plain" },
       })
-    );
-  }
-}
-
-async function networkFirst(request) {
-  const cache = await caches.open(CACHE_VERSION);
-  try {
-    const res = await fetch(request);
-    if (res && res.ok && request.method === "GET") {
-      cache.put(request, res.clone());
-    }
-    return res;
-  } catch (err) {
-    const cached = await cache.match(request);
-    if (cached) return cached;
-    // Last-resort: serve the cached home page so the shell renders and the
-    // client router can take over (if routes it needs are also cached).
-    const fallback = await cache.match(OFFLINE_FALLBACK);
-    if (fallback) return fallback;
-    return new Response(
-      "<!doctype html><meta charset=utf-8><title>Offline</title><body style=\"font-family:system-ui;background:#0a0a0a;color:#fafafa;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0\"><div style=\"text-align:center\"><p style=\"font-size:14px;color:#71717a;text-transform:uppercase;letter-spacing:0.1em;margin:0 0 8px\">Sem conexão</p><h1 style=\"font-size:28px;font-weight:800;margin:0\">Offline</h1><p style=\"font-size:13px;color:#71717a;margin-top:12px\">Abra novamente quando tiver sinal.</p></div></body>",
-      {
-        status: 503,
-        headers: { "content-type": "text/html; charset=utf-8" },
-      }
     );
   }
 }
@@ -98,14 +76,10 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/api/")) return;
   if (url.searchParams.has("_rsc")) return;
 
+  // Static assets only. HTML navigations pass through to the network so
+  // each response reflects the current deploy.
   if (isStaticAsset(url)) {
     event.respondWith(cacheFirst(request));
-    return;
-  }
-
-  if (request.mode === "navigate") {
-    event.respondWith(networkFirst(request));
-    return;
   }
 });
 
