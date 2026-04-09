@@ -28,7 +28,7 @@ export async function loginAction(
   try {
     appPassword = getAppPassword();
     secret = getAuthSecret();
-  } catch (e) {
+  } catch {
     return {
       ok: false,
       error: "Configuração do servidor incompleta. Contate o admin.",

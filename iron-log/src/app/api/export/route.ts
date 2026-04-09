@@ -19,6 +19,8 @@ export async function GET() {
     setsRes,
     progressionRes,
     settingsRes,
+    bodyWeightRes,
+    cardioRes,
   ] = await Promise.all([
     supabase.from("exercises").select("*").order("name"),
     supabase.from("workout_templates").select("*").order("name"),
@@ -37,12 +39,20 @@ export async function GET() {
       .order("performed_at", { ascending: false }),
     supabase.from("progression_state").select("*"),
     supabase.from("user_settings").select("*").limit(1).maybeSingle(),
+    supabase
+      .from("body_weight_entries")
+      .select("*")
+      .order("recorded_at", { ascending: false }),
+    supabase
+      .from("cardio_sessions")
+      .select("*")
+      .order("started_at", { ascending: false }),
   ]);
 
   const dump = {
     exported_at: new Date().toISOString(),
     app: "felippes-log",
-    version: 1,
+    version: 2,
     data: {
       exercises: exercisesRes.data ?? [],
       workout_templates: templatesRes.data ?? [],
@@ -51,6 +61,8 @@ export async function GET() {
       workout_sets: setsRes.data ?? [],
       progression_state: progressionRes.data ?? [],
       user_settings: settingsRes.data ?? null,
+      body_weight_entries: bodyWeightRes.data ?? [],
+      cardio_sessions: cardioRes.data ?? [],
     },
   };
 

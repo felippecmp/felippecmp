@@ -11,7 +11,9 @@ const tabs = [
   { href: "/exercicios", label: "Exercícios", Icon: ListChecks },
 ];
 
-const HIDDEN_ON = ["/login"];
+// During an active workout we hide the tab bar so you can't bail on a set
+// by accident, and the rest timer has room to live above the safe area.
+const HIDDEN_ON = ["/login", "/workout"];
 
 export function BottomNav() {
   const pathname = usePathname();
