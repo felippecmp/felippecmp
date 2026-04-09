@@ -64,84 +64,90 @@
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-* {
-  -webkit-tap-highlight-color: transparent;
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html,
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter",
+      "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  input,
+  button,
+  textarea,
+  select {
+    font: inherit;
+    color: inherit;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
 }
 
-html,
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter",
-    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  font-feature-settings: "ss01", "cv11";
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
+@layer base {
+  /* Make selects use the same style as inputs */
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 36px;
+  }
 }
 
-input,
-button,
-textarea,
-select {
-  font: inherit;
-  color: inherit;
-}
+@layer utilities {
+  /* Tabular numerals for weights / reps / times */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
 
-button {
-  cursor: pointer;
-}
+  /* Tight display tracking */
+  .display {
+    letter-spacing: -0.035em;
+    font-weight: 800;
+  }
 
-button:disabled {
-  cursor: not-allowed;
-}
+  .display-sm {
+    letter-spacing: -0.025em;
+    font-weight: 700;
+  }
 
-/* Utility: tabular numerals for weights / reps / times */
-.tnum {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum";
-}
+  /* Caps label */
+  .label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
 
-/* Utility: tight display tracking */
-.display {
-  letter-spacing: -0.035em;
-  font-weight: 800;
-}
+  /* Hide scrollbars on mobile scroll containers where relevant */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 
-.display-sm {
-  letter-spacing: -0.025em;
-  font-weight: 700;
-}
-
-/* Utility: caps label */
-.label {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-/* Hide scrollbars on mobile scroll containers where relevant */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-/* Subtle hairline */
-.hairline {
-  border-color: var(--border);
-}
-
-/* Make selects use the same style as inputs */
-select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
-  appearance: none;
-  -webkit-appearance: none;
-  padding-right: 36px;
+  /* Subtle hairline */
+  .hairline {
+    border-color: var(--border);
+  }
 }
