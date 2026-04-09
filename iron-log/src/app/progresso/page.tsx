@@ -1,5 +1,11 @@
 import Link from "next/link";
-import { ChevronRight, Flame, TrendingDown, TrendingUp } from "lucide-react";
+import {
+  ChevronRight,
+  Flame,
+  Footprints,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { muscleLabel } from "@/lib/muscles";
 import {
@@ -44,6 +50,17 @@ type WeightRow = {
   recorded_at: string;
 };
 
+type CardioRow = {
+  id: string;
+  activity_type: string;
+  started_at: string;
+  duration_seconds: number;
+  distance_km: number | string | null;
+  avg_heart_rate: number | null;
+  max_heart_rate: number | null;
+  calories: number | null;
+};
+
 type VolumeEntry = {
   muscle: string;
   sets: number;
@@ -78,9 +95,9 @@ export default async function ProgressoPage() {
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
   const yearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
 
-  // Broad fetches for streak (1 year), analytics window (90d/60d), and
-  // weight chart (90d).
-  const [sessionsYearRes, setsRes, weightRes] = await Promise.all([
+  // Broad fetches for streak (1 year), analytics window (90d/60d), weight
+  // chart (90d), and cardio (1 year for streak + 90d window for stats).
+  const [sessionsYearRes, setsRes, weightRes, cardioRes] = await Promise.all([
     supabase
       .from("workout_sessions")
       .select("id, started_at, finished_at, duration_minutes")
@@ -101,6 +118,13 @@ export default async function ProgressoPage() {
       .select("id, weight_kg, recorded_at")
       .gte("recorded_at", ninetyDaysAgo.toISOString())
       .order("recorded_at", { ascending: true }),
+    supabase
+      .from("cardio_sessions")
+      .select(
+        "id, activity_type, started_at, duration_seconds, distance_km, avg_heart_rate, max_heart_rate, calories"
+      )
+      .gte("started_at", yearAgo.toISOString())
+      .order("started_at", { ascending: false }),
   ]);
 
   const allSessions = (sessionsYearRes.data ?? []) as SessionRow[];
@@ -109,6 +133,14 @@ export default async function ProgressoPage() {
   );
   const sets = (setsRes.data ?? []) as SetRow[];
   const weights = (weightRes.data ?? []) as WeightRow[];
+  const allCardio = (cardioRes.data ?? []) as CardioRow[];
+  const cardio30d = allCardio.filter(
+    (c) => new Date(c.started_at) >= thirtyDaysAgo
+  );
+  const cardioPrev30d = allCardio.filter((c) => {
+    const t = new Date(c.started_at);
+    return t >= sixtyDaysAgo && t < thirtyDaysAgo;
+  });
 
   // --- Volume 7d per primary muscle ---
   const last7dSets = sets.filter(
@@ -216,11 +248,40 @@ export default async function ProgressoPage() {
     0
   );
 
-  // Streak across the whole year-ish window.
+  // Streak across the whole year-ish window — strength + cardio count.
   const streak = computeStreak({
-    activeTimestamps: allSessions.map((s) => s.started_at),
+    activeTimestamps: [
+      ...allSessions.map((s) => s.started_at),
+      ...allCardio.map((c) => c.started_at),
+    ],
     today: now,
   });
+
+  // --- Cardio aggregates (30d current + prev) ---
+  const cardioKm30d = cardio30d.reduce(
+    (sum, c) => sum + (c.distance_km ? Number(c.distance_km) : 0),
+    0
+  );
+  const cardioKmPrev30d = cardioPrev30d.reduce(
+    (sum, c) => sum + (c.distance_km ? Number(c.distance_km) : 0),
+    0
+  );
+  const cardioMinutes30d = Math.round(
+    cardio30d.reduce((sum, c) => sum + c.duration_seconds, 0) / 60
+  );
+  const cardioMinutesPrev30d = Math.round(
+    cardioPrev30d.reduce((sum, c) => sum + c.duration_seconds, 0) / 60
+  );
+  const cardioSessions30d = cardio30d.length;
+  const cardioHrValues = cardio30d
+    .map((c) => c.avg_heart_rate)
+    .filter((v): v is number => typeof v === "number");
+  const cardioAvgHr30d =
+    cardioHrValues.length > 0
+      ? Math.round(
+          cardioHrValues.reduce((a, b) => a + b, 0) / cardioHrValues.length
+        )
+      : null;
 
   // --- Body weight trend ---
   const weightSeries = weights.map((w) => ({
@@ -279,6 +340,78 @@ export default async function ProgressoPage() {
               suffix="h"
             />
           </section>
+
+          {/* Cardio */}
+          {allCardio.length > 0 && (
+            <section className="mb-10">
+              <div className="flex items-baseline justify-between mb-3">
+                <p className="label">Cardio · últimos 30 dias</p>
+                <Link
+                  href="/cardio"
+                  className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+                >
+                  Histórico
+                </Link>
+              </div>
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+                <div className="flex items-center gap-4 mb-4">
+                  <Footprints
+                    size={14}
+                    strokeWidth={1.75}
+                    className="text-[var(--text-soft)]"
+                  />
+                  <p className="text-xs text-[var(--text-muted)]">
+                    {cardioSessions30d}{" "}
+                    {cardioSessions30d === 1 ? "sessão" : "sessões"}
+                  </p>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <CardioStat
+                    label="Distância"
+                    value={cardioKm30d.toFixed(1)}
+                    suffix="km"
+                    delta={
+                      cardioKmPrev30d > 0
+                        ? Math.round(
+                            ((cardioKm30d - cardioKmPrev30d) /
+                              cardioKmPrev30d) *
+                              100
+                          )
+                        : null
+                    }
+                  />
+                  <CardioStat
+                    label="Tempo"
+                    value={
+                      cardioMinutes30d >= 60
+                        ? `${Math.floor(cardioMinutes30d / 60)}h${
+                            cardioMinutes30d % 60 > 0
+                              ? ` ${cardioMinutes30d % 60}`
+                              : ""
+                          }`
+                        : String(cardioMinutes30d)
+                    }
+                    suffix={cardioMinutes30d >= 60 ? "" : "min"}
+                    delta={
+                      cardioMinutesPrev30d > 0
+                        ? Math.round(
+                            ((cardioMinutes30d - cardioMinutesPrev30d) /
+                              cardioMinutesPrev30d) *
+                              100
+                          )
+                        : null
+                    }
+                  />
+                  <CardioStat
+                    label="HR médio"
+                    value={cardioAvgHr30d !== null ? String(cardioAvgHr30d) : "—"}
+                    suffix=""
+                    delta={null}
+                  />
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* Peso corporal */}
           {weightSeries.length > 0 && (
@@ -444,6 +577,37 @@ function TopStat({
       </div>
       {pct !== null && (
         <PercentChip pct={pct} />
+      )}
+    </div>
+  );
+}
+
+function CardioStat({
+  label,
+  value,
+  suffix,
+  delta,
+}: {
+  label: string;
+  value: string;
+  suffix: string;
+  delta: number | null;
+}) {
+  return (
+    <div>
+      <p className="label mb-1.5">{label}</p>
+      <div className="display-sm text-2xl tnum leading-none">
+        {value}
+        {suffix && (
+          <span className="text-xs text-[var(--text-muted)] ml-0.5">
+            {suffix}
+          </span>
+        )}
+      </div>
+      {delta !== null && Number.isFinite(delta) && (
+        <div className="mt-2">
+          <PercentChip pct={delta} />
+        </div>
       )}
     </div>
   );

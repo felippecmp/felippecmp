@@ -1,8 +1,10 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  Calendar,
+  Dumbbell,
   Flame,
+  Footprints,
+  Scale,
   Settings as SettingsIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -41,61 +43,153 @@ type WeightRow = {
   recorded_at: string;
 };
 
+type StrengthSessionRow = {
+  id: string;
+  started_at: string;
+  duration_minutes: number | null;
+  avg_heart_rate: number | null;
+  workout_templates: { name: string } | { name: string }[] | null;
+};
+
+type CardioRow = {
+  id: string;
+  activity_type: string;
+  started_at: string;
+  duration_seconds: number;
+  distance_km: number | string | null;
+  avg_heart_rate: number | null;
+};
+
+type DiaryEntry =
+  | {
+      kind: "strength";
+      id: string;
+      at: string;
+      templateName: string | null;
+      durationMinutes: number | null;
+      avgHr: number | null;
+    }
+  | {
+      kind: "cardio";
+      id: string;
+      at: string;
+      activityType: string;
+      durationSeconds: number;
+      distanceKm: number | null;
+      avgHr: number | null;
+    }
+  | {
+      kind: "weight";
+      id: string;
+      at: string;
+      weightKg: number;
+    };
+
+const CARDIO_TYPE_LABELS: Record<string, string> = {
+  walking: "Caminhada",
+  running: "Corrida",
+  cycling: "Bike",
+  other: "Cardio",
+};
+
 export default async function HomePage() {
   const supabase = await createClient();
   const now = new Date();
   const todayKey = localDayKey(now);
 
-  // Parallel fetches: everything the home page needs
   const [
     { count: exerciseCount },
-    { data: recentSessions },
-    { data: allFinishedSessions },
+    { data: strengthYear },
+    { data: cardioYear },
     { data: weightRows },
   ] = await Promise.all([
     supabase.from("exercises").select("*", { count: "exact", head: true }),
     supabase
       .from("workout_sessions")
-      .select("id, started_at, duration_minutes, workout_templates(name)")
+      .select(
+        "id, started_at, duration_minutes, avg_heart_rate, workout_templates(name)"
+      )
       .not("finished_at", "is", null)
       .order("started_at", { ascending: false })
-      .limit(5),
-    // For streak: only timestamps, no joins. Pull up to ~1 year so best
-    // streak is meaningful.
+      .limit(200),
     supabase
-      .from("workout_sessions")
-      .select("started_at")
-      .not("finished_at", "is", null)
+      .from("cardio_sessions")
+      .select(
+        "id, activity_type, started_at, duration_seconds, distance_km, avg_heart_rate"
+      )
       .order("started_at", { ascending: false })
-      .limit(400),
+      .limit(200),
     supabase
       .from("body_weight_entries")
       .select("id, weight_kg, recorded_at")
       .order("recorded_at", { ascending: false })
-      .limit(30),
+      .limit(60),
   ]);
 
   const { weekday, day, month } = formatHeaderDate(now);
-  const sessions = recentSessions ?? [];
   const exercisesTotal = exerciseCount ?? 0;
-  const firstRun = sessions.length === 0;
+  const strengthSessions = (strengthYear ?? []) as StrengthSessionRow[];
+  const cardioSessions = (cardioYear ?? []) as CardioRow[];
+  const weights = (weightRows ?? []) as WeightRow[];
 
-  // Streak computation (strength + cardio — cardio lands in Sprint 5f and
-  // naturally joins this union once its sessions start getting fetched).
-  const strengthTimestamps = (allFinishedSessions ?? []).map(
-    (s) => s.started_at as string
-  );
+  // Streak = days with any strength OR cardio activity.
   const streak = computeStreak({
-    activeTimestamps: strengthTimestamps,
+    activeTimestamps: [
+      ...strengthSessions.map((s) => s.started_at),
+      ...cardioSessions.map((c) => c.started_at),
+    ],
     today: now,
   });
 
   // Body weight for today (if any) and latest overall
-  const weights = (weightRows ?? []) as WeightRow[];
   const todayWeight = weights.find(
     (w) => localDayKey(new Date(w.recorded_at)) === todayKey
   );
   const latestWeight = weights[0];
+
+  // Build unified diary entries sorted by timestamp desc, grouped by day.
+  const diary: DiaryEntry[] = [
+    ...strengthSessions.slice(0, 30).map<DiaryEntry>((s) => ({
+      kind: "strength",
+      id: s.id,
+      at: s.started_at,
+      templateName: Array.isArray(s.workout_templates)
+        ? s.workout_templates[0]?.name ?? null
+        : (s.workout_templates as { name: string } | null)?.name ?? null,
+      durationMinutes: s.duration_minutes,
+      avgHr: s.avg_heart_rate,
+    })),
+    ...cardioSessions.slice(0, 30).map<DiaryEntry>((c) => ({
+      kind: "cardio",
+      id: c.id,
+      at: c.started_at,
+      activityType: c.activity_type,
+      durationSeconds: c.duration_seconds,
+      distanceKm: c.distance_km !== null ? Number(c.distance_km) : null,
+      avgHr: c.avg_heart_rate,
+    })),
+    ...weights.slice(0, 20).map<DiaryEntry>((w) => ({
+      kind: "weight",
+      id: w.id,
+      at: w.recorded_at,
+      weightKg: Number(w.weight_kg),
+    })),
+  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
+  // Group by day key for the diary render
+  const days = new Map<string, DiaryEntry[]>();
+  for (const entry of diary) {
+    const key = localDayKey(new Date(entry.at));
+    const arr = days.get(key) ?? [];
+    arr.push(entry);
+    days.set(key, arr);
+  }
+  const dayKeys = Array.from(days.keys()).slice(0, 14);
+
+  const firstRun =
+    strengthSessions.length === 0 &&
+    cardioSessions.length === 0 &&
+    weights.length === 0;
 
   return (
     <div className="px-6 pt-10">
@@ -154,7 +248,8 @@ export default async function HomePage() {
               <h2 className="display-sm text-2xl mb-1">Ainda vazio</h2>
               <p className="text-sm text-[var(--text-muted)] mb-6 leading-relaxed">
                 Para começar, cadastre seus exercícios, monte um template de
-                rotina e inicie sua primeira sessão.
+                rotina e inicie sua primeira sessão. Você também pode
+                registrar um peso corporal ou uma caminhada.
               </p>
               <Link
                 href="/exercicios"
@@ -183,8 +278,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Body weight line */}
-      <section className="mb-8">
+      {/* Quick-adds row */}
+      <section className="mb-6">
         <QuickWeightAdd
           todayWeight={
             todayWeight
@@ -206,173 +301,203 @@ export default async function HomePage() {
         />
       </section>
 
-      {/* Stats row */}
       <section className="mb-10 grid grid-cols-2 gap-3">
-        <StatCard
-          label="Exercícios"
-          value={exercisesTotal}
+        <Link
+          href="/cardio/novo"
+          className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 text-sm hover:border-[var(--border-strong)] transition-colors"
+        >
+          <Footprints
+            size={14}
+            strokeWidth={1.75}
+            className="text-[var(--text-soft)]"
+          />
+          <span>Cardio</span>
+          <ArrowRight
+            size={12}
+            strokeWidth={1.75}
+            className="ml-auto text-[var(--text-dim)]"
+          />
+        </Link>
+        <Link
           href="/exercicios"
-        />
-        <StatCard
-          label="Sessões"
-          value={sessions.length}
-          href="/progresso"
-          suffix={sessions.length > 0 ? " recentes" : ""}
-        />
+          className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 text-sm hover:border-[var(--border-strong)] transition-colors"
+        >
+          <Dumbbell
+            size={14}
+            strokeWidth={1.75}
+            className="text-[var(--text-soft)]"
+          />
+          <span>Exercícios</span>
+          <span className="ml-auto text-[10px] text-[var(--text-dim)] tnum">
+            {exercisesTotal}
+          </span>
+        </Link>
       </section>
 
-      {/* Recent activity or onboarding checklist */}
-      {firstRun ? (
-        <section>
-          <p className="label mb-4">Primeiros passos</p>
-          <ol className="space-y-3">
-            <ChecklistItem
-              index={1}
-              title="Revisar catálogo de exercícios"
-              subtitle={`Você tem ${exercisesTotal} cadastrados. Adicione os que faltam.`}
-              href="/exercicios"
-              complete={exercisesTotal > 0}
-            />
-            <ChecklistItem
-              index={2}
-              title="Criar um template de treino"
-              subtitle="Organize exercícios em rotinas: Upper A, Lower A..."
-              href="/treinar"
-              complete={false}
-            />
-            <ChecklistItem
-              index={3}
-              title="Registrar primeira sessão"
-              subtitle="O histórico e as progressões começam a partir daqui."
-              href="/treinar"
-              complete={false}
-            />
-          </ol>
-        </section>
-      ) : (
-        <section>
+      {/* Diary timeline */}
+      {dayKeys.length > 0 && (
+        <section className="mb-10">
           <div className="flex items-baseline justify-between mb-4">
-            <p className="label">Atividade recente</p>
+            <p className="label">Diário</p>
             <Link
               href="/progresso"
               className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
             >
-              Ver tudo
+              Análise
             </Link>
           </div>
-          <ul className="space-y-1">
-            {sessions.map((s) => {
-              const templateName = Array.isArray(s.workout_templates)
-                ? s.workout_templates[0]?.name
-                : (s.workout_templates as { name: string } | null)?.name;
+
+          <div className="space-y-5">
+            {dayKeys.map((key) => {
+              const entries = days.get(key) ?? [];
               return (
-                <li
-                  key={s.id}
-                  className="flex items-center justify-between py-3 border-b border-[var(--border)] last:border-0"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <Calendar
-                      size={14}
-                      className="text-[var(--text-dim)] shrink-0"
-                      strokeWidth={1.75}
-                    />
-                    <span className="text-sm tnum shrink-0">
-                      {new Date(s.started_at).toLocaleDateString("pt-BR", {
-                        day: "2-digit",
-                        month: "short",
-                      })}
-                    </span>
-                    {templateName && (
-                      <span className="text-xs text-[var(--text-soft)] truncate">
-                        · {templateName}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-xs text-[var(--text-muted)] tnum shrink-0">
-                    {s.duration_minutes ? `${s.duration_minutes}min` : "—"}
-                  </span>
-                </li>
+                <div key={key}>
+                  <p className="text-[10px] uppercase tracking-wider text-[var(--text-dim)] tnum mb-2">
+                    {formatDayLabel(key)}
+                  </p>
+                  <ul className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border)]">
+                    {entries.map((entry) => (
+                      <DiaryRow key={`${entry.kind}-${entry.id}`} entry={entry} />
+                    ))}
+                  </ul>
+                </div>
               );
             })}
-          </ul>
+          </div>
         </section>
       )}
     </div>
   );
 }
 
-function StatCard({
-  label,
-  value,
-  href,
-  suffix = "",
-}: {
-  label: string;
-  value: number;
-  href: string;
-  suffix?: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="group rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-5 hover:border-[var(--border-strong)] transition-colors"
-    >
-      <div className="flex items-start justify-between mb-3">
-        <p className="label">{label}</p>
-        <ArrowRight
-          size={14}
-          className="text-[var(--text-dim)] group-hover:text-[var(--text-soft)] transition-colors"
-          strokeWidth={2}
-        />
-      </div>
-      <div className="display text-4xl tnum">{value}</div>
-      {suffix && (
-        <div className="text-xs text-[var(--text-muted)] mt-1">{suffix}</div>
-      )}
-    </Link>
-  );
+function DiaryRow({ entry }: { entry: DiaryEntry }) {
+  switch (entry.kind) {
+    case "strength": {
+      const Icon = Dumbbell;
+      return (
+        <li>
+          <Link
+            href={`/workout/${entry.id}`}
+            className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-hover)] transition-colors"
+          >
+            <Icon
+              size={14}
+              strokeWidth={1.75}
+              className="shrink-0 text-[var(--text-soft)]"
+            />
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium truncate">
+                {entry.templateName ?? "Treino de força"}
+              </div>
+              <div className="text-xs text-[var(--text-muted)] mt-0.5 tnum">
+                {entry.durationMinutes
+                  ? `${entry.durationMinutes} min`
+                  : "—"}
+                {entry.avgHr && (
+                  <>
+                    <span className="text-[var(--text-faint)]"> · </span>
+                    HR {entry.avgHr}
+                  </>
+                )}
+              </div>
+            </div>
+            <span className="text-[11px] tnum text-[var(--text-dim)] tabular-nums">
+              {formatHM(entry.at)}
+            </span>
+          </Link>
+        </li>
+      );
+    }
+    case "cardio": {
+      const Icon = Footprints;
+      return (
+        <li>
+          <Link
+            href={`/cardio/${entry.id}`}
+            className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-hover)] transition-colors"
+          >
+            <Icon
+              size={14}
+              strokeWidth={1.75}
+              className="shrink-0 text-[var(--text-soft)]"
+            />
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium truncate">
+                {CARDIO_TYPE_LABELS[entry.activityType] ?? "Cardio"}
+              </div>
+              <div className="text-xs text-[var(--text-muted)] mt-0.5 tnum">
+                {Math.round(entry.durationSeconds / 60)} min
+                {entry.distanceKm !== null && (
+                  <>
+                    <span className="text-[var(--text-faint)]"> · </span>
+                    {entry.distanceKm.toFixed(2)} km
+                  </>
+                )}
+                {entry.avgHr && (
+                  <>
+                    <span className="text-[var(--text-faint)]"> · </span>
+                    HR {entry.avgHr}
+                  </>
+                )}
+              </div>
+            </div>
+            <span className="text-[11px] tnum text-[var(--text-dim)] tabular-nums">
+              {formatHM(entry.at)}
+            </span>
+          </Link>
+        </li>
+      );
+    }
+    case "weight": {
+      const Icon = Scale;
+      return (
+        <li>
+          <Link
+            href="/peso"
+            className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-hover)] transition-colors"
+          >
+            <Icon
+              size={14}
+              strokeWidth={1.75}
+              className="shrink-0 text-[var(--text-soft)]"
+            />
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium">
+                Peso:{" "}
+                <span className="tnum tabular-nums">
+                  {entry.weightKg.toFixed(1)} kg
+                </span>
+              </div>
+            </div>
+            <span className="text-[11px] tnum text-[var(--text-dim)] tabular-nums">
+              {formatHM(entry.at)}
+            </span>
+          </Link>
+        </li>
+      );
+    }
+  }
 }
 
-function ChecklistItem({
-  index,
-  title,
-  subtitle,
-  href,
-  complete,
-}: {
-  index: number;
-  title: string;
-  subtitle: string;
-  href: string;
-  complete: boolean;
-}) {
-  return (
-    <li>
-      <Link
-        href={href}
-        className="group flex items-start gap-4 p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-raised)] hover:border-[var(--border-strong)] transition-colors"
-      >
-        <div
-          className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold tnum ${
-            complete
-              ? "bg-[var(--text)] text-[var(--bg)]"
-              : "border border-[var(--border-strong)] text-[var(--text-muted)]"
-          }`}
-        >
-          {complete ? "✓" : index}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm mb-0.5">{title}</p>
-          <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-            {subtitle}
-          </p>
-        </div>
-        <ArrowRight
-          size={16}
-          className="shrink-0 text-[var(--text-dim)] group-hover:text-[var(--text-soft)] transition-all group-hover:translate-x-0.5 mt-1"
-          strokeWidth={1.75}
-        />
-      </Link>
-    </li>
-  );
+function formatDayLabel(key: string): string {
+  const [y, m, d] = key.split("-").map((n) => parseInt(n, 10));
+  const date = new Date(y, m - 1, d);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diff = Math.round((today.getTime() - date.getTime()) / 86400000);
+  if (diff === 0) return "Hoje";
+  if (diff === 1) return "Ontem";
+  return date.toLocaleDateString("pt-BR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+  });
+}
+
+function formatHM(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
