@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, Clock } from "lucide-react";
+import { ChevronLeft, Clock, Flame, Heart } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import {
   EMPTY_STATE,
@@ -11,6 +11,7 @@ import {
 import { getUserSettings } from "@/lib/settings";
 import { AbandonSessionButton } from "./AbandonSessionButton";
 import { FinishSessionButton } from "./FinishSessionButton";
+import { FitUploadButton } from "./FitUploadButton";
 import {
   WorkoutSession,
   type CatalogExercise,
@@ -104,7 +105,7 @@ export default async function WorkoutSessionPage({
   const { data: session } = await supabase
     .from("workout_sessions")
     .select(
-      "id, started_at, finished_at, template_id, workout_templates(id, name, session_type)"
+      "id, started_at, finished_at, template_id, avg_heart_rate, max_heart_rate, device_calories, device_duration_seconds, workout_templates(id, name, session_type)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -394,6 +395,44 @@ export default async function WorkoutSessionPage({
           <span className="text-[var(--text-faint)]">·</span>
           <span>{totalLogged} sets</span>
         </div>
+
+        {/* HR / calories pills from FIT upload */}
+        {(session.avg_heart_rate ||
+          session.max_heart_rate ||
+          session.device_calories) && (
+          <div className="mt-3 flex items-center gap-2 flex-wrap">
+            {session.avg_heart_rate && (
+              <span className="inline-flex items-center gap-1 text-[11px] tnum px-2 py-1 rounded-md border border-[var(--border)] text-[var(--text-soft)]">
+                <Heart
+                  size={10}
+                  strokeWidth={1.75}
+                  className="text-[var(--status-stalled)]"
+                />
+                avg {session.avg_heart_rate}
+              </span>
+            )}
+            {session.max_heart_rate && (
+              <span className="inline-flex items-center gap-1 text-[11px] tnum px-2 py-1 rounded-md border border-[var(--border)] text-[var(--text-soft)]">
+                <Heart
+                  size={10}
+                  strokeWidth={1.75}
+                  className="text-[var(--status-stalled)]"
+                />
+                max {session.max_heart_rate}
+              </span>
+            )}
+            {session.device_calories && (
+              <span className="inline-flex items-center gap-1 text-[11px] tnum px-2 py-1 rounded-md border border-[var(--border)] text-[var(--text-soft)]">
+                <Flame
+                  size={10}
+                  strokeWidth={1.75}
+                  className="text-[var(--status-ready)]"
+                />
+                {session.device_calories} kcal
+              </span>
+            )}
+          </div>
+        )}
       </header>
 
       <WorkoutSession
@@ -423,6 +462,19 @@ export default async function WorkoutSessionPage({
           <AbandonSessionButton sessionId={session.id} />
         </div>
       )}
+
+      {/* FIT upload — available both during and after the session. Most
+          common flow: finish session, sync Coros, come back and attach. */}
+      <div className="mt-6 pt-6 border-t border-[var(--border)]">
+        <FitUploadButton
+          sessionId={session.id}
+          hasExisting={Boolean(session.avg_heart_rate)}
+        />
+        <p className="text-[11px] text-[var(--text-dim)] mt-2 text-center leading-relaxed">
+          Aceita .FIT do Coros / Garmin. Extrai HR médio, HR máx, calorias
+          e duração. Apenas os aggregates são salvos.
+        </p>
+      </div>
     </div>
   );
 }
