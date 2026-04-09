@@ -10,7 +10,7 @@
  *
  * Bumping CACHE_VERSION evicts old caches on activate.
  */
-const CACHE_VERSION = "felippes-log-v1";
+const CACHE_VERSION = "felippes-log-v2";
 const OFFLINE_FALLBACK = "/";
 
 self.addEventListener("install", (event) => {

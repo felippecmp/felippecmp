@@ -112,7 +112,7 @@ export function TemplateEditor({
             <button
               type="submit"
               disabled={isPending}
-              className="w-10 h-10 rounded-xl bg-[var(--accent)] text-[var(--accent-fg)] flex items-center justify-center"
+              className="w-10 h-10 rounded-xl bg-accent text-accent-fg flex items-center justify-center"
               aria-label="Salvar nome"
             >
               <Check size={16} strokeWidth={2.5} />
@@ -155,7 +155,7 @@ export function TemplateEditor({
           </p>
           <button
             onClick={() => setPicking(true)}
-            className="inline-flex items-center gap-2 bg-[var(--accent)] text-[var(--accent-fg)] font-semibold px-5 py-2.5 rounded-xl text-sm"
+            className="inline-flex items-center gap-2 bg-accent text-accent-fg font-semibold px-5 py-2.5 rounded-xl text-sm"
           >
             <Plus size={16} strokeWidth={2.5} />
             Adicionar exercício
@@ -329,7 +329,7 @@ function TemplateExerciseCard({
           <button
             type="submit"
             disabled={isPending}
-            className="w-full bg-[var(--accent)] text-[var(--accent-fg)] py-2.5 rounded-lg font-semibold text-sm disabled:opacity-60"
+            className="w-full bg-accent text-accent-fg py-2.5 rounded-lg font-semibold text-sm disabled:opacity-60"
           >
             {isPending ? "Salvando…" : "Salvar"}
           </button>

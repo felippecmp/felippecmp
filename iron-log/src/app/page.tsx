@@ -94,7 +94,7 @@ export default async function HomePage() {
               </p>
               <Link
                 href="/treinar"
-                className="block w-full text-center bg-[var(--accent)] text-[var(--accent-fg)] font-semibold py-3.5 rounded-xl hover:bg-[var(--accent-hover)] transition-colors"
+                className="block w-full text-center bg-accent text-accent-fg font-semibold py-3.5 rounded-xl hover:bg-accent-hover transition-colors"
               >
                 Iniciar sessão
               </Link>

@@ -69,7 +69,7 @@ export function NewTemplateForm() {
       <button
         type="submit"
         disabled={isPending}
-        className="w-full bg-[var(--accent)] hover:bg-[var(--accent-hover)] disabled:opacity-60 text-[var(--accent-fg)] py-3.5 rounded-xl font-semibold text-sm transition-colors"
+        className="w-full bg-accent hover:bg-accent-hover disabled:opacity-60 text-accent-fg py-3.5 rounded-xl font-semibold text-sm transition-colors"
       >
         {isPending ? "Criando…" : "Criar e adicionar exercícios"}
       </button>

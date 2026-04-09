@@ -697,7 +697,7 @@ function SetRowInput({
               ? "border border-[var(--status-stalled)]/60 text-[var(--status-stalled)] bg-transparent"
               : saved
                 ? "border border-[var(--status-ready)]/50 text-[var(--status-ready)] bg-transparent"
-                : "bg-[var(--accent)] text-[var(--accent-fg)] hover:bg-[var(--accent-hover)]"
+                : "bg-accent text-accent-fg hover:bg-accent-hover"
           }`}
         >
           {row.saving ? (

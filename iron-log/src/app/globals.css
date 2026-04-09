@@ -32,6 +32,34 @@
 @theme inline {
   --color-background: var(--bg);
   --color-foreground: var(--text);
+
+  /* Surfaces */
+  --color-bg: var(--bg);
+  --color-bg-raised: var(--bg-raised);
+  --color-bg-card: var(--bg-card);
+  --color-bg-hover: var(--bg-hover);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  /* Text scale */
+  --color-text: var(--text);
+  --color-text-soft: var(--text-soft);
+  --color-text-muted: var(--text-muted);
+  --color-text-dim: var(--text-dim);
+  --color-text-faint: var(--text-faint);
+
+  /* Accent (white-on-black CTA) */
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+
+  /* Status semantics */
+  --color-status-ready: var(--status-ready);
+  --color-status-building: var(--status-building);
+  --color-status-progressed: var(--status-progressed);
+  --color-status-stalled: var(--status-stalled);
+  --color-danger: var(--danger);
+
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter",
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }

@@ -189,7 +189,7 @@ export function ExerciseForm({
         <button
           type="submit"
           disabled={isPending}
-          className="flex-1 bg-[var(--accent)] hover:bg-[var(--accent-hover)] disabled:opacity-60 text-[var(--accent-fg)] py-3.5 rounded-xl font-semibold text-sm transition-colors"
+          className="flex-1 bg-accent hover:bg-accent-hover disabled:opacity-60 text-accent-fg py-3.5 rounded-xl font-semibold text-sm transition-colors"
         >
           {isPending ? "Salvando…" : mode === "edit" ? "Salvar" : "Criar"}
         </button>

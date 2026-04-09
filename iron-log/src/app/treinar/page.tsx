@@ -191,7 +191,7 @@ export default async function TreinarPage() {
             </p>
             <Link
               href="/templates/novo"
-              className="inline-flex items-center gap-2 bg-[var(--accent)] text-[var(--accent-fg)] font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-[var(--accent-hover)] transition-colors"
+              className="inline-flex items-center gap-2 bg-accent text-accent-fg font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-accent-hover transition-colors"
             >
               Criar primeiro template
             </Link>

@@ -36,7 +36,7 @@ export function LoginForm({ next }: { next?: string }) {
       <button
         type="submit"
         disabled={isPending}
-        className="w-full bg-[var(--accent)] hover:bg-[var(--accent-hover)] disabled:opacity-60 text-[var(--accent-fg)] font-semibold py-3.5 rounded-xl text-sm transition-colors inline-flex items-center justify-center gap-2"
+        className="w-full bg-accent hover:bg-accent-hover disabled:opacity-60 text-accent-fg font-semibold py-3.5 rounded-xl text-sm transition-colors inline-flex items-center justify-center gap-2"
       >
         {isPending ? "Entrando…" : "Entrar"}
         {!isPending && <ArrowRight size={16} strokeWidth={2.5} />}

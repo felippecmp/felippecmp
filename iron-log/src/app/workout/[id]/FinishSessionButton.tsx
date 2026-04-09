@@ -43,7 +43,7 @@ export function FinishSessionButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="w-full flex items-center justify-center gap-2 bg-[var(--accent)] text-[var(--accent-fg)] font-semibold py-3.5 rounded-xl hover:bg-[var(--accent-hover)] transition-colors"
+        className="w-full flex items-center justify-center gap-2 bg-accent text-accent-fg font-semibold py-3.5 rounded-xl hover:bg-accent-hover transition-colors"
       >
         <Flag size={16} strokeWidth={2.5} />
         Finalizar treino
@@ -141,7 +141,7 @@ export function FinishSessionButton({
                   type="button"
                   onClick={handleSubmit}
                   disabled={isPending}
-                  className="flex-1 bg-[var(--accent)] text-[var(--accent-fg)] py-3 rounded-xl text-sm font-semibold hover:bg-[var(--accent-hover)] disabled:opacity-60"
+                  className="flex-1 bg-accent text-accent-fg py-3 rounded-xl text-sm font-semibold hover:bg-accent-hover disabled:opacity-60"
                 >
                   {isPending ? "Finalizando…" : "Finalizar"}
                 </button>

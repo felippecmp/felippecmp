@@ -115,7 +115,7 @@ export function SettingsForm({ settings }: { settings: UserSettings }) {
       <button
         type="submit"
         disabled={isPending}
-        className="w-full flex items-center justify-center gap-2 bg-[var(--accent)] text-[var(--accent-fg)] font-semibold py-3 rounded-xl hover:bg-[var(--accent-hover)] disabled:opacity-60 transition-colors"
+        className="w-full flex items-center justify-center gap-2 bg-accent text-accent-fg font-semibold py-3 rounded-xl hover:bg-accent-hover disabled:opacity-60 transition-colors"
       >
         {saved && !isPending ? (
           <>
