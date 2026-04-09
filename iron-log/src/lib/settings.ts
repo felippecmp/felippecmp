@@ -10,6 +10,7 @@ export type UserSettings = {
   default_rest_seconds: number;
   default_load_increment: number;
   unit: Unit;
+  target_weight_kg: number | null;
 };
 
 /**
@@ -25,6 +26,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   default_rest_seconds: 180,
   default_load_increment: 2.5,
   unit: "kg",
+  target_weight_kg: null,
 };
 
 type SettingsRow = {
@@ -35,6 +37,7 @@ type SettingsRow = {
   default_rest_seconds: number;
   default_load_increment: number | string;
   unit: Unit;
+  target_weight_kg: number | string | null;
 };
 
 /**
@@ -48,7 +51,7 @@ export async function getUserSettings(): Promise<UserSettings> {
     const { data } = await supabase
       .from("user_settings")
       .select(
-        "id, default_target_sets, default_rep_range_low, default_rep_range_high, default_rest_seconds, default_load_increment, unit"
+        "id, default_target_sets, default_rep_range_low, default_rep_range_high, default_rest_seconds, default_load_increment, unit, target_weight_kg"
       )
       .limit(1)
       .maybeSingle();
@@ -63,6 +66,10 @@ export async function getUserSettings(): Promise<UserSettings> {
       default_rest_seconds: row.default_rest_seconds,
       default_load_increment: Number(row.default_load_increment),
       unit: row.unit,
+      target_weight_kg:
+        row.target_weight_kg !== null
+          ? Number(row.target_weight_kg)
+          : null,
     };
   } catch {
     return DEFAULT_SETTINGS;

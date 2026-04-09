@@ -108,6 +108,32 @@ export function SettingsForm({ settings }: { settings: UserSettings }) {
         </p>
       </div>
 
+      <div>
+        <label className="label block mb-2">Meta de peso corporal</label>
+        <div className="relative">
+          <input
+            name="target_weight_kg"
+            type="number"
+            step="0.1"
+            min="0"
+            defaultValue={
+              settings.target_weight_kg !== null
+                ? String(settings.target_weight_kg)
+                : ""
+            }
+            placeholder="Opcional — ex: 72.0"
+            className="w-full bg-[var(--bg-raised)] border border-[var(--border)] rounded-xl px-4 py-3 pr-12 text-base tnum focus:outline-none focus:border-[var(--text-muted)] transition-colors"
+          />
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)]">
+            {unit}
+          </span>
+        </div>
+        <p className="text-[11px] text-[var(--text-dim)] mt-1.5">
+          Aparece como linha tracejada no gráfico de peso em /progresso e um
+          chip com o delta atual. Deixa em branco pra não usar.
+        </p>
+      </div>
+
       {error && (
         <p className="text-xs text-[var(--danger)]">{error}</p>
       )}

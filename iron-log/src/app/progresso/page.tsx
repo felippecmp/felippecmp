@@ -17,6 +17,7 @@ import {
   volumeBand,
 } from "@/lib/stats";
 import { computeStreak } from "@/lib/streak";
+import { getUserSettings } from "@/lib/settings";
 import { WeightTrendChart } from "./WeightTrendChart";
 
 export const dynamic = "force-dynamic";
@@ -96,7 +97,10 @@ export default async function ProgressoPage() {
   const yearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
 
   // Broad fetches for streak (1 year), analytics window (90d/60d), weight
-  // chart (90d), and cardio (1 year for streak + 90d window for stats).
+  // chart (90d), cardio (1 year for streak + 90d window for stats), and
+  // user settings (for the optional body weight target).
+  const settings = await getUserSettings();
+
   const [sessionsYearRes, setsRes, weightRes, cardioRes] = await Promise.all([
     supabase
       .from("workout_sessions")
@@ -426,7 +430,7 @@ export default async function ProgressoPage() {
                 </Link>
               </div>
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-                <div className="flex items-baseline gap-4 mb-4">
+                <div className="flex items-baseline gap-4 mb-4 flex-wrap">
                   <div>
                     <p className="label mb-1">Atual</p>
                     <div className="flex items-baseline gap-1">
@@ -448,8 +452,17 @@ export default async function ProgressoPage() {
                     label="30d"
                     inverted={false}
                   />
+                  {settings.target_weight_kg !== null && latestWeight && (
+                    <TargetChip
+                      target={settings.target_weight_kg}
+                      current={latestWeight.weightKg}
+                    />
+                  )}
                 </div>
-                <WeightTrendChart series={weightSeries} />
+                <WeightTrendChart
+                  series={weightSeries}
+                  target={settings.target_weight_kg}
+                />
               </div>
             </section>
           )}
@@ -678,6 +691,38 @@ function DeltaChip({
         {sign}
         {delta.toFixed(1)}kg
       </span>
+    </div>
+  );
+}
+
+function TargetChip({
+  target,
+  current,
+}: {
+  target: number;
+  current: number;
+}) {
+  const delta = current - target;
+  const reached = Math.abs(delta) < 0.05;
+  const sign = delta > 0 ? "+" : "";
+  return (
+    <div>
+      <p className="label mb-1">Meta</p>
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-sm tnum tabular-nums text-[var(--text-soft)]">
+          {target.toFixed(1)}kg
+        </span>
+        {reached ? (
+          <span className="text-[10px] tnum uppercase tracking-wider text-[var(--status-ready)]">
+            atingida
+          </span>
+        ) : (
+          <span className="text-[10px] tnum text-[var(--text-dim)]">
+            ({sign}
+            {delta.toFixed(1)})
+          </span>
+        )}
+      </div>
     </div>
   );
 }

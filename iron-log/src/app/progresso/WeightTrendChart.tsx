@@ -14,8 +14,18 @@ const PAD_BOTTOM = 18;
  * Compact weight trend chart. Same brutalist style as WeightChart in the
  * per-exercise page, but server-rendered and simpler — no hover state,
  * since this is an overview glance.
+ *
+ * When `target` is provided, renders a dashed horizontal reference line
+ * at that value and expands the Y domain to include it so you can see
+ * the distance visually.
  */
-export function WeightTrendChart({ series }: { series: WeightPoint[] }) {
+export function WeightTrendChart({
+  series,
+  target = null,
+}: {
+  series: WeightPoint[];
+  target?: number | null;
+}) {
   if (series.length === 0) {
     return (
       <p className="text-xs text-[var(--text-muted)] text-center py-6">
@@ -25,6 +35,9 @@ export function WeightTrendChart({ series }: { series: WeightPoint[] }) {
   }
 
   const values = series.map((s) => s.weightKg);
+  // Make sure the target (if any) is inside the Y domain so the dashed
+  // line is always visible.
+  if (target !== null) values.push(target);
   const minVal = Math.min(...values);
   const maxVal = Math.max(...values);
   const yPad = Math.max(0.5, (maxVal - minVal) * 0.2);
@@ -67,6 +80,33 @@ export function WeightTrendChart({ series }: { series: WeightPoint[] }) {
         stroke="var(--border)"
         strokeWidth={0.5}
       />
+
+      {/* Target reference line (optional) */}
+      {target !== null && (
+        <>
+          <line
+            x1={PAD_LEFT}
+            x2={WIDTH - PAD_RIGHT}
+            y1={yFor(target)}
+            y2={yFor(target)}
+            stroke="var(--status-progressed)"
+            strokeWidth={1}
+            strokeDasharray="4 4"
+            opacity="0.6"
+          />
+          <text
+            x={WIDTH - PAD_RIGHT - 2}
+            y={yFor(target) - 3}
+            fontSize="9"
+            fill="var(--status-progressed)"
+            textAnchor="end"
+            className="tnum"
+            opacity="0.9"
+          >
+            meta {target.toFixed(1)}
+          </text>
+        </>
+      )}
 
       {/* Fill under the curve, subtle */}
       <path

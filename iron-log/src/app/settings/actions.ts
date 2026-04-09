@@ -29,6 +29,18 @@ function num(
 }
 
 /**
+ * Parse an optional positive-number field. Empty string or invalid → null.
+ */
+function optionalNum(raw: FormDataEntryValue | null): number | null {
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (trimmed === "") return null;
+  const n = Number(trimmed.replace(",", "."));
+  if (!Number.isFinite(n) || n <= 0 || n >= 500) return null;
+  return Math.round(n * 100) / 100;
+}
+
+/**
  * Update (or create) the singleton user_settings row.
  */
 export async function updateSettings(
@@ -41,6 +53,7 @@ export async function updateSettings(
     default_rest_seconds: int(formData.get("default_rest_seconds"), 0, 900, 180),
     default_load_increment: num(formData.get("default_load_increment"), 0.25, 2.5),
     unit: (formData.get("unit") === "lb" ? "lb" : "kg") as "kg" | "lb",
+    target_weight_kg: optionalNum(formData.get("target_weight_kg")),
     updated_at: new Date().toISOString(),
   };
 
