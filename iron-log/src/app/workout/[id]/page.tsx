@@ -13,6 +13,11 @@ import { AbandonSessionButton } from "./AbandonSessionButton";
 import { FinishSessionButton } from "./FinishSessionButton";
 import { FitUploadButton } from "./FitUploadButton";
 import {
+  SessionHrChart,
+  type HrSample,
+  type SetMarker,
+} from "./SessionHrChart";
+import {
   WorkoutSession,
   type CatalogExercise,
   type ExerciseBlockData,
@@ -58,6 +63,7 @@ type CurrentSetRow = {
   reps: number;
   rir: number | null;
   is_warmup: boolean | null;
+  performed_at: string;
 };
 
 type CatalogExerciseRow = {
@@ -105,7 +111,7 @@ export default async function WorkoutSessionPage({
   const { data: session } = await supabase
     .from("workout_sessions")
     .select(
-      "id, started_at, finished_at, template_id, avg_heart_rate, max_heart_rate, device_calories, device_duration_seconds, workout_templates(id, name, session_type)"
+      "id, started_at, finished_at, template_id, avg_heart_rate, max_heart_rate, device_calories, device_duration_seconds, heart_rate_samples, device_start_time, workout_templates(id, name, session_type)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -143,7 +149,9 @@ export default async function WorkoutSessionPage({
       .order("name"),
     supabase
       .from("workout_sets")
-      .select("id, exercise_id, set_number, weight_kg, reps, rir, is_warmup")
+      .select(
+        "id, exercise_id, set_number, weight_kg, reps, rir, is_warmup, performed_at"
+      )
       .eq("session_id", session.id)
       .order("set_number", { ascending: true }),
   ]);
@@ -367,6 +375,50 @@ export default async function WorkoutSessionPage({
   // warmups don't count toward the session's volume.
   const totalLogged = currentSets.filter((s) => !s.is_warmup).length;
 
+  // Raw HR samples + set markers for the SessionHrChart. Both live in
+  // the same "seconds since device_start_time" coordinate space so the
+  // vertical markers fall on the same X axis as the curve.
+  const hrSamples: HrSample[] = Array.isArray(session.heart_rate_samples)
+    ? (session.heart_rate_samples as HrSample[]).filter(
+        (s) =>
+          s &&
+          typeof s.t === "number" &&
+          typeof s.hr === "number" &&
+          s.hr > 0
+      )
+    : [];
+
+  const exerciseNameById = new Map<string, string>();
+  for (const ex of exercises) {
+    exerciseNameById.set(ex.exerciseId, ex.exerciseName);
+  }
+
+  const deviceStartMs =
+    session.device_start_time !== null &&
+    session.device_start_time !== undefined
+      ? new Date(session.device_start_time as string).getTime()
+      : null;
+
+  const setMarkers: SetMarker[] =
+    hrSamples.length > 0 && deviceStartMs !== null
+      ? currentSets
+          .map((s) => {
+            const performed = new Date(
+              (s as { performed_at?: string }).performed_at ??
+                session.started_at
+            ).getTime();
+            if (!Number.isFinite(performed)) return null;
+            return {
+              t: Math.round((performed - deviceStartMs) / 1000),
+              label:
+                (s.exercise_id && exerciseNameById.get(s.exercise_id)) ??
+                `Set ${s.set_number}`,
+              isWarmup: Boolean(s.is_warmup),
+            } satisfies SetMarker;
+          })
+          .filter((m): m is SetMarker => m !== null)
+      : [];
+
   return (
     <div className="px-6 pt-10">
       <Link
@@ -450,6 +502,13 @@ export default async function WorkoutSessionPage({
             Template vazio ou nenhum set logado. Use o botão abaixo pra
             adicionar um exercício ad-hoc.
           </p>
+        </div>
+      )}
+
+      {/* HR curve from the uploaded FIT file, if present */}
+      {hrSamples.length > 1 && (
+        <div className="mb-6">
+          <SessionHrChart samples={hrSamples} markers={setMarkers} />
         </div>
       )}
 

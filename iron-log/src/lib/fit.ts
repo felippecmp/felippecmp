@@ -12,6 +12,17 @@
  */
 import FitParser from "fit-file-parser";
 
+/** Compact HR sample, stored in JSONB. `t` is seconds since the sample window start. */
+export type HrSample = { t: number; hr: number };
+
+/**
+ * One sample per SAMPLE_INTERVAL_SECONDS is enough for visual correlation
+ * with set timestamps. At 1 Hz raw input that means we keep ~1/5 of the
+ * records — a 60-minute session goes from ~3600 samples to ~720, which
+ * serializes to ~14 KB of JSON instead of ~70 KB.
+ */
+const SAMPLE_INTERVAL_SECONDS = 5;
+
 export type FitSummary = {
   /** ISO timestamp of the session start. */
   startTime: string | null;
@@ -29,6 +40,17 @@ export type FitSummary = {
   sport: string | null;
   /** FIT "sub_sport" enum value (e.g. "strength_training", "casual_walking"). */
   subSport: string | null;
+  /**
+   * Downsampled heart rate series, with `t` offset in seconds from the
+   * first valid record timestamp. Empty when the device didn't record HR.
+   */
+  heartRateSamples: HrSample[];
+  /**
+   * ISO timestamp of the first record with a valid timestamp. This is the
+   * anchor for the HR series — samples' `t` values are seconds after this
+   * moment. Null when there are no samples.
+   */
+  hrSeriesStartTime: string | null;
 };
 
 export type FitParseResult =
@@ -62,10 +84,18 @@ export async function parseFit(buffer: ArrayBuffer): Promise<FitParseResult> {
 
     const data = await parser.parseAsync(buffer);
     const sessions = data.sessions ?? [];
+    const { samples, startTime: hrSeriesStartTime } = extractHrSeries(
+      data.records ?? []
+    );
+
     if (sessions.length === 0) {
       // Some Strength FIT files don't write a session message; fall back
       // to scanning records for HR + timestamps.
-      return summarizeFromRecords(data.records ?? []);
+      return summarizeFromRecords(
+        data.records ?? [],
+        samples,
+        hrSeriesStartTime
+      );
     }
 
     // Collect aggregates across all sessions (usually one).
@@ -109,6 +139,8 @@ export async function parseFit(buffer: ArrayBuffer): Promise<FitParseResult> {
             : null,
         sport,
         subSport,
+        heartRateSamples: samples,
+        hrSeriesStartTime,
       },
     };
   } catch (err) {
@@ -116,6 +148,38 @@ export async function parseFit(buffer: ArrayBuffer): Promise<FitParseResult> {
       err instanceof Error ? err.message : "Falha ao processar o arquivo FIT.";
     return { ok: false, error: message };
   }
+}
+
+/**
+ * Walk the record stream once and extract a downsampled HR series along
+ * with the anchor ISO timestamp for that series. Shared by both the
+ * regular session-message path and the fallback path.
+ */
+function extractHrSeries(
+  records: Array<{ heart_rate?: number; timestamp?: string }>
+): { samples: HrSample[]; startTime: string | null } {
+  const samples: HrSample[] = [];
+  let anchorMs: number | null = null;
+  let startTime: string | null = null;
+  let lastStoredT = -Infinity;
+
+  for (const r of records) {
+    if (typeof r.heart_rate !== "number" || r.heart_rate <= 0) continue;
+    if (!r.timestamp) continue;
+    const ms = new Date(r.timestamp).getTime();
+    if (!Number.isFinite(ms)) continue;
+    if (anchorMs === null) {
+      anchorMs = ms;
+      startTime = r.timestamp;
+    }
+    const t = Math.round((ms - anchorMs) / 1000);
+    if (t - lastStoredT >= SAMPLE_INTERVAL_SECONDS) {
+      samples.push({ t, hr: r.heart_rate });
+      lastStoredT = t;
+    }
+  }
+
+  return { samples, startTime };
 }
 
 /**
@@ -127,7 +191,9 @@ function summarizeFromRecords(
     heart_rate?: number;
     timestamp?: string;
     distance?: number;
-  }>
+  }>,
+  heartRateSamples: HrSample[],
+  hrSeriesStartTime: string | null
 ): FitParseResult {
   if (records.length === 0) {
     return {
@@ -180,6 +246,8 @@ function summarizeFromRecords(
       distanceKm,
       sport: null,
       subSport: null,
+      heartRateSamples,
+      hrSeriesStartTime,
     },
   };
 }

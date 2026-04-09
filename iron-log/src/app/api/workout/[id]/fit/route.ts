@@ -76,6 +76,9 @@ export async function POST(
     device_calories: summary.calories,
     device_duration_seconds: summary.durationSeconds,
     device_source: "coros",
+    heart_rate_samples:
+      summary.heartRateSamples.length > 0 ? summary.heartRateSamples : null,
+    device_start_time: summary.hrSeriesStartTime,
   };
 
   const { error: updateErr } = await supabase
