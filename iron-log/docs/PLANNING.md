@@ -1,16 +1,43 @@
-# IRON LOG — Workout Tracker App
+# FELIPPE'S LOG — Fitness Journal
 
 ## Ultra Planning Document for Claude Code Implementation
 
 -----
 
+## 0. DESIGN PRINCIPLES — "É um caderno, não um app comercial"
+
+O app cresceu de tracker de strength puro pra log de fitness geral (strength + cardio + peso corporal + anotações). A metáfora guia é **caderno pessoal**: chronológico, denso, sem pretensão de vender nada a quem escreve.
+
+As 11 regras duras, usadas como critério de design sempre que tiver dúvida:
+
+1. **Hoje é a página, não o dashboard.** Ações e fatos do presente. Fatos passados aparecem por scroll, não por clique em abas.
+2. **Cronologia antes de categoria.** Em dúvida, ordena por data, não por tipo.
+3. **Adicionar qualquer coisa deve custar ≤ 2 taps.** Peso: 1 tap + digita. Cardio: 1 tap + upload. Sessão: 1 tap.
+4. **Densidade > whitespace.** Linhas compactas de texto tabular, não cards gigantes de 200px de padding. Exceção autorizada: seções hero de Progresso.
+5. **Sem métricas vazias.** Se o número não ajuda a decidir algo, corta.
+6. **Sem nudge que puxa de fora.** Sem push, sem e-mail, sem pop-up ao abrir. A Progresso pode ter streaks, comparações e destaques motivacionais — mas só quem visita ela vê.
+7. **Edit e delete em qualquer coisa, sem cerimônia.** Abriu a entrada → editou → salvou. Sem "tem certeza?" duplo exceto pra deletar sessão inteira ou dados em cascata.
+8. **Zero emoji na UI.** Tipografia faz o trabalho. Ícones Lucide permitidos (são iconografia, não emoji).
+9. **Sem tom de coach vendedor.** Permite celebrar marcos de forma direta ("PR: 82.5 × 8 reps"). Sem exclamações forçadas, "você consegue!", "parabéns!".
+10. **Nada acontece no server que tu não pediu.** Sem job semanal de resumo, sem e-mail, sem webhook saindo. Server só responde a requests.
+11. **Progresso é o espaço autorizado pra ambição visual.** Streak, números grandes, charts ricos, comparações entre períodos, highlights de PRs. Densidade visual alta aqui é bem-vinda — é o momento de reflexão, não de ação.
+
+**Corolário de arquitetura**:
+- **Hoje** = diário. Streak discreto + próximo treino + entradas de hoje + scroll reverso.
+- **Treinar** = modo de escrita focada pro strength. Tela dedicada com rest timer, sets, nada mais.
+- **Progresso** = índice e reflexão. Gráficos, comparações, streaks, PRs.
+- **Exercícios** = dicionário. Catálogo + seção "Usados" no topo com ordem por uso.
+- **Settings** = config + catálogo secundário (peso, cardio history). Acesso via gear icon na Hoje, não pelo BottomNav.
+
+-----
+
 ## 1. VISÃO DO PRODUTO
 
-App de tracking de treino focado em **Upper/Lower split com double progression 4-8 reps**, baseado nos princípios de liftrunbang1/Bret Contreras — volume baixo (5-6 sets diretos/semana), intensidade alta (RIR 1-2), descansos longos (2-5 min).
+App de tracking pessoal focado em **Upper/Lower split com double progression 4-8 reps**, baseado nos princípios de liftrunbang1/Bret Contreras — volume baixo (5-6 sets diretos/semana), intensidade alta (RIR 1-2), descansos longos (2-5 min). Expandido em Sprints 5d-5f pra também registrar peso corporal e cardio/caminhadas.
 
-**Stack:** Next.js 14+ (App Router) → Vercel | Supabase (Auth + DB + Realtime) | Tailwind CSS | shadcn/ui
+**Stack:** Next.js 16 (App Router) → Vercel | Supabase (Postgres + RLS; auth por senha HMAC cookie, não Supabase Auth) | Tailwind CSS v4
 
-**Usuário:** Single-user (Felippe). Auth via Supabase magic link ou Google OAuth.
+**Usuário:** Single-user (Felippe). `auth.uid() = NULL` em tudo, proteção por middleware cookie.
 
 -----
 

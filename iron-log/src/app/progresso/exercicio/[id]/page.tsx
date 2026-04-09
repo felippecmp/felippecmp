@@ -121,10 +121,18 @@ export default async function ExerciseHistoryPage({
       <header className="mb-8">
         <p className="label mb-2">{muscleLabel(exercise.primary_muscle)}</p>
         <h1 className="display text-3xl leading-tight">{exercise.name}</h1>
-        <p className="text-xs text-[var(--text-muted)] mt-2 tnum">
-          {equipmentLabel(exercise.equipment)} · incremento{" "}
-          {Number(exercise.load_increment)}kg
-        </p>
+        <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
+          <p className="text-xs text-[var(--text-muted)] tnum">
+            {equipmentLabel(exercise.equipment)} · incremento{" "}
+            {Number(exercise.load_increment)}kg
+          </p>
+          <Link
+            href={`/exercicios/${exercise.id}`}
+            className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+          >
+            Editar metadados
+          </Link>
+        </div>
       </header>
 
       {timeline.length === 0 ? (

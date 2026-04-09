@@ -1,6 +1,13 @@
 import Link from "next/link";
-import { ArrowRight, Calendar, Settings as SettingsIcon } from "lucide-react";
+import {
+  ArrowRight,
+  Calendar,
+  Flame,
+  Settings as SettingsIcon,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { computeStreak } from "@/lib/streak";
+import { QuickWeightAdd } from "./QuickWeightAdd";
 
 export const dynamic = "force-dynamic";
 
@@ -21,29 +28,79 @@ function formatHeaderDate(date: Date) {
   return { weekday, day, month };
 }
 
+function localDayKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = (d.getMonth() + 1).toString().padStart(2, "0");
+  const dd = d.getDate().toString().padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+
+type WeightRow = {
+  id: string;
+  weight_kg: number | string;
+  recorded_at: string;
+};
+
 export default async function HomePage() {
   const supabase = await createClient();
-
-  const { count: exerciseCount } = await supabase
-    .from("exercises")
-    .select("*", { count: "exact", head: true });
-
-  const { data: recentSessions } = await supabase
-    .from("workout_sessions")
-    .select("id, started_at, duration_minutes")
-    .order("started_at", { ascending: false })
-    .limit(5);
-
   const now = new Date();
+  const todayKey = localDayKey(now);
+
+  // Parallel fetches: everything the home page needs
+  const [
+    { count: exerciseCount },
+    { data: recentSessions },
+    { data: allFinishedSessions },
+    { data: weightRows },
+  ] = await Promise.all([
+    supabase.from("exercises").select("*", { count: "exact", head: true }),
+    supabase
+      .from("workout_sessions")
+      .select("id, started_at, duration_minutes, workout_templates(name)")
+      .not("finished_at", "is", null)
+      .order("started_at", { ascending: false })
+      .limit(5),
+    // For streak: only timestamps, no joins. Pull up to ~1 year so best
+    // streak is meaningful.
+    supabase
+      .from("workout_sessions")
+      .select("started_at")
+      .not("finished_at", "is", null)
+      .order("started_at", { ascending: false })
+      .limit(400),
+    supabase
+      .from("body_weight_entries")
+      .select("id, weight_kg, recorded_at")
+      .order("recorded_at", { ascending: false })
+      .limit(30),
+  ]);
+
   const { weekday, day, month } = formatHeaderDate(now);
   const sessions = recentSessions ?? [];
   const exercisesTotal = exerciseCount ?? 0;
   const firstRun = sessions.length === 0;
 
+  // Streak computation (strength + cardio — cardio lands in Sprint 5f and
+  // naturally joins this union once its sessions start getting fetched).
+  const strengthTimestamps = (allFinishedSessions ?? []).map(
+    (s) => s.started_at as string
+  );
+  const streak = computeStreak({
+    activeTimestamps: strengthTimestamps,
+    today: now,
+  });
+
+  // Body weight for today (if any) and latest overall
+  const weights = (weightRows ?? []) as WeightRow[];
+  const todayWeight = weights.find(
+    (w) => localDayKey(new Date(w.recorded_at)) === todayKey
+  );
+  const latestWeight = weights[0];
+
   return (
     <div className="px-6 pt-10">
       {/* Header */}
-      <header className="mb-10 flex items-start justify-between">
+      <header className="mb-8 flex items-start justify-between">
         <div>
           <p className="label mb-2">{weekday}</p>
           <h1 className="display text-[44px] leading-[1.05] tracking-tighter">
@@ -64,8 +121,32 @@ export default async function HomePage() {
         </Link>
       </header>
 
+      {/* Streak line — discreet, above the CTA */}
+      {streak.current > 0 && (
+        <div className="mb-4 flex items-center gap-2 text-xs text-[var(--text-muted)]">
+          <Flame
+            size={12}
+            strokeWidth={1.75}
+            className="text-[var(--status-ready)]"
+          />
+          <span className="tnum">
+            streak {streak.current} {streak.current === 1 ? "dia" : "dias"}
+          </span>
+          {streak.best > streak.current && (
+            <span className="text-[var(--text-dim)] tnum">
+              · melhor {streak.best}
+            </span>
+          )}
+          {!streak.todayActive && (
+            <span className="text-[var(--text-dim)]">
+              · hoje ainda tá em aberto
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Primary CTA card */}
-      <section className="mb-8">
+      <section className="mb-6">
         <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-6">
           <p className="label mb-3">Próximo treino</p>
           {firstRun ? (
@@ -88,9 +169,8 @@ export default async function HomePage() {
             </>
           ) : (
             <>
-              <h2 className="display-sm text-3xl mb-1">Upper A</h2>
-              <p className="text-sm text-[var(--text-muted)] mb-6">
-                7 exercícios · aproximadamente 55 minutos
+              <p className="text-sm text-[var(--text-muted)] mb-4">
+                A sugestão aparece dentro da tela de treinar.
               </p>
               <Link
                 href="/treinar"
@@ -101,6 +181,29 @@ export default async function HomePage() {
             </>
           )}
         </div>
+      </section>
+
+      {/* Body weight line */}
+      <section className="mb-8">
+        <QuickWeightAdd
+          todayWeight={
+            todayWeight
+              ? {
+                  id: todayWeight.id,
+                  weightKg: Number(todayWeight.weight_kg),
+                  recordedAt: todayWeight.recorded_at,
+                }
+              : null
+          }
+          latestWeight={
+            !todayWeight && latestWeight
+              ? {
+                  weightKg: Number(latestWeight.weight_kg),
+                  recordedAt: latestWeight.recorded_at,
+                }
+              : null
+          }
+        />
       </section>
 
       {/* Stats row */}
@@ -158,29 +261,39 @@ export default async function HomePage() {
             </Link>
           </div>
           <ul className="space-y-1">
-            {sessions.map((s) => (
-              <li
-                key={s.id}
-                className="flex items-center justify-between py-3 border-b border-[var(--border)] last:border-0"
-              >
-                <div className="flex items-center gap-3">
-                  <Calendar
-                    size={14}
-                    className="text-[var(--text-dim)]"
-                    strokeWidth={1.75}
-                  />
-                  <span className="text-sm tnum">
-                    {new Date(s.started_at).toLocaleDateString("pt-BR", {
-                      day: "2-digit",
-                      month: "short",
-                    })}
+            {sessions.map((s) => {
+              const templateName = Array.isArray(s.workout_templates)
+                ? s.workout_templates[0]?.name
+                : (s.workout_templates as { name: string } | null)?.name;
+              return (
+                <li
+                  key={s.id}
+                  className="flex items-center justify-between py-3 border-b border-[var(--border)] last:border-0"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Calendar
+                      size={14}
+                      className="text-[var(--text-dim)] shrink-0"
+                      strokeWidth={1.75}
+                    />
+                    <span className="text-sm tnum shrink-0">
+                      {new Date(s.started_at).toLocaleDateString("pt-BR", {
+                        day: "2-digit",
+                        month: "short",
+                      })}
+                    </span>
+                    {templateName && (
+                      <span className="text-xs text-[var(--text-soft)] truncate">
+                        · {templateName}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs text-[var(--text-muted)] tnum shrink-0">
+                    {s.duration_minutes ? `${s.duration_minutes}min` : "—"}
                   </span>
-                </div>
-                <span className="text-xs text-[var(--text-muted)] tnum">
-                  {s.duration_minutes ? `${s.duration_minutes}min` : "—"}
-                </span>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}

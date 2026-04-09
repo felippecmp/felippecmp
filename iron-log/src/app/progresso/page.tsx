@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Flame, TrendingDown, TrendingUp } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { muscleLabel } from "@/lib/muscles";
 import {
@@ -10,6 +10,8 @@ import {
   targetFor,
   volumeBand,
 } from "@/lib/stats";
+import { computeStreak } from "@/lib/streak";
+import { WeightTrendChart } from "./WeightTrendChart";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +36,12 @@ type SessionRow = {
   started_at: string;
   finished_at: string | null;
   duration_minutes: number | null;
+};
+
+type WeightRow = {
+  id: string;
+  weight_kg: number | string;
+  recorded_at: string;
 };
 
 type VolumeEntry = {
@@ -64,28 +72,43 @@ export default async function ProgressoPage() {
 
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+  const yearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
 
-  const [sessionsRes, setsRes] = await Promise.all([
+  // Broad fetches for streak (1 year), analytics window (90d/60d), and
+  // weight chart (90d).
+  const [sessionsYearRes, setsRes, weightRes] = await Promise.all([
     supabase
       .from("workout_sessions")
       .select("id, started_at, finished_at, duration_minutes")
       .not("finished_at", "is", null)
-      .gte("started_at", ninetyDaysAgo.toISOString())
+      .gte("started_at", yearAgo.toISOString())
       .order("started_at", { ascending: false }),
+    // Sets for the last 60 days (we need 30d + prev 30d for comparison).
     supabase
       .from("workout_sets")
       .select(
         "id, exercise_id, weight_kg, reps, rir, performed_at, exercises(id, name, primary_muscle)"
       )
       .eq("is_warmup", false)
-      .gte("performed_at", thirtyDaysAgo.toISOString())
+      .gte("performed_at", sixtyDaysAgo.toISOString())
       .order("performed_at", { ascending: false }),
+    supabase
+      .from("body_weight_entries")
+      .select("id, weight_kg, recorded_at")
+      .gte("recorded_at", ninetyDaysAgo.toISOString())
+      .order("recorded_at", { ascending: true }),
   ]);
 
-  const sessions = (sessionsRes.data ?? []) as SessionRow[];
+  const allSessions = (sessionsYearRes.data ?? []) as SessionRow[];
+  const sessions = allSessions.filter(
+    (s) => new Date(s.started_at) >= ninetyDaysAgo
+  );
   const sets = (setsRes.data ?? []) as SetRow[];
+  const weights = (weightRes.data ?? []) as WeightRow[];
 
   // --- Volume 7d per primary muscle ---
   const last7dSets = sets.filter(
@@ -166,16 +189,57 @@ export default async function ProgressoPage() {
     )
     .slice(0, 8);
 
-  // --- Header stats ---
-  const totalSessions30d = sessions.filter(
+  // --- Header stats + prev-period comparisons ---
+  const sessions30d = sessions.filter(
     (s) => new Date(s.started_at) >= thirtyDaysAgo
-  ).length;
-  const totalSets7d = last7dSets.length;
-  const totalMinutes30d = sessions
-    .filter((s) => new Date(s.started_at) >= thirtyDaysAgo)
-    .reduce((sum, s) => sum + (s.duration_minutes ?? 0), 0);
+  );
+  const sessionsPrev30d = allSessions.filter((s) => {
+    const t = new Date(s.started_at);
+    return t >= sixtyDaysAgo && t < thirtyDaysAgo;
+  });
+  const totalSessions30d = sessions30d.length;
+  const totalSessionsPrev30d = sessionsPrev30d.length;
 
-  const empty = sessions.length === 0;
+  const totalSets7d = last7dSets.length;
+  const setsPrev7d = sets.filter((s) => {
+    const t = new Date(s.performed_at);
+    return t >= fourteenDaysAgo && t < sevenDaysAgo;
+  });
+  const totalSetsPrev7d = setsPrev7d.length;
+
+  const totalMinutes30d = sessions30d.reduce(
+    (sum, s) => sum + (s.duration_minutes ?? 0),
+    0
+  );
+  const totalMinutesPrev30d = sessionsPrev30d.reduce(
+    (sum, s) => sum + (s.duration_minutes ?? 0),
+    0
+  );
+
+  // Streak across the whole year-ish window.
+  const streak = computeStreak({
+    activeTimestamps: allSessions.map((s) => s.started_at),
+    today: now,
+  });
+
+  // --- Body weight trend ---
+  const weightSeries = weights.map((w) => ({
+    date: w.recorded_at,
+    weightKg: Number(w.weight_kg),
+  }));
+  const latestWeight = weightSeries[weightSeries.length - 1] ?? null;
+  const weight7dAgoRef = findClosestWeight(weightSeries, sevenDaysAgo);
+  const weight30dAgoRef = findClosestWeight(weightSeries, thirtyDaysAgo);
+  const weightDelta7d =
+    latestWeight && weight7dAgoRef
+      ? latestWeight.weightKg - weight7dAgoRef.weightKg
+      : null;
+  const weightDelta30d =
+    latestWeight && weight30dAgoRef
+      ? latestWeight.weightKg - weight30dAgoRef.weightKg
+      : null;
+
+  const empty = sessions.length === 0 && weightSeries.length === 0;
 
   return (
     <div className="px-6 pt-10">
@@ -188,15 +252,74 @@ export default async function ProgressoPage() {
         <EmptyState />
       ) : (
         <>
-          <section className="mb-8 grid grid-cols-3 gap-2">
-            <TopStat label="Sessões 30d" value={totalSessions30d} />
-            <TopStat label="Sets 7d" value={totalSets7d} />
+          {/* Streak hero + comparison stats */}
+          <section className="mb-6">
+            <StreakHero
+              current={streak.current}
+              best={streak.best}
+              todayActive={streak.todayActive}
+            />
+          </section>
+
+          <section className="mb-10 grid grid-cols-3 gap-2">
+            <TopStat
+              label="Sessões 30d"
+              value={totalSessions30d}
+              prev={totalSessionsPrev30d}
+            />
+            <TopStat
+              label="Sets 7d"
+              value={totalSets7d}
+              prev={totalSetsPrev7d}
+            />
             <TopStat
               label="Tempo 30d"
               value={Math.round(totalMinutes30d / 60)}
+              prev={Math.round(totalMinutesPrev30d / 60)}
               suffix="h"
             />
           </section>
+
+          {/* Peso corporal */}
+          {weightSeries.length > 0 && (
+            <section className="mb-10">
+              <div className="flex items-baseline justify-between mb-3">
+                <p className="label">Peso corporal · 90 dias</p>
+                <Link
+                  href="/peso"
+                  className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+                >
+                  Histórico
+                </Link>
+              </div>
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                <div className="flex items-baseline gap-4 mb-4">
+                  <div>
+                    <p className="label mb-1">Atual</p>
+                    <div className="flex items-baseline gap-1">
+                      <span className="display text-3xl tnum">
+                        {latestWeight?.weightKg.toFixed(1)}
+                      </span>
+                      <span className="text-xs text-[var(--text-dim)]">
+                        kg
+                      </span>
+                    </div>
+                  </div>
+                  <DeltaChip
+                    delta={weightDelta7d}
+                    label="7d"
+                    inverted={false}
+                  />
+                  <DeltaChip
+                    delta={weightDelta30d}
+                    label="30d"
+                    inverted={false}
+                  />
+                </div>
+                <WeightTrendChart series={weightSeries} />
+              </div>
+            </section>
+          )}
 
           <section className="mb-10">
             <div className="flex items-baseline justify-between mb-3">
@@ -296,16 +419,22 @@ function EmptyState() {
 function TopStat({
   label,
   value,
+  prev,
   suffix = "",
 }: {
   label: string;
   value: number;
+  prev?: number;
   suffix?: string;
 }) {
+  const delta =
+    typeof prev === "number" && prev > 0 ? value - prev : null;
+  const pct =
+    delta !== null && prev && prev > 0 ? Math.round((delta / prev) * 100) : null;
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
       <p className="label mb-2">{label}</p>
-      <div className="display text-2xl tnum leading-none">
+      <div className="display text-2xl tnum leading-none mb-2">
         {value}
         {suffix && (
           <span className="text-sm text-[var(--text-muted)] ml-0.5">
@@ -313,8 +442,152 @@ function TopStat({
           </span>
         )}
       </div>
+      {pct !== null && (
+        <PercentChip pct={pct} />
+      )}
     </div>
   );
+}
+
+function PercentChip({ pct }: { pct: number }) {
+  // Positive trend for strength/sessions is green, negative is rose.
+  const isUp = pct > 0;
+  const isDown = pct < 0;
+  const color = isUp
+    ? "var(--status-ready)"
+    : isDown
+      ? "var(--status-stalled)"
+      : "var(--text-dim)";
+  const Icon = isUp ? TrendingUp : isDown ? TrendingDown : null;
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[10px] tnum font-semibold tracking-wider"
+      style={{ color }}
+    >
+      {Icon && <Icon size={10} strokeWidth={2} />}
+      {isUp ? "+" : ""}
+      {pct}%
+    </span>
+  );
+}
+
+function DeltaChip({
+  delta,
+  label,
+  inverted,
+}: {
+  delta: number | null;
+  label: string;
+  /**
+   * When inverted is true, negative delta is "good" (e.g., weight loss).
+   * When false, positive delta is "good" (e.g., volume up). For body weight
+   * this is user-dependent — default to neutral (false means neutral here)
+   * since we don't know if the user is bulking or cutting.
+   */
+  inverted: boolean;
+}) {
+  if (delta === null) {
+    return (
+      <div className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">
+        <p className="mb-1">{label}</p>
+        <span>—</span>
+      </div>
+    );
+  }
+  // Neutral color for weight since bulking vs cutting is context-dependent.
+  // We indicate direction via the arrow only, without positive/negative mood.
+  const sign = delta > 0 ? "+" : "";
+  const color = inverted
+    ? delta < 0
+      ? "var(--status-ready)"
+      : delta > 0
+        ? "var(--status-stalled)"
+        : "var(--text-dim)"
+    : "var(--text-soft)";
+  return (
+    <div>
+      <p className="label mb-1">{label}</p>
+      <span
+        className="inline-flex items-center gap-0.5 text-xs tnum tabular-nums"
+        style={{ color }}
+      >
+        {sign}
+        {delta.toFixed(1)}kg
+      </span>
+    </div>
+  );
+}
+
+function StreakHero({
+  current,
+  best,
+  todayActive,
+}: {
+  current: number;
+  best: number;
+  todayActive: boolean;
+}) {
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-6">
+      <div className="flex items-center gap-2 mb-2">
+        <Flame
+          size={14}
+          strokeWidth={1.75}
+          className="text-[var(--status-ready)]"
+        />
+        <p className="label">Streak</p>
+      </div>
+      <div className="flex items-baseline gap-4">
+        <div>
+          <div className="display text-5xl tnum leading-none">
+            {current}
+          </div>
+          <p className="text-[10px] text-[var(--text-muted)] tracking-wider uppercase mt-1.5">
+            {current === 1 ? "dia" : "dias"} consecutivos
+          </p>
+        </div>
+        {best > 0 && (
+          <div className="pl-4 border-l border-[var(--border)]">
+            <div className="display-sm text-2xl tnum leading-none text-[var(--text-soft)]">
+              {best}
+            </div>
+            <p className="text-[10px] text-[var(--text-dim)] tracking-wider uppercase mt-1.5">
+              melhor
+            </p>
+          </div>
+        )}
+      </div>
+      {current > 0 && !todayActive && (
+        <p className="text-[11px] text-[var(--text-muted)] mt-3">
+          Hoje ainda não conta. Qualquer treino ou caminhada mantém o streak.
+        </p>
+      )}
+      {current === 0 && (
+        <p className="text-[11px] text-[var(--text-muted)] mt-3">
+          Comece a registrar — qualquer treino ou caminhada conta como dia
+          ativo.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function findClosestWeight(
+  series: Array<{ date: string; weightKg: number }>,
+  target: Date
+): { date: string; weightKg: number } | null {
+  if (series.length === 0) return null;
+  const targetMs = target.getTime();
+  let best: { date: string; weightKg: number } | null = null;
+  let bestDiff = Infinity;
+  for (const entry of series) {
+    const diff = Math.abs(new Date(entry.date).getTime() - targetMs);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      best = entry;
+    }
+  }
+  return best;
 }
 
 function VolumeBar({
