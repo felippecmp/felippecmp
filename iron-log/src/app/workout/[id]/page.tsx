@@ -8,10 +8,12 @@ import {
   type ProgressionStateRow,
   type ProgressionStatus,
 } from "@/lib/progression";
+import { getUserSettings } from "@/lib/settings";
 import { AbandonSessionButton } from "./AbandonSessionButton";
 import { FinishSessionButton } from "./FinishSessionButton";
 import {
   WorkoutSession,
+  type CatalogExercise,
   type ExerciseBlockData,
   type ReferenceSet,
 } from "./WorkoutSession";
@@ -54,6 +56,16 @@ type CurrentSetRow = {
   weight_kg: number | string;
   reps: number;
   rir: number | null;
+  is_warmup: boolean | null;
+};
+
+type CatalogExerciseRow = {
+  id: string;
+  name: string;
+  primary_muscle: string;
+  equipment: string | null;
+  session_type: "upper" | "lower";
+  load_increment: number | string | null;
 };
 
 type ReferenceRow = {
@@ -112,30 +124,56 @@ export default async function WorkoutSessionPage({
     : null;
 
   const teList = (teResult?.data ?? []) as TemplateExerciseJoin[];
-  const exerciseIds = teList
+  const templateExerciseIds = teList
     .map((te) => te.exercise_id)
     .filter((v): v is string => typeof v === "string");
 
-  const currentSetsResult =
-    exerciseIds.length > 0
-      ? await supabase
-          .from("workout_sets")
-          .select("id, exercise_id, set_number, weight_kg, reps, rir")
-          .eq("session_id", session.id)
-          .eq("is_warmup", false)
-          .order("set_number", { ascending: true })
-      : null;
+  // Pull user defaults + the full active exercise catalog (for the ad-hoc
+  // picker) + every set logged for this session (including warmups and
+  // ad-hoc-exercise sets) in parallel.
+  const [settings, catalogResult, currentSetsResult] = await Promise.all([
+    getUserSettings(),
+    supabase
+      .from("exercises")
+      .select(
+        "id, name, primary_muscle, equipment, session_type, load_increment"
+      )
+      .eq("is_active", true)
+      .order("name"),
+    supabase
+      .from("workout_sets")
+      .select("id, exercise_id, set_number, weight_kg, reps, rir, is_warmup")
+      .eq("session_id", session.id)
+      .order("set_number", { ascending: true }),
+  ]);
 
-  const currentSets = (currentSetsResult?.data ?? []) as CurrentSetRow[];
+  const catalog = (catalogResult.data ?? []) as CatalogExerciseRow[];
+  const catalogById = new Map(catalog.map((e) => [e.id, e]));
+  const currentSets = (currentSetsResult.data ?? []) as CurrentSetRow[];
+
+  // Ad-hoc exercise ids = sets logged against exercises not in the template.
+  const templateIdSet = new Set(templateExerciseIds);
+  const adhocExerciseIds = Array.from(
+    new Set(
+      currentSets
+        .map((s) => s.exercise_id)
+        .filter((v): v is string => !!v && !templateIdSet.has(v))
+    )
+  );
+
+  // Anything we need history + progression for.
+  const allExerciseIds = Array.from(
+    new Set([...templateExerciseIds, ...adhocExerciseIds])
+  );
 
   const refResult =
-    exerciseIds.length > 0
+    allExerciseIds.length > 0
       ? await supabase
           .from("workout_sets")
           .select(
             "exercise_id, session_id, set_number, weight_kg, reps, rir, performed_at, workout_sessions(started_at)"
           )
-          .in("exercise_id", exerciseIds)
+          .in("exercise_id", allExerciseIds)
           .eq("is_warmup", false)
           .neq("session_id", session.id)
           .order("performed_at", { ascending: false })
@@ -145,13 +183,13 @@ export default async function WorkoutSessionPage({
   const refRows = (refResult?.data ?? []) as ReferenceRow[];
 
   const progressionResult =
-    exerciseIds.length > 0
+    allExerciseIds.length > 0
       ? await supabase
           .from("progression_state")
           .select(
             "exercise_id, current_weight_kg, current_status, last_top_set_reps, streak_at_top_range, stall_count, sessions_at_current_weight, last_session_date"
           )
-          .in("exercise_id", exerciseIds)
+          .in("exercise_id", allExerciseIds)
       : null;
 
   const progressionRows = (progressionResult?.data ?? []) as ProgressionStateRaw[];
@@ -232,6 +270,7 @@ export default async function WorkoutSessionPage({
         weightKg: Number(s.weight_kg),
         reps: s.reps,
         rir: s.rir,
+        isWarmup: Boolean(s.is_warmup),
       }));
 
     const state =
@@ -262,11 +301,70 @@ export default async function WorkoutSessionPage({
       previousSets: referenceByExercise.get(te.exercise_id) ?? [],
       existingSets: existing,
       suggestion,
+      isAdhoc: false,
     });
   }
 
+  // Ad-hoc blocks: exercises logged in this session but not present in the
+  // template. They inherit rep-range / rest defaults from user_settings and
+  // still get a progression suggestion from the stored state.
+  for (const adhocId of adhocExerciseIds) {
+    const ex = catalogById.get(adhocId);
+    if (!ex) continue;
+    const existing = currentSets
+      .filter((s) => s.exercise_id === adhocId)
+      .map((s) => ({
+        id: s.id,
+        setNumber: s.set_number,
+        weightKg: Number(s.weight_kg),
+        reps: s.reps,
+        rir: s.rir,
+        isWarmup: Boolean(s.is_warmup),
+      }));
+    const state = progressionByExercise.get(adhocId) ?? EMPTY_STATE;
+    const loadIncrement =
+      ex.load_increment !== null && ex.load_increment !== undefined
+        ? Number(ex.load_increment) || 2.5
+        : 2.5;
+    const suggestion = evaluateProgression({
+      exercise: { load_increment: loadIncrement },
+      templateExercise: {
+        target_sets: settings.default_target_sets,
+        rep_range_low: settings.default_rep_range_low,
+        rep_range_high: settings.default_rep_range_high,
+      },
+      currentState: state,
+    });
+    exercises.push({
+      templateExerciseId: `adhoc-${adhocId}`,
+      exerciseId: adhocId,
+      exerciseName: ex.name,
+      primaryMuscle: ex.primary_muscle,
+      targetSets: settings.default_target_sets,
+      repRangeLow: settings.default_rep_range_low,
+      repRangeHigh: settings.default_rep_range_high,
+      restSeconds: settings.default_rest_seconds,
+      previousSets: referenceByExercise.get(adhocId) ?? [],
+      existingSets: existing,
+      suggestion,
+      isAdhoc: true,
+    });
+  }
+
+  // Build the picker catalog payload (strip load_increment since the client
+  // doesn't need it for display).
+  const catalogForClient: CatalogExercise[] = catalog.map((e) => ({
+    id: e.id,
+    name: e.name,
+    primaryMuscle: e.primary_muscle,
+    equipment: e.equipment,
+    sessionType: e.session_type,
+  }));
+
   const isFinished = Boolean(session.finished_at);
-  const totalLogged = currentSets.length;
+  // The "N sets" counter in the header refers to working sets only —
+  // warmups don't count toward the session's volume.
+  const totalLogged = currentSets.filter((s) => !s.is_warmup).length;
 
   return (
     <div className="px-6 pt-10">
@@ -298,20 +396,22 @@ export default async function WorkoutSessionPage({
         </div>
       </header>
 
-      {exercises.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[var(--border-strong)] p-10 text-center mb-6">
-          <p className="text-sm font-semibold mb-1">Template sem exercícios</p>
-          <p className="text-xs text-[var(--text-muted)] leading-relaxed max-w-[260px] mx-auto">
-            A sessão foi iniciada a partir de um template vazio — nada para
-            registrar.
+      <WorkoutSession
+        sessionId={session.id}
+        exercises={exercises}
+        catalog={catalogForClient}
+        sessionType={template?.session_type ?? "upper"}
+        disabled={isFinished}
+      />
+
+      {exercises.length === 0 && (
+        <div className="rounded-2xl border border-dashed border-[var(--border-strong)] p-8 text-center mb-6 mt-4">
+          <p className="text-sm font-semibold mb-1">Nenhum exercício ainda</p>
+          <p className="text-xs text-[var(--text-muted)] leading-relaxed max-w-[280px] mx-auto">
+            Template vazio ou nenhum set logado. Use o botão abaixo pra
+            adicionar um exercício ad-hoc.
           </p>
         </div>
-      ) : (
-        <WorkoutSession
-          sessionId={session.id}
-          exercises={exercises}
-          disabled={isFinished}
-        />
       )}
 
       {!isFinished && (

@@ -20,6 +20,7 @@ export type LogSetInput = {
   weightKg: number;
   reps: number;
   rir: number | null;
+  isWarmup: boolean;
 };
 
 export type LogSetResult =
@@ -56,7 +57,7 @@ export async function logSet(input: LogSetInput): Promise<LogSetResult> {
       weight_kg: input.weightKg,
       reps: input.reps,
       rir: input.rir,
-      is_warmup: false,
+      is_warmup: input.isWarmup,
     })
     .select("id")
     .single();

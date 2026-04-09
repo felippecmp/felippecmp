@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Check,
   CloudOff,
+  Flame,
   Loader2,
   Plus,
   Timer,
@@ -11,7 +12,7 @@ import {
   WifiOff,
   X,
 } from "lucide-react";
-import { muscleLabel } from "@/lib/muscles";
+import { equipmentLabel, muscleLabel } from "@/lib/muscles";
 import {
   statusCssVar,
   statusLabel,
@@ -32,6 +33,7 @@ export type ExistingSet = {
   weightKg: number;
   reps: number;
   rir: number | null;
+  isWarmup: boolean;
 };
 
 export type ExerciseBlockData = {
@@ -46,6 +48,20 @@ export type ExerciseBlockData = {
   previousSets: ReferenceSet[];
   existingSets: ExistingSet[];
   suggestion: ProgressionSuggestion;
+  /**
+   * True when the block was added to this session ad-hoc (not part of the
+   * template). Ad-hoc blocks can be removed from the session as long as no
+   * sets have been logged against them yet.
+   */
+  isAdhoc: boolean;
+};
+
+export type CatalogExercise = {
+  id: string;
+  name: string;
+  primaryMuscle: string;
+  equipment: string | null;
+  sessionType: "upper" | "lower";
 };
 
 type RowState = {
@@ -56,6 +72,9 @@ type RowState = {
   weight: string;
   reps: string;
   rir: number | null;
+  // Warmup sets are excluded from the progression engine and live in their
+  // own section visually.
+  isWarmup: boolean;
   saving: boolean;
   error: string | null;
   // True when a save attempt failed due to network — queued for auto-retry.
@@ -65,26 +84,32 @@ type RowState = {
 type PersistedRow = Omit<RowState, "saving" | "error">;
 
 function initialRows(exercise: ExerciseBlockData): RowState[] {
-  const rows: RowState[] = [...exercise.existingSets]
-    .sort((a, b) => a.setNumber - b.setNumber)
-    .map((s) => ({
-      key: `saved-${s.id}`,
-      id: s.id,
-      weight: String(s.weightKg),
-      reps: String(s.reps),
-      rir: s.rir,
-      saving: false,
-      error: null,
-      pendingOffline: false,
-    }));
+  // Put warmup sets first (in setNumber order) then working sets.
+  const sorted = [...exercise.existingSets].sort((a, b) => {
+    if (a.isWarmup !== b.isWarmup) return a.isWarmup ? -1 : 1;
+    return a.setNumber - b.setNumber;
+  });
+  const rows: RowState[] = sorted.map((s) => ({
+    key: `saved-${s.id}`,
+    id: s.id,
+    weight: String(s.weightKg),
+    reps: String(s.reps),
+    rir: s.rir,
+    isWarmup: s.isWarmup,
+    saving: false,
+    error: null,
+    pendingOffline: false,
+  }));
 
-  // Pre-fill empty rows with the suggested weight so the user only types reps.
+  // Pre-fill empty working rows with the suggested weight so the user only
+  // types reps. We don't pre-fill warmup rows; those are opt-in.
   const seedWeight =
     exercise.suggestion.suggestedWeight !== null
       ? String(exercise.suggestion.suggestedWeight)
       : "";
 
-  const missing = Math.max(0, exercise.targetSets - rows.length);
+  const workingCount = rows.filter((r) => !r.isWarmup).length;
+  const missing = Math.max(0, exercise.targetSets - workingCount);
   for (let i = 0; i < missing; i++) {
     rows.push({
       key: `empty-${i}`,
@@ -92,6 +117,7 @@ function initialRows(exercise: ExerciseBlockData): RowState[] {
       weight: seedWeight,
       reps: "",
       rir: null,
+      isWarmup: false,
       saving: false,
       error: null,
       pendingOffline: false,
@@ -117,6 +143,7 @@ function hydrateRowsFromDraft(key: string): RowState[] | null {
       weight: r.weight,
       reps: r.reps,
       rir: r.rir,
+      isWarmup: r.isWarmup ?? false,
       saving: false,
       error: null,
       pendingOffline: r.pendingOffline ?? false,
@@ -135,6 +162,7 @@ function persistRowsToDraft(key: string, rows: RowState[]): void {
       weight: r.weight,
       reps: r.reps,
       rir: r.rir,
+      isWarmup: r.isWarmup,
       pendingOffline: r.pendingOffline,
     }));
     localStorage.setItem(key, JSON.stringify(toPersist));
@@ -165,16 +193,34 @@ type RestState = {
 
 export function WorkoutSession({
   sessionId,
-  exercises,
+  exercises: initialExercises,
+  catalog,
+  sessionType,
   disabled = false,
 }: {
   sessionId: string;
   exercises: ExerciseBlockData[];
+  catalog: CatalogExercise[];
+  sessionType: "upper" | "lower";
   disabled?: boolean;
 }) {
   const [rest, setRest] = useState<RestState | null>(null);
   const restTokenRef = useRef(0);
   const online = useOnlineStatus();
+  const [exercises, setExercises] =
+    useState<ExerciseBlockData[]>(initialExercises);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  // If the server-side list changes (e.g., router refresh after finish),
+  // re-sync local state. We intentionally don't merge — whatever the server
+  // returned is canonical once we observe a change in its identity.
+  const initialRef = useRef(initialExercises);
+  useEffect(() => {
+    if (initialRef.current !== initialExercises) {
+      initialRef.current = initialExercises;
+      setExercises(initialExercises);
+    }
+  }, [initialExercises]);
 
   function startRest(seconds: number, exerciseName: string) {
     if (seconds <= 0) return;
@@ -193,10 +239,48 @@ export function WorkoutSession({
     setRest(null);
   }
 
+  function handlePickAdhoc(ex: CatalogExercise) {
+    setPickerOpen(false);
+    // De-dup: if the exercise already exists as a block, don't add again.
+    if (exercises.some((e) => e.exerciseId === ex.id)) return;
+
+    const newBlock: ExerciseBlockData = {
+      templateExerciseId: `adhoc-${ex.id}`,
+      exerciseId: ex.id,
+      exerciseName: ex.name,
+      primaryMuscle: ex.primaryMuscle,
+      // These defaults match what page.tsx would produce on refresh after
+      // sets get logged — keeps the UX consistent across reloads.
+      targetSets: 2,
+      repRangeLow: 4,
+      repRangeHigh: 8,
+      restSeconds: 180,
+      previousSets: [],
+      existingSets: [],
+      suggestion: {
+        suggestedWeight: null,
+        status: "building",
+        message: "Exercício adicionado agora. Escolha um peso e anote.",
+        confidence: "low",
+      },
+      isAdhoc: true,
+    };
+    setExercises((prev) => [...prev, newBlock]);
+  }
+
+  function handleRemoveBlock(templateExerciseId: string) {
+    setExercises((prev) =>
+      prev.filter((e) => e.templateExerciseId !== templateExerciseId)
+    );
+  }
+
+  const usedIds = new Set(exercises.map((e) => e.exerciseId));
+  const pickerOptions = catalog.filter((e) => !usedIds.has(e.id));
+
   return (
     <>
       {!online && <OfflineBanner />}
-      <ul className="space-y-3 mb-8">
+      <ul className="space-y-3 mb-4">
         {exercises.map((ex, idx) => (
           <ExerciseCard
             key={ex.templateExerciseId}
@@ -205,10 +289,37 @@ export function WorkoutSession({
             exercise={ex}
             disabled={disabled}
             onSetLogged={() => startRest(ex.restSeconds, ex.exerciseName)}
+            onRemoveBlock={
+              ex.isAdhoc ? () => handleRemoveBlock(ex.templateExerciseId) : null
+            }
           />
         ))}
       </ul>
+
+      {!disabled && (
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          disabled={pickerOptions.length === 0}
+          className="w-full flex items-center justify-center gap-2 border border-dashed border-[var(--border-strong)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--text-muted)] disabled:opacity-50 py-3.5 rounded-xl text-sm font-medium transition-colors mb-8"
+        >
+          <Plus size={14} strokeWidth={1.75} />
+          {pickerOptions.length === 0
+            ? "Todos os exercícios já estão na sessão"
+            : "Adicionar exercício ao treino"}
+        </button>
+      )}
+
       <RestTimer rest={rest} onDismiss={dismissRest} />
+
+      {pickerOpen && (
+        <AdhocExercisePicker
+          exercises={pickerOptions}
+          sessionType={sessionType}
+          onPick={handlePickAdhoc}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </>
   );
 }
@@ -349,12 +460,14 @@ function ExerciseCard({
   exercise,
   disabled,
   onSetLogged,
+  onRemoveBlock,
 }: {
   number: number;
   sessionId: string;
   exercise: ExerciseBlockData;
   disabled: boolean;
   onSetLogged: () => void;
+  onRemoveBlock: (() => void) | null;
 }) {
   const DRAFT_KEY = draftKey(sessionId, exercise.exerciseId);
   const [rows, setRows] = useState<RowState[]>(() => initialRows(exercise));
@@ -369,10 +482,6 @@ function ExerciseCard({
     hydratedRef.current = true;
     const hydrated = hydrateRowsFromDraft(DRAFT_KEY);
     if (hydrated) {
-      // One-shot external-state hydration; React's "don't setState in an
-      // effect" rule would prefer useSyncExternalStore, but that's overkill
-      // for a single read with no subscription.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRows(hydrated);
     }
   }, [DRAFT_KEY]);
@@ -422,6 +531,7 @@ function ExerciseCard({
           weightKg: weight,
           reps,
           rir: row.rir,
+          isWarmup: row.isWarmup,
         });
         if (result.ok) {
           patchRow(row.key, {
@@ -430,7 +540,9 @@ function ExerciseCard({
             error: null,
             pendingOffline: false,
           });
-          onSetLogged();
+          // Rest timer only auto-starts for working sets — warmup shouldn't
+          // force a long rest.
+          if (!row.isWarmup) onSetLogged();
         } else {
           patchRow(row.key, { saving: false, error: result.error });
         }
@@ -476,11 +588,13 @@ function ExerciseCard({
   function handleAddExtra() {
     const id = nextExtraId;
     setNextExtraId(id + 1);
-    // Seed from the last saved row's weight when available, otherwise from
-    // the progression suggestion. Falls back to an empty string.
-    const lastSaved = [...rows].reverse().find((r) => r.id !== null);
-    const seedWeight = lastSaved
-      ? lastSaved.weight
+    // Seed from the last saved working row, otherwise from the progression
+    // suggestion. Falls back to an empty string.
+    const lastSavedWorking = [...rows]
+      .reverse()
+      .find((r) => r.id !== null && !r.isWarmup);
+    const seedWeight = lastSavedWorking
+      ? lastSavedWorking.weight
       : exercise.suggestion.suggestedWeight !== null
         ? String(exercise.suggestion.suggestedWeight)
         : "";
@@ -492,11 +606,40 @@ function ExerciseCard({
         weight: seedWeight,
         reps: "",
         rir: null,
+        isWarmup: false,
         saving: false,
         error: null,
         pendingOffline: false,
       },
     ]);
+  }
+
+  function handleAddWarmup() {
+    const id = nextExtraId;
+    setNextExtraId(id + 1);
+    // Warmup rows don't get pre-filled with the suggested working weight —
+    // users typically ramp up from a lower percentage.
+    setRows((prev) => {
+      // Insert new warmup row after the existing warmup rows so it lands at
+      // the bottom of the warmup section.
+      const lastWarmupIdx = prev.reduce(
+        (acc, r, idx) => (r.isWarmup ? idx : acc),
+        -1
+      );
+      const insertAt = lastWarmupIdx + 1;
+      const newRow: RowState = {
+        key: `warmup-${id}`,
+        id: null,
+        weight: "",
+        reps: "",
+        rir: null,
+        isWarmup: true,
+        saving: false,
+        error: null,
+        pendingOffline: false,
+      };
+      return [...prev.slice(0, insertAt), newRow, ...prev.slice(insertAt)];
+    });
   }
 
   // Auto-retry pending rows when the browser comes back online. We keep a
@@ -535,6 +678,10 @@ function ExerciseCard({
   const reference = exercise.previousSets;
   const suggestion = exercise.suggestion;
 
+  // Allow removing an ad-hoc block only while no sets have been logged.
+  const hasAnySet = rows.some((r) => r.id !== null);
+  const canRemove = !!onRemoveBlock && !hasAnySet && !disabled;
+
   return (
     <li className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
       <div className="px-4 pt-4 pb-3">
@@ -543,8 +690,25 @@ function ExerciseCard({
             {number}
           </span>
           <div className="min-w-0 flex-1">
-            <div className="font-medium text-[15px] leading-tight truncate">
-              {exercise.exerciseName}
+            <div className="flex items-center gap-2">
+              <div className="font-medium text-[15px] leading-tight truncate flex-1 min-w-0">
+                {exercise.exerciseName}
+              </div>
+              {exercise.isAdhoc && (
+                <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border border-[var(--border-strong)] text-[var(--text-muted)]">
+                  ad-hoc
+                </span>
+              )}
+              {canRemove && (
+                <button
+                  type="button"
+                  onClick={() => onRemoveBlock?.()}
+                  aria-label="Remover exercício da sessão"
+                  className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--danger)] transition-colors"
+                >
+                  <X size={12} strokeWidth={1.75} />
+                </button>
+              )}
             </div>
             <div className="text-xs text-[var(--text-muted)] mt-1 tnum">
               {muscleLabel(exercise.primaryMuscle)} · {exercise.targetSets} sets ·{" "}
@@ -588,29 +752,158 @@ function ExerciseCard({
       </div>
 
       <div className="border-t border-[var(--border)] bg-[var(--bg-raised)] divide-y divide-[var(--border)]">
-        {rows.map((row, idx) => (
-          <SetRowInput
-            key={row.key}
-            row={row}
-            index={idx}
-            disabled={disabled}
-            onChange={(patch) => patchRow(row.key, patch)}
-            onSave={() => handleSave(row, idx)}
-            onRemove={() => handleRemove(row)}
-          />
-        ))}
+        {(() => {
+          // Compute display labels as we iterate so warmup rows get "W1/W2"
+          // and working rows get "01/02", independent of array position.
+          let warmupN = 0;
+          let workingN = 0;
+          return rows.map((row, idx) => {
+            const label = row.isWarmup
+              ? `W${(++warmupN).toString()}`
+              : (++workingN).toString().padStart(2, "0");
+            return (
+              <SetRowInput
+                key={row.key}
+                row={row}
+                label={label}
+                disabled={disabled}
+                onChange={(patch) => patchRow(row.key, patch)}
+                onSave={() => handleSave(row, idx)}
+                onRemove={() => handleRemove(row)}
+              />
+            );
+          });
+        })()}
       </div>
 
-      <button
-        type="button"
-        onClick={handleAddExtra}
-        disabled={disabled}
-        className="w-full flex items-center justify-center gap-1.5 py-3 text-xs text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-40 transition-colors border-t border-[var(--border)]"
-      >
-        <Plus size={12} strokeWidth={2} />
-        Set extra
-      </button>
+      <div className="flex border-t border-[var(--border)] divide-x divide-[var(--border)]">
+        <button
+          type="button"
+          onClick={handleAddWarmup}
+          disabled={disabled}
+          className="flex-1 flex items-center justify-center gap-1.5 py-3 text-[11px] uppercase tracking-wider text-[var(--text-dim)] hover:text-[var(--text-soft)] disabled:opacity-40 transition-colors"
+        >
+          <Flame size={11} strokeWidth={1.75} />
+          Aquecimento
+        </button>
+        <button
+          type="button"
+          onClick={handleAddExtra}
+          disabled={disabled}
+          className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-40 transition-colors"
+        >
+          <Plus size={12} strokeWidth={2} />
+          Set extra
+        </button>
+      </div>
     </li>
+  );
+}
+
+function AdhocExercisePicker({
+  exercises,
+  sessionType,
+  onPick,
+  onClose,
+}: {
+  exercises: CatalogExercise[];
+  sessionType: "upper" | "lower";
+  onPick: (ex: CatalogExercise) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [showOtherType, setShowOtherType] = useState(false);
+
+  const matchesType = (e: CatalogExercise) =>
+    showOtherType ? true : e.sessionType === sessionType;
+  const matchesQuery = (e: CatalogExercise) =>
+    e.name.toLowerCase().includes(query.toLowerCase());
+
+  const filtered = exercises.filter(
+    (e) => matchesType(e) && matchesQuery(e)
+  );
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full sm:max-w-md bg-[var(--bg-raised)] border-t sm:border border-[var(--border)] rounded-t-3xl sm:rounded-3xl max-h-[85vh] flex flex-col"
+      >
+        <div className="px-6 pt-5 pb-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
+          <div>
+            <h2 className="display-sm text-xl">Adicionar exercício</h2>
+            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+              Só pra este treino — não afeta o template.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)]"
+            aria-label="Fechar"
+          >
+            <X size={18} strokeWidth={1.75} />
+          </button>
+        </div>
+
+        <div className="px-6 py-3 shrink-0 space-y-3">
+          <input
+            type="search"
+            placeholder="Buscar…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--text-muted)]"
+          />
+          <label className="flex items-center gap-2 text-[11px] text-[var(--text-muted)]">
+            <input
+              type="checkbox"
+              checked={showOtherType}
+              onChange={(e) => setShowOtherType(e.target.checked)}
+              className="accent-[var(--text)]"
+            />
+            Mostrar também exercícios do outro tipo (
+            {sessionType === "upper" ? "lower" : "upper"})
+          </label>
+        </div>
+
+        <div
+          className="flex-1 overflow-y-auto px-6 pb-8"
+          style={{ paddingBottom: "max(2rem, env(safe-area-inset-bottom))" }}
+        >
+          {filtered.length === 0 ? (
+            <p className="text-center text-[var(--text-muted)] text-sm py-10">
+              Nenhum exercício encontrado.
+            </p>
+          ) : (
+            <ul className="space-y-1">
+              {filtered.map((e) => (
+                <li key={e.id}>
+                  <button
+                    type="button"
+                    onClick={() => onPick(e)}
+                    className="w-full text-left px-4 py-3 rounded-xl hover:bg-[var(--bg-card)] transition-colors"
+                  >
+                    <div className="font-medium text-sm">{e.name}</div>
+                    <div className="text-xs text-[var(--text-muted)] mt-0.5">
+                      {muscleLabel(e.primaryMuscle)}
+                      {e.equipment && (
+                        <>
+                          {" · "}
+                          {equipmentLabel(e.equipment)}
+                        </>
+                      )}
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -636,14 +929,14 @@ function StatusBadge({ suggestion }: { suggestion: ProgressionSuggestion }) {
 
 function SetRowInput({
   row,
-  index,
+  label,
   disabled,
   onChange,
   onSave,
   onRemove,
 }: {
   row: RowState;
-  index: number;
+  label: string;
   disabled: boolean;
   onChange: (patch: Partial<RowState>) => void;
   onSave: () => void;
@@ -651,12 +944,17 @@ function SetRowInput({
 }) {
   const saved = row.id !== null && !row.saving;
   const pending = row.pendingOffline;
+  const warmup = row.isWarmup;
 
   return (
-    <div className="px-4 py-3">
+    <div className={`px-4 py-3 ${warmup ? "bg-[var(--bg-card)]/40" : ""}`}>
       <div className="flex items-center gap-2">
-        <span className="shrink-0 w-6 text-[10px] text-[var(--text-dim)] tnum font-semibold tracking-wider">
-          {(index + 1).toString().padStart(2, "0")}
+        <span
+          className={`shrink-0 w-6 text-[10px] tnum font-semibold tracking-wider ${
+            warmup ? "text-[var(--text-dim)] italic" : "text-[var(--text-dim)]"
+          }`}
+        >
+          {label}
         </span>
         <label className="flex-1 min-w-0">
           <input

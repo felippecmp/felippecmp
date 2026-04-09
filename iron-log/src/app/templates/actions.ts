@@ -77,6 +77,87 @@ export async function archiveTemplate(id: string): Promise<ActionResult> {
   redirect("/templates");
 }
 
+export type CreateExerciseInput = {
+  name: string;
+  sessionType: "upper" | "lower";
+  movementPattern: string;
+  primaryMuscle: string;
+  equipment: string | null;
+  loadIncrement: number;
+};
+
+/**
+ * Create a brand-new exercise AND immediately add it to the given template,
+ * in a single round-trip from the template editor's picker. Avoids the
+ * "leave, create in /exercicios/novo, come back" detour.
+ */
+export async function createExerciseFromTemplate(
+  templateId: string,
+  input: CreateExerciseInput
+): Promise<ActionResult> {
+  const name = input.name.trim();
+  if (!name) return { ok: false, error: "Nome é obrigatório." };
+  if (input.sessionType !== "upper" && input.sessionType !== "lower") {
+    return { ok: false, error: "Tipo de sessão inválido." };
+  }
+  if (!input.movementPattern) {
+    return { ok: false, error: "Padrão de movimento obrigatório." };
+  }
+  if (!input.primaryMuscle) {
+    return { ok: false, error: "Músculo primário obrigatório." };
+  }
+  const loadIncrement =
+    Number.isFinite(input.loadIncrement) && input.loadIncrement > 0
+      ? input.loadIncrement
+      : 2.5;
+
+  const supabase = await createClient();
+  const settings = await getUserSettings();
+
+  const { data: created, error: exErr } = await supabase
+    .from("exercises")
+    .insert({
+      name,
+      session_type: input.sessionType,
+      movement_pattern: input.movementPattern,
+      primary_muscle: input.primaryMuscle,
+      equipment: input.equipment,
+      load_increment: loadIncrement,
+      is_active: true,
+    })
+    .select("id")
+    .single();
+
+  if (exErr) return { ok: false, error: exErr.message };
+
+  const { data: existingSlot } = await supabase
+    .from("template_exercises")
+    .select("slot_order")
+    .eq("template_id", templateId)
+    .order("slot_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextSlot = (existingSlot?.slot_order ?? -1) + 1;
+
+  const { error: teErr } = await supabase.from("template_exercises").insert({
+    template_id: templateId,
+    exercise_id: created.id,
+    slot_order: nextSlot,
+    target_sets: settings.default_target_sets,
+    rep_range_low: settings.default_rep_range_low,
+    rep_range_high: settings.default_rep_range_high,
+    rest_seconds: settings.default_rest_seconds,
+  });
+
+  if (teErr) return { ok: false, error: teErr.message };
+
+  revalidatePath(`/templates/${templateId}`);
+  revalidatePath("/templates");
+  revalidatePath("/exercicios");
+  revalidatePath("/treinar");
+  return { ok: true };
+}
+
 export async function addExerciseToTemplate(
   templateId: string,
   exerciseId: string

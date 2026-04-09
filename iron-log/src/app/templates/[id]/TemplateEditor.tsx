@@ -10,11 +10,19 @@ import {
   Check,
   X,
   Pencil,
+  ChevronLeft,
 } from "lucide-react";
-import { muscleLabel, equipmentLabel } from "@/lib/muscles";
+import {
+  muscleLabel,
+  equipmentLabel,
+  MUSCLES,
+  MOVEMENT_PATTERNS,
+  EQUIPMENT,
+} from "@/lib/muscles";
 import {
   addExerciseToTemplate,
   archiveTemplate,
+  createExerciseFromTemplate,
   removeTemplateExercise,
   reorderTemplateExercise,
   updateTemplate,
@@ -230,6 +238,8 @@ export function TemplateEditor({
       {picking && (
         <ExercisePicker
           exercises={pickable}
+          templateId={template.id}
+          sessionType={template.session_type}
           onPick={handleAdd}
           onClose={() => setPicking(false)}
         />
@@ -369,14 +379,20 @@ function NumField({
 
 function ExercisePicker({
   exercises,
+  templateId,
+  sessionType,
   onPick,
   onClose,
 }: {
   exercises: Exercise[];
+  templateId: string;
+  sessionType: "upper" | "lower";
   onPick: (id: string) => void;
   onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
+  const [mode, setMode] = useState<"pick" | "create">("pick");
+
   const filtered = exercises.filter((e) =>
     e.name.toLowerCase().includes(query.toLowerCase())
   );
@@ -391,8 +407,20 @@ function ExercisePicker({
         className="w-full sm:max-w-md bg-[var(--bg-raised)] border-t sm:border border-[var(--border)] rounded-t-3xl sm:rounded-3xl max-h-[85vh] flex flex-col"
       >
         <div className="px-6 pt-5 pb-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
-          <h2 className="display-sm text-xl">Escolher exercício</h2>
+          {mode === "create" ? (
+            <button
+              type="button"
+              onClick={() => setMode("pick")}
+              className="flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+            >
+              <ChevronLeft size={16} strokeWidth={1.75} />
+              Voltar
+            </button>
+          ) : (
+            <h2 className="display-sm text-xl">Escolher exercício</h2>
+          )}
           <button
+            type="button"
             onClick={onClose}
             className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)]"
             aria-label="Fechar"
@@ -400,43 +428,205 @@ function ExercisePicker({
             <X size={18} strokeWidth={1.75} />
           </button>
         </div>
-        <div className="px-6 py-3 shrink-0">
-          <input
-            type="search"
-            placeholder="Buscar…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--text-muted)]"
+
+        {mode === "pick" ? (
+          <>
+            <div className="px-6 py-3 shrink-0">
+              <input
+                type="search"
+                placeholder="Buscar…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--text-muted)]"
+              />
+            </div>
+            <div
+              className="flex-1 overflow-y-auto px-6 pb-4"
+              style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+            >
+              {filtered.length === 0 ? (
+                <p className="text-center text-[var(--text-muted)] text-sm py-6">
+                  Nenhum exercício encontrado.
+                </p>
+              ) : (
+                <ul className="space-y-1">
+                  {filtered.map((e) => (
+                    <li key={e.id}>
+                      <button
+                        type="button"
+                        onClick={() => onPick(e.id)}
+                        className="w-full text-left px-4 py-3 rounded-xl hover:bg-[var(--bg-card)] transition-colors"
+                      >
+                        <div className="font-medium text-sm">{e.name}</div>
+                        <div className="text-xs text-[var(--text-muted)] mt-0.5">
+                          {muscleLabel(e.primary_muscle)} ·{" "}
+                          {equipmentLabel(e.equipment)}
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="px-6 pb-6 pt-2 border-t border-[var(--border)] shrink-0">
+              <button
+                type="button"
+                onClick={() => setMode("create")}
+                className="w-full flex items-center justify-center gap-2 border border-dashed border-[var(--border-strong)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--text-muted)] py-3 rounded-xl text-sm font-medium transition-colors"
+              >
+                <Plus size={14} strokeWidth={1.75} />
+                Criar exercício novo
+              </button>
+            </div>
+          </>
+        ) : (
+          <CreateExerciseMiniForm
+            templateId={templateId}
+            sessionType={sessionType}
+            onCreated={onClose}
           />
-        </div>
-        <div
-          className="flex-1 overflow-y-auto px-6 pb-8"
-          style={{ paddingBottom: "max(2rem, env(safe-area-inset-bottom))" }}
-        >
-          {filtered.length === 0 ? (
-            <p className="text-center text-[var(--text-muted)] text-sm py-10">
-              Nenhum exercício encontrado.
-            </p>
-          ) : (
-            <ul className="space-y-1">
-              {filtered.map((e) => (
-                <li key={e.id}>
-                  <button
-                    onClick={() => onPick(e.id)}
-                    className="w-full text-left px-4 py-3 rounded-xl hover:bg-[var(--bg-card)] transition-colors"
-                  >
-                    <div className="font-medium text-sm">{e.name}</div>
-                    <div className="text-xs text-[var(--text-muted)] mt-0.5">
-                      {muscleLabel(e.primary_muscle)} ·{" "}
-                      {equipmentLabel(e.equipment)}
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        )}
       </div>
     </div>
+  );
+}
+
+function CreateExerciseMiniForm({
+  templateId,
+  sessionType,
+  onCreated,
+}: {
+  templateId: string;
+  sessionType: "upper" | "lower";
+  onCreated: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [movementPattern, setMovementPattern] = useState("");
+  const [primaryMuscle, setPrimaryMuscle] = useState("");
+  const [equipment, setEquipment] = useState("");
+  const [loadIncrement, setLoadIncrement] = useState("2.5");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const filteredPatterns = MOVEMENT_PATTERNS.filter(
+    (p) => p.session === sessionType
+  );
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    startTransition(async () => {
+      const n = Number(loadIncrement.replace(",", "."));
+      const result = await createExerciseFromTemplate(templateId, {
+        name,
+        sessionType,
+        movementPattern,
+        primaryMuscle,
+        equipment: equipment || null,
+        loadIncrement: Number.isFinite(n) && n > 0 ? n : 2.5,
+      });
+      if (result.ok) {
+        onCreated();
+      } else {
+        setError(result.error);
+      }
+    });
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="flex-1 overflow-y-auto px-6 py-5 space-y-4"
+      style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
+    >
+      <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+        O exercício vai pro catálogo geral e é adicionado a este template na
+        sequência, já usando seus defaults de sets/reps/descanso.
+      </p>
+
+      <label className="block">
+        <span className="label block mb-1.5">Nome</span>
+        <input
+          type="text"
+          required
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Ex: Supino com corrente"
+          className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--text-muted)]"
+        />
+      </label>
+
+      <label className="block">
+        <span className="label block mb-1.5">Padrão de movimento</span>
+        <select
+          required
+          value={movementPattern}
+          onChange={(e) => setMovementPattern(e.target.value)}
+          className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--text-muted)]"
+        >
+          <option value="">Selecionar</option>
+          {filteredPatterns.map((p) => (
+            <option key={p.value} value={p.value}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="block">
+        <span className="label block mb-1.5">Músculo primário</span>
+        <select
+          required
+          value={primaryMuscle}
+          onChange={(e) => setPrimaryMuscle(e.target.value)}
+          className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--text-muted)]"
+        >
+          <option value="">Selecionar</option>
+          {MUSCLES.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="block">
+        <span className="label block mb-1.5">Equipamento</span>
+        <select
+          value={equipment}
+          onChange={(e) => setEquipment(e.target.value)}
+          className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--text-muted)]"
+        >
+          <option value="">—</option>
+          {EQUIPMENT.map((eq) => (
+            <option key={eq.value} value={eq.value}>
+              {eq.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="block">
+        <span className="label block mb-1.5">Incremento (kg)</span>
+        <input
+          type="number"
+          step="0.25"
+          min="0.25"
+          value={loadIncrement}
+          onChange={(e) => setLoadIncrement(e.target.value)}
+          className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm tnum focus:outline-none focus:border-[var(--text-muted)]"
+        />
+      </label>
+
+      {error && <p className="text-xs text-[var(--danger)]">{error}</p>}
+
+      <button
+        type="submit"
+        disabled={isPending}
+        className="w-full bg-accent text-accent-fg py-3 rounded-xl font-semibold text-sm hover:bg-accent-hover disabled:opacity-60 transition-colors"
+      >
+        {isPending ? "Criando…" : "Criar e adicionar"}
+      </button>
+    </form>
   );
 }
