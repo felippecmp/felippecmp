@@ -101,7 +101,7 @@ export default async function ProgressoPage() {
   // user settings (for the optional body weight target).
   const settings = await getUserSettings();
 
-  const [sessionsYearRes, setsRes, weightRes, cardioRes] = await Promise.all([
+  const [sessionsYearRes, setsRes, weightRes, cardioRes, stepsRes] = await Promise.all([
     supabase
       .from("workout_sessions")
       .select("id, started_at, finished_at, duration_minutes")
@@ -129,6 +129,11 @@ export default async function ProgressoPage() {
       )
       .gte("started_at", yearAgo.toISOString())
       .order("started_at", { ascending: false }),
+    supabase
+      .from("daily_steps")
+      .select("step_date, steps")
+      .gte("step_date", ninetyDaysAgo.toISOString().slice(0, 10))
+      .order("step_date", { ascending: false }),
   ]);
 
   const allSessions = (sessionsYearRes.data ?? []) as SessionRow[];
@@ -138,6 +143,10 @@ export default async function ProgressoPage() {
   const sets = (setsRes.data ?? []) as SetRow[];
   const weights = (weightRes.data ?? []) as WeightRow[];
   const allCardio = (cardioRes.data ?? []) as CardioRow[];
+  const stepsData = (stepsRes.data ?? []) as Array<{
+    step_date: string;
+    steps: number;
+  }>;
   const cardio30d = allCardio.filter(
     (c) => new Date(c.started_at) >= thirtyDaysAgo
   );
@@ -183,6 +192,34 @@ export default async function ProgressoPage() {
     sessionsByDay.set(k, prev);
   }
   const days = lastNDays(90, now);
+
+  // Beast Mode heatmap: compute per-day completion level (0-4).
+  // Goals: weight logged, strength session, cardio/walk, steps >= 8000.
+  const weightDays = new Set(
+    weights.map((w) => dateKey(new Date(w.recorded_at)))
+  );
+  const strengthDays = new Set(
+    sessions.map((s) => dateKey(new Date(s.started_at)))
+  );
+  const cardioDays = new Set(
+    allCardio
+      .filter((c) => new Date(c.started_at) >= ninetyDaysAgo)
+      .map((c) => dateKey(new Date(c.started_at)))
+  );
+  const stepsDayMap = new Map<string, number>();
+  for (const s of stepsData) {
+    stepsDayMap.set(s.step_date, s.steps);
+  }
+
+  const completionByDay = new Map<string, number>();
+  for (const d of days) {
+    let level = 0;
+    if (weightDays.has(d.key)) level++;
+    if (strengthDays.has(d.key)) level++;
+    if (cardioDays.has(d.key)) level++;
+    if ((stepsDayMap.get(d.key) ?? 0) >= 8000) level++;
+    completionByDay.set(d.key, level);
+  }
 
   // Pre-compute period-filtered sets (used by both activity map and stats).
   const sets30d = sets.filter(
@@ -563,7 +600,11 @@ export default async function ProgressoPage() {
                 {sessions.length} sessões
               </span>
             </div>
-            <Heatmap days={days} sessionsByDay={sessionsByDay} />
+            <Heatmap
+              days={days}
+              sessionsByDay={sessionsByDay}
+              completionByDay={completionByDay}
+            />
           </section>
 
           {recentExercises.length > 0 && (
@@ -926,46 +967,56 @@ function VolumeBar({
 function Heatmap({
   days,
   sessionsByDay,
+  completionByDay,
 }: {
   days: Array<{ key: string; date: Date }>;
   sessionsByDay: Map<string, { count: number; minutes: number }>;
+  completionByDay: Map<string, number>;
 }) {
-  // 13 columns × ~7 rows fits 90 days comfortably. Oldest on the left,
-  // most recent bottom-right.
   const cells = days.map((d) => {
     const entry = sessionsByDay.get(d.key);
     const count = entry?.count ?? 0;
     const minutes = entry?.minutes ?? 0;
+    const completion = completionByDay.get(d.key) ?? 0;
     let opacity = 0;
     if (count > 0) {
-      // Scale by minutes (20min → 0.35, 60min → 0.85, 90+ → 1)
       opacity = Math.min(1, 0.35 + (minutes / 90) * 0.65);
     }
-    return { ...d, count, minutes, opacity };
+    return { ...d, count, minutes, opacity, completion };
   });
 
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
       <div className="grid grid-cols-[repeat(13,1fr)] gap-1">
-        {cells.map((c) => (
-          <div
-            key={c.key}
-            title={`${c.key} — ${c.count} sessão${c.count === 1 ? "" : "es"}${
-              c.minutes > 0 ? ` · ${c.minutes}min` : ""
-            }`}
-            className="aspect-square rounded-[3px] border border-[var(--border)]"
-            style={{
-              background:
-                c.count > 0
-                  ? `color-mix(in oklab, var(--status-ready) ${
-                      c.opacity * 100
-                    }%, transparent)`
-                  : "transparent",
-            }}
-          />
-        ))}
+        {cells.map((c) => {
+          // Beast Mode reward: 4/4 completion = crimson + glow,
+          // 3/4 = crimson without glow. CSS classes handle the
+          // theme-conditional rendering.
+          const allComplete = c.completion >= 4;
+          const mostComplete = c.completion >= 3 && c.completion < 4;
+          return (
+            <div
+              key={c.key}
+              title={`${c.key} — ${c.count > 0 ? `${c.count} sessão${c.count === 1 ? "" : "es"} · ${c.minutes}min` : "rest"} — ${c.completion}/4 metas`}
+              className={`aspect-square rounded-[3px] border border-[var(--border)] ${
+                allComplete ? "beast-complete" : ""
+              } ${mostComplete ? "beast-almost" : ""}`}
+              style={{
+                background:
+                  allComplete || mostComplete
+                    ? "var(--accent)"
+                    : c.count > 0
+                      ? `color-mix(in oklab, var(--status-ready) ${
+                          c.opacity * 100
+                        }%, transparent)`
+                      : "transparent",
+                opacity: mostComplete && !allComplete ? 0.6 : undefined,
+              }}
+            />
+          );
+        })}
       </div>
-      <div className="flex items-center gap-2 mt-3 text-[10px] text-[var(--text-dim)] tracking-wider uppercase">
+      <div className="flex items-center gap-2 mt-3 text-[10px] text-[var(--text-dim)] tracking-wider uppercase flex-wrap">
         <span>Menos</span>
         <div className="flex gap-1">
           {[0, 0.35, 0.6, 0.85, 1].map((o, i) => (
@@ -982,6 +1033,17 @@ function Heatmap({
           ))}
         </div>
         <span>Mais</span>
+        <span className="text-[var(--text-faint)]">·</span>
+        <div
+          className="w-3 h-3 rounded-[2px] border border-[var(--border)]"
+          style={{ background: "var(--accent)", opacity: 0.6 }}
+        />
+        <span>3/4</span>
+        <div
+          className="w-3 h-3 rounded-[2px] border border-[var(--border)] beast-complete"
+          style={{ background: "var(--accent)" }}
+        />
+        <span>4/4</span>
       </div>
     </div>
   );

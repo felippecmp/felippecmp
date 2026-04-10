@@ -36,6 +36,8 @@ export type FitSummary = {
   calories: number | null;
   /** Total distance in kilometers (for cardio; null for strength). */
   distanceKm: number | null;
+  /** Step count for walking/running activities (from total_cycles). */
+  steps: number | null;
   /** FIT "sport" enum value (e.g. "running", "walking", "training"). */
   sport: string | null;
   /** FIT "sub_sport" enum value (e.g. "strength_training", "casual_walking"). */
@@ -105,6 +107,7 @@ export async function parseFit(buffer: ArrayBuffer): Promise<FitParseResult> {
     const moving: number[] = [];
     const distances: number[] = [];
     const calories: number[] = [];
+    const cycles: number[] = [];
     let startTime: string | null = null;
     let sport: string | null = null;
     let subSport: string | null = null;
@@ -118,6 +121,7 @@ export async function parseFit(buffer: ArrayBuffer): Promise<FitParseResult> {
         moving.push(s.total_timer_time);
       if (typeof s.total_distance === "number") distances.push(s.total_distance);
       if (typeof s.total_calories === "number") calories.push(s.total_calories);
+      if (typeof s.total_cycles === "number") cycles.push(s.total_cycles);
       if (!startTime && s.start_time) startTime = s.start_time;
       if (!sport && s.sport) sport = s.sport;
       if (!subSport && s.sub_sport) subSport = s.sub_sport;
@@ -137,6 +141,10 @@ export async function parseFit(buffer: ArrayBuffer): Promise<FitParseResult> {
           distances.length > 0
             ? Math.round(sumOf(distances) * 100) / 100
             : null,
+        // For walking/running, total_cycles = steps. For cycling it's
+        // pedal revolutions — we store regardless and let the caller
+        // decide whether the sport type makes sense.
+        steps: cycles.length > 0 ? Math.round(sumOf(cycles)) : null,
         sport,
         subSport,
         heartRateSamples: samples,
@@ -244,6 +252,7 @@ function summarizeFromRecords(
       maxHeartRate: maxOf(hrs),
       calories: null,
       distanceKm,
+      steps: null,
       sport: null,
       subSport: null,
       heartRateSamples,

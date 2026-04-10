@@ -78,6 +78,7 @@ export async function POST(request: Request) {
       avg_heart_rate: summary.avgHeartRate,
       max_heart_rate: summary.maxHeartRate,
       calories: summary.calories,
+      steps: summary.steps,
       device_source: "coros",
     })
     .select("id")

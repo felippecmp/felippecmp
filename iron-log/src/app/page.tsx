@@ -7,10 +7,12 @@ import {
   Layers,
   Scale,
   Settings as SettingsIcon,
+  TrendingUp,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { computeStreak } from "@/lib/streak";
 import { QuickWeightAdd } from "./QuickWeightAdd";
+import { QuickStepsAdd } from "./QuickStepsAdd";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +64,12 @@ type CardioRow = {
   avg_heart_rate: number | null;
 };
 
+type StepsRow = {
+  id: string;
+  step_date: string;
+  steps: number;
+};
+
 type DiaryEntry =
   | {
       kind: "strength";
@@ -86,6 +94,12 @@ type DiaryEntry =
       id: string;
       at: string;
       weightKg: number;
+    }
+  | {
+      kind: "steps";
+      id: string;
+      at: string;
+      steps: number;
     };
 
 const FEELING_SHORT: Record<number, string> = {
@@ -113,6 +127,7 @@ export default async function HomePage() {
     { data: strengthYear },
     { data: cardioYear },
     { data: weightRows },
+    { data: stepsRows },
   ] = await Promise.all([
     supabase.from("exercises").select("*", { count: "exact", head: true }),
     supabase
@@ -135,12 +150,18 @@ export default async function HomePage() {
       .select("id, weight_kg, recorded_at")
       .order("recorded_at", { ascending: false })
       .limit(60),
+    supabase
+      .from("daily_steps")
+      .select("id, step_date, steps")
+      .order("step_date", { ascending: false })
+      .limit(60),
   ]);
 
   const { weekday, day, month } = formatHeaderDate(now);
   const strengthSessions = (strengthYear ?? []) as StrengthSessionRow[];
   const cardioSessions = (cardioYear ?? []) as CardioRow[];
   const weights = (weightRows ?? []) as WeightRow[];
+  const stepsData = (stepsRows ?? []) as StepsRow[];
 
   // Streak = days with any strength OR cardio activity.
   const streak = computeStreak({
@@ -156,6 +177,8 @@ export default async function HomePage() {
     (w) => localDayKey(new Date(w.recorded_at)) === todayKey
   );
   const latestWeight = weights[0];
+
+  const todaySteps = stepsData.find((s) => s.step_date === todayKey);
 
   // Build unified diary entries sorted by timestamp desc, grouped by day.
   const diary: DiaryEntry[] = [
@@ -184,6 +207,13 @@ export default async function HomePage() {
       id: w.id,
       at: w.recorded_at,
       weightKg: Number(w.weight_kg),
+    })),
+    ...stepsData.slice(0, 20).map<DiaryEntry>((s) => ({
+      kind: "steps",
+      id: s.id,
+      // step_date is YYYY-MM-DD; place at noon so it sorts mid-day.
+      at: `${s.step_date}T12:00:00`,
+      steps: s.steps,
     })),
   ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
@@ -310,6 +340,19 @@ export default async function HomePage() {
               : null
           }
         />
+        <div className="mt-3">
+          <QuickStepsAdd
+            todaySteps={
+              todaySteps
+                ? {
+                    id: todaySteps.id,
+                    steps: todaySteps.steps,
+                    stepDate: todaySteps.step_date,
+                  }
+                : null
+            }
+          />
+        </div>
       </section>
 
       <section className="mb-10 grid grid-cols-2 gap-3">
@@ -468,14 +511,13 @@ function DiaryRow({ entry }: { entry: DiaryEntry }) {
       );
     }
     case "weight": {
-      const Icon = Scale;
       return (
         <li>
           <Link
             href="/peso"
             className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-hover)] transition-colors"
           >
-            <Icon
+            <Scale
               size={14}
               strokeWidth={1.75}
               className="shrink-0 text-[var(--text-soft)]"
@@ -492,6 +534,30 @@ function DiaryRow({ entry }: { entry: DiaryEntry }) {
               {formatHM(entry.at)}
             </span>
           </Link>
+        </li>
+      );
+    }
+    case "steps": {
+      return (
+        <li className="flex items-center gap-3 px-4 py-3">
+          <TrendingUp
+            size={14}
+            strokeWidth={1.75}
+            className="shrink-0 text-[var(--text-soft)]"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium">
+              <span className="tnum tabular-nums">
+                {entry.steps.toLocaleString("pt-BR")}
+              </span>{" "}
+              passos
+              {entry.steps >= 8000 && (
+                <span className="text-[10px] ml-1.5 text-[var(--status-ready)]">
+                  meta
+                </span>
+              )}
+            </div>
+          </div>
         </li>
       );
     }
