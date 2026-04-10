@@ -614,6 +614,20 @@ function ExerciseCard({
     ]);
   }
 
+  function handleDeload() {
+    const w = exercise.suggestion.suggestedWeight;
+    if (!w || w <= 0) return;
+    // -10%, rounded to nearest 0.25 kg.
+    const deloaded = Math.round(w * 0.9 * 4) / 4;
+    setRows((prev) =>
+      prev.map((r) => {
+        // Only pre-fill unsaved working rows.
+        if (r.id !== null || r.isWarmup) return r;
+        return { ...r, weight: String(deloaded) };
+      })
+    );
+  }
+
   function handleAddWarmup() {
     const id = nextExtraId;
     setNextExtraId(id + 1);
@@ -725,6 +739,17 @@ function ExerciseCard({
                   </strong>
                 </span>
               )}
+              {suggestion.status === "stalled" &&
+                suggestion.suggestedWeight !== null &&
+                !disabled && (
+                  <button
+                    type="button"
+                    onClick={handleDeload}
+                    className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md border border-[var(--status-stalled)] text-[var(--status-stalled)] hover:bg-[var(--status-stalled)]/10 transition-colors"
+                  >
+                    Deload -10%
+                  </button>
+                )}
             </div>
             <p className="text-[11px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
               {suggestion.message}
