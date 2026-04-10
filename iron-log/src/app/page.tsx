@@ -49,6 +49,7 @@ type StrengthSessionRow = {
   started_at: string;
   duration_minutes: number | null;
   avg_heart_rate: number | null;
+  overall_feeling: number | null;
   workout_templates: { name: string } | { name: string }[] | null;
 };
 
@@ -69,6 +70,7 @@ type DiaryEntry =
       templateName: string | null;
       durationMinutes: number | null;
       avgHr: number | null;
+      feeling: number | null;
     }
   | {
       kind: "cardio";
@@ -85,6 +87,14 @@ type DiaryEntry =
       at: string;
       weightKg: number;
     };
+
+const FEELING_SHORT: Record<number, string> = {
+  1: "fraco",
+  2: "ok",
+  3: "bom",
+  4: "forte",
+  5: "PR",
+};
 
 const CARDIO_TYPE_LABELS: Record<string, string> = {
   walking: "Caminhada",
@@ -108,7 +118,7 @@ export default async function HomePage() {
     supabase
       .from("workout_sessions")
       .select(
-        "id, started_at, duration_minutes, avg_heart_rate, workout_templates(name)"
+        "id, started_at, duration_minutes, avg_heart_rate, overall_feeling, workout_templates(name)"
       )
       .not("finished_at", "is", null)
       .order("started_at", { ascending: false })
@@ -158,6 +168,7 @@ export default async function HomePage() {
         : (s.workout_templates as { name: string } | null)?.name ?? null,
       durationMinutes: s.duration_minutes,
       avgHr: s.avg_heart_rate,
+      feeling: s.overall_feeling,
     })),
     ...cardioSessions.slice(0, 30).map<DiaryEntry>((c) => ({
       kind: "cardio",
@@ -399,6 +410,12 @@ function DiaryRow({ entry }: { entry: DiaryEntry }) {
                   <>
                     <span className="text-[var(--text-faint)]"> · </span>
                     HR {entry.avgHr}
+                  </>
+                )}
+                {entry.feeling !== null && (
+                  <>
+                    <span className="text-[var(--text-faint)]"> · </span>
+                    {FEELING_SHORT[entry.feeling] ?? entry.feeling}
                   </>
                 )}
               </div>

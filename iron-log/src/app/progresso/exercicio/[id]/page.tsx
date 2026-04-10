@@ -188,9 +188,30 @@ export default async function ExerciseHistoryPage({
                       <span className="text-xs text-[var(--text-muted)] tnum uppercase tracking-wider">
                         {formatDateShort(p.date)}
                       </span>
-                      <span className="text-xs text-[var(--text-soft)] tnum">
-                        e1RM {formatKg(p.bestEpley)}
-                      </span>
+                      <div className="flex items-baseline gap-2 text-xs tnum">
+                        {(() => {
+                          const rirs = p.sets
+                            .map((s) => s.rir)
+                            .filter(
+                              (r): r is number => r !== null
+                            );
+                          const avgRir =
+                            rirs.length > 0
+                              ? (
+                                  rirs.reduce((a, b) => a + b, 0) /
+                                  rirs.length
+                                ).toFixed(1)
+                              : null;
+                          return avgRir ? (
+                            <span className="text-[var(--text-dim)]">
+                              RIR {avgRir}
+                            </span>
+                          ) : null;
+                        })()}
+                        <span className="text-[var(--text-soft)]">
+                          e1RM {formatKg(p.bestEpley)}
+                        </span>
+                      </div>
                     </div>
                     <div className="mt-1.5 text-sm tnum flex flex-wrap gap-x-3 gap-y-1 text-[var(--text-soft)]">
                       {p.sets.map((s, i) => (

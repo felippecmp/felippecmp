@@ -111,7 +111,7 @@ export default async function WorkoutSessionPage({
   const { data: session } = await supabase
     .from("workout_sessions")
     .select(
-      "id, started_at, finished_at, template_id, avg_heart_rate, max_heart_rate, device_calories, device_duration_seconds, heart_rate_samples, device_start_time, workout_templates(id, name, session_type)"
+      "id, started_at, finished_at, template_id, avg_heart_rate, max_heart_rate, device_calories, device_duration_seconds, heart_rate_samples, device_start_time, overall_feeling, notes, workout_templates(id, name, session_type)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -481,6 +481,20 @@ export default async function WorkoutSessionPage({
                   className="text-[var(--status-ready)]"
                 />
                 {session.device_calories} kcal
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Feeling + notes from finalization */}
+        {isFinished && session.overall_feeling && (
+          <div className="mt-3 flex items-center gap-2 text-xs text-[var(--text-muted)]">
+            <span className="tnum px-2 py-0.5 rounded-md border border-[var(--border)] text-[var(--text-soft)]">
+              feeling {session.overall_feeling}/5
+            </span>
+            {session.notes && (
+              <span className="text-[var(--text-dim)] truncate italic">
+                {session.notes}
               </span>
             )}
           </div>
