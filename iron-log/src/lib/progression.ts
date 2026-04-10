@@ -69,13 +69,13 @@ export const EMPTY_STATE: ProgressionStateRow = {
 export function statusLabel(s: ProgressionStatus): string {
   switch (s) {
     case "building":
-      return "Construindo";
+      return "Na luta";
     case "ready_to_progress":
-      return "Pronto pra subir";
+      return "Sobe carga";
     case "just_progressed":
-      return "Consolidando";
+      return "Peso novo";
     case "stalled":
-      return "Estagnado";
+      return "Travou";
   }
 }
 
@@ -108,7 +108,7 @@ export function evaluateProgression(input: {
     return {
       suggestedWeight: null,
       status: "building",
-      message: `Primeiro treino — escolha um peso pra bater ${rep_range_low}-${rep_range_high} com RIR 2.`,
+      message: `Primeiro dia. Acha um peso pra fazer ${rep_range_low}-${rep_range_high} com folga (RIR 2).`,
       confidence: "low",
     };
   }
@@ -120,7 +120,7 @@ export function evaluateProgression(input: {
     return {
       suggestedWeight: newWeight,
       status: "ready_to_progress",
-      message: `Subir pra ${formatKg(newWeight)}kg. Alvo: ${rep_range_low}-${rep_range_low + 1} reps.`,
+      message: `Mandou bem. Hoje vai ${formatKg(newWeight)}kg. Mira ${rep_range_low}-${rep_range_low + 1} reps.`,
       confidence: "high",
     };
   }
@@ -130,7 +130,7 @@ export function evaluateProgression(input: {
     return {
       suggestedWeight: base,
       status: "stalled",
-      message: `Estagnado há ${currentState.stall_count} sessões. Deload pra ${formatKg(deload)}kg ou troca de exercício.`,
+      message: `${currentState.stall_count} sessões sem sair do lugar. Deload pra ${formatKg(deload)}kg ou troca o exercício.`,
       confidence: "high",
     };
   }
@@ -139,7 +139,7 @@ export function evaluateProgression(input: {
     return {
       suggestedWeight: base,
       status: "just_progressed",
-      message: `Carga nova em ${formatKg(base)}kg. Meta: +1 rep vs último (${currentState.last_top_set_reps ?? "?"}).`,
+      message: `${formatKg(base)}kg é peso novo. Foca em construir reps — último foi ${currentState.last_top_set_reps ?? "?"}.`,
       confidence: "medium",
     };
   }
@@ -151,8 +151,8 @@ export function evaluateProgression(input: {
     status: "building",
     message:
       lastTop !== null
-        ? `Construindo em ${formatKg(base)}kg. Último: ${lastTop} reps — meta ${rep_range_high}.`
-        : `Construindo em ${formatKg(base)}kg no range ${rep_range_low}-${rep_range_high}.`,
+        ? `${formatKg(base)}kg, último top ${lastTop} reps. Meta: ${rep_range_high}. Puxa mais uma.`
+        : `${formatKg(base)}kg, range ${rep_range_low}-${rep_range_high}. Bora construir.`,
     confidence: "medium",
   };
 }

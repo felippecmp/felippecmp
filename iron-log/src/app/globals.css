@@ -70,9 +70,9 @@
   --text-dim: #5a4a78;
   --text-faint: #3a2a50;
 
-  /* Neon pink accent — the raw energy blast */
-  --accent: #ff3ca0;
-  --accent-hover: #e6308a;
+  /* Crimson accent — Gohan's eye in Beast form */
+  --accent: #e11d48;
+  --accent-hover: #be123c;
   --accent-fg: #fafafa;
 
   /* Status colors tuned to the Beast palette */
@@ -152,6 +152,7 @@
   .theme-beast select:focus {
     box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 25%, transparent);
   }
+
 
   button {
     cursor: pointer;
