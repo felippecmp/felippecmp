@@ -184,6 +184,15 @@ export default async function ProgressoPage() {
   }
   const days = lastNDays(90, now);
 
+  // Pre-compute period-filtered sets (used by both activity map and stats).
+  const sets30d = sets.filter(
+    (s) => new Date(s.performed_at) >= thirtyDaysAgo
+  );
+  const setsPrev30d = sets.filter((s) => {
+    const t = new Date(s.performed_at);
+    return t >= sixtyDaysAgo && t < thirtyDaysAgo;
+  });
+
   // --- Recent exercises within 30d ---
   const activityMap = new Map<string, ExerciseActivity>();
   for (const s of sets) {
@@ -217,13 +226,33 @@ export default async function ProgressoPage() {
     if (est > entry.bestEstimated1RM) entry.bestEstimated1RM = est;
     activityMap.set(ex.id, entry);
   }
+  // Compute max weight in prev 30d per exercise for delta chips
+  const prevActivityMap = new Map<string, { maxWeight: number }>();
+  for (const s of setsPrev30d) {
+    const ex = pickJoined(s.exercises);
+    if (!ex) continue;
+    const weight = Number(s.weight_kg);
+    const entry = prevActivityMap.get(ex.id);
+    if (!entry || weight > entry.maxWeight) {
+      prevActivityMap.set(ex.id, { maxWeight: weight });
+    }
+  }
+
   const recentExercises = Array.from(activityMap.values())
     .sort(
       (a, b) =>
         new Date(b.lastPerformedAt).getTime() -
         new Date(a.lastPerformedAt).getTime()
     )
-    .slice(0, 8);
+    .slice(0, 8)
+    .map((ex) => {
+      const prev = prevActivityMap.get(ex.id);
+      const weightDelta =
+        prev && prev.maxWeight > 0
+          ? ex.maxWeight - prev.maxWeight
+          : null;
+      return { ...ex, weightDelta };
+    });
 
   // --- Header stats + prev-period comparisons ---
   const sessions30d = sessions.filter(
@@ -260,6 +289,22 @@ export default async function ProgressoPage() {
     ],
     today: now,
   });
+
+  // --- Total volume mensal (kg × reps summed across all working sets) ---
+  const totalVolume30d = sets30d.reduce(
+    (sum, s) => sum + Number(s.weight_kg) * s.reps,
+    0
+  );
+  const totalVolumePrev30d = setsPrev30d.reduce(
+    (sum, s) => sum + Number(s.weight_kg) * s.reps,
+    0
+  );
+  const volumeDeltaPct =
+    totalVolumePrev30d > 0
+      ? Math.round(
+          ((totalVolume30d - totalVolumePrev30d) / totalVolumePrev30d) * 100
+        )
+      : null;
 
   // --- Cardio aggregates (30d current + prev) ---
   const cardioKm30d = cardio30d.reduce(
@@ -325,6 +370,26 @@ export default async function ProgressoPage() {
               todayActive={streak.todayActive}
             />
           </section>
+
+          {/* Volume total mensal */}
+          {totalVolume30d > 0 && (
+            <section className="mb-6">
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+                <p className="label mb-2">Volume levantado · 30 dias</p>
+                <div className="flex items-baseline gap-3">
+                  <div className="display text-4xl tnum leading-none">
+                    {(totalVolume30d / 1000).toFixed(1)}
+                  </div>
+                  <span className="text-sm text-[var(--text-muted)]">
+                    toneladas
+                  </span>
+                  {volumeDeltaPct !== null && (
+                    <PercentChip pct={volumeDeltaPct} />
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
 
           <section className="mb-10 grid grid-cols-3 gap-2">
             <TopStat
@@ -528,6 +593,22 @@ export default async function ProgressoPage() {
                           </span>
                           <span className="text-[var(--text-faint)]">·</span>
                           <span>e1RM {formatKg(ex.bestEstimated1RM)}</span>
+                          {ex.weightDelta !== null && ex.weightDelta !== 0 && (
+                            <>
+                              <span className="text-[var(--text-faint)]">·</span>
+                              <span
+                                style={{
+                                  color:
+                                    ex.weightDelta > 0
+                                      ? "var(--status-ready)"
+                                      : "var(--status-stalled)",
+                                }}
+                              >
+                                {ex.weightDelta > 0 ? "+" : ""}
+                                {formatKg(ex.weightDelta)}kg
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                       <ChevronRight

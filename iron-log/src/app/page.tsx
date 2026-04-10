@@ -4,6 +4,7 @@ import {
   Dumbbell,
   Flame,
   Footprints,
+  Layers,
   Scale,
   Settings as SettingsIcon,
 } from "lucide-react";
@@ -98,7 +99,7 @@ export default async function HomePage() {
   const todayKey = localDayKey(now);
 
   const [
-    { count: exerciseCount },
+    ,
     { data: strengthYear },
     { data: cardioYear },
     { data: weightRows },
@@ -127,7 +128,6 @@ export default async function HomePage() {
   ]);
 
   const { weekday, day, month } = formatHeaderDate(now);
-  const exercisesTotal = exerciseCount ?? 0;
   const strengthSessions = (strengthYear ?? []) as StrengthSessionRow[];
   const cardioSessions = (cardioYear ?? []) as CardioRow[];
   const weights = (weightRows ?? []) as WeightRow[];
@@ -303,7 +303,7 @@ export default async function HomePage() {
 
       <section className="mb-10 grid grid-cols-2 gap-3">
         <Link
-          href="/cardio/novo"
+          href="/cardio"
           className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 text-sm hover:border-[var(--border-strong)] transition-colors"
         >
           <Footprints
@@ -319,18 +319,20 @@ export default async function HomePage() {
           />
         </Link>
         <Link
-          href="/exercicios"
+          href="/templates"
           className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 text-sm hover:border-[var(--border-strong)] transition-colors"
         >
-          <Dumbbell
+          <Layers
             size={14}
             strokeWidth={1.75}
             className="text-[var(--text-soft)]"
           />
-          <span>Exercícios</span>
-          <span className="ml-auto text-[10px] text-[var(--text-dim)] tnum">
-            {exercisesTotal}
-          </span>
+          <span>Templates</span>
+          <ArrowRight
+            size={12}
+            strokeWidth={1.75}
+            className="ml-auto text-[var(--text-dim)]"
+          />
         </Link>
       </section>
 

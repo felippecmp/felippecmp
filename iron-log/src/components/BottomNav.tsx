@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Dumbbell, LineChart, ListChecks } from "lucide-react";
+import { Home, Dumbbell, LineChart, Menu } from "lucide-react";
 
 const tabs = [
   { href: "/", label: "Hoje", Icon: Home },
   { href: "/treinar", label: "Treinar", Icon: Dumbbell },
   { href: "/progresso", label: "Progresso", Icon: LineChart },
-  { href: "/exercicios", label: "Exercícios", Icon: ListChecks },
+  { href: "/mais", label: "Mais", Icon: Menu },
 ];
 
 // During an active workout we hide the tab bar so you can't bail on a set
@@ -29,8 +29,15 @@ export function BottomNav() {
     >
       <ul className="max-w-xl mx-auto grid grid-cols-4">
         {tabs.map(({ href, label, Icon }) => {
+          // The "Mais" tab should highlight for any sub-page it houses
+          // (exercicios, templates, cardio, peso, settings).
+          const MAIS_PREFIXES = ["/mais", "/exercicios", "/templates", "/cardio", "/peso", "/settings"];
           const active =
-            href === "/" ? pathname === "/" : pathname.startsWith(href);
+            href === "/"
+              ? pathname === "/"
+              : href === "/mais"
+                ? MAIS_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"))
+                : pathname.startsWith(href);
           return (
             <li key={href}>
               <Link
