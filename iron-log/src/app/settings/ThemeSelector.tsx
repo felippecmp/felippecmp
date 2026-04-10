@@ -9,10 +9,14 @@ export function ThemeSelector() {
   return (
     <div>
       <div className="flex items-center gap-2 mb-3">
-        <Palette size={14} strokeWidth={1.75} className="text-[var(--text-muted)]" />
+        <Palette
+          size={14}
+          strokeWidth={1.75}
+          className="text-[var(--text-muted)]"
+        />
         <p className="label">Tema</p>
       </div>
-      <div className="grid grid-cols-2 gap-2 p-1 bg-[var(--bg-raised)] border border-[var(--border)] rounded-xl">
+      <div className="grid grid-cols-3 gap-2">
         {themes.map((t) => {
           const active = theme === t.value;
           return (
@@ -20,22 +24,20 @@ export function ThemeSelector() {
               key={t.value}
               type="button"
               onClick={() => setTheme(t.value)}
-              className={`text-center py-2.5 rounded-lg text-sm font-medium transition-all ${
+              className={`rounded-xl border py-3 px-2 flex flex-col items-center justify-center gap-1 transition-all ${
                 active
-                  ? "bg-accent text-accent-fg"
-                  : "text-[var(--text-muted)] hover:text-[var(--text)]"
+                  ? "border-accent bg-accent/10 text-[var(--text)]"
+                  : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:text-[var(--text-soft)]"
               }`}
             >
-              {t.label}
+              <span className="text-sm font-semibold">{t.label}</span>
+              <span className="text-[9px] leading-tight text-center opacity-75">
+                {t.desc}
+              </span>
             </button>
           );
         })}
       </div>
-      <p className="text-[11px] text-[var(--text-dim)] mt-2 leading-relaxed">
-        {theme === "orchid"
-          ? "Rosa-púrpura nos acentos e undertone quente nos backgrounds."
-          : "Monocromático puro — branco sobre preto, sem cor."}
-      </p>
     </div>
   );
 }

@@ -7,12 +7,14 @@ import {
   useSyncExternalStore,
 } from "react";
 
-export type Theme = "default" | "orchid";
+export type Theme = "default" | "orchid" | "beast";
 
 const STORAGE_KEY = "flog:theme";
-const THEMES: Array<{ value: Theme; label: string }> = [
-  { value: "default", label: "Default" },
-  { value: "orchid", label: "Orchid" },
+const VALID_THEMES = new Set<Theme>(["default", "orchid", "beast"]);
+const THEMES: Array<{ value: Theme; label: string; desc: string }> = [
+  { value: "default", label: "Default", desc: "Monocromático puro." },
+  { value: "orchid", label: "Orchid", desc: "Rosa-purpura suave." },
+  { value: "beast", label: "Beast Mode", desc: "Neon pink + deep purple." },
 ];
 
 type ThemeCtx = { theme: Theme; setTheme: (t: Theme) => void; themes: typeof THEMES };
@@ -26,9 +28,14 @@ export function useTheme() {
   return useContext(ThemeContext);
 }
 
+const THEME_CLASSES = ["theme-orchid", "theme-beast"] as const;
+
 function applyClass(t: Theme) {
   if (typeof document === "undefined") return;
-  document.documentElement.classList.toggle("theme-orchid", t === "orchid");
+  const cl = document.documentElement.classList;
+  for (const c of THEME_CLASSES) cl.remove(c);
+  if (t === "orchid") cl.add("theme-orchid");
+  if (t === "beast") cl.add("theme-beast");
 }
 
 /**
@@ -55,7 +62,10 @@ function subscribe(cb: () => void) {
 
 function getSnapshot(): Theme {
   if (typeof localStorage === "undefined") return "default";
-  return (localStorage.getItem(STORAGE_KEY) as Theme) || "default";
+  const stored = localStorage.getItem(STORAGE_KEY);
+  return stored && VALID_THEMES.has(stored as Theme)
+    ? (stored as Theme)
+    : "default";
 }
 
 function getServerSnapshot(): Theme {

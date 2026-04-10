@@ -49,6 +49,40 @@
   --danger: #f0abfc;
 }
 
+/* "Beast Mode" theme — inspired by Gohan Beast: silver-lavender hair,
+   crimson eyes, neon-pink energy aura, deep indigo clothing, electric
+   purple lightning. Applied via .theme-beast on <html>. */
+.theme-beast {
+  /* Deep indigo-black backgrounds — Gohan's dark gi */
+  --bg: #0c0816;
+  --bg-raised: #140f22;
+  --bg-card: #1a1430;
+  --bg-hover: #221a38;
+
+  /* Muted purple borders — like the dark fabric edges */
+  --border: #2a2040;
+  --border-strong: #382a50;
+
+  /* Silver-lavender text scale — the Beast hair color palette */
+  --text: #e8e0f0;
+  --text-soft: #b0a0c8;
+  --text-muted: #8070a0;
+  --text-dim: #5a4a78;
+  --text-faint: #3a2a50;
+
+  /* Neon pink accent — the raw energy blast */
+  --accent: #ff3ca0;
+  --accent-hover: #e6308a;
+  --accent-fg: #fafafa;
+
+  /* Status colors tuned to the Beast palette */
+  --status-ready: #a855f7;       /* electric purple lightning */
+  --status-building: #c4b5d8;    /* silver hair */
+  --status-progressed: #818cf8;  /* blue-purple energy crackle */
+  --status-stalled: #ef4444;     /* crimson Gohan eyes */
+  --danger: #ef4444;
+}
+
 @theme inline {
   --color-background: var(--bg);
   --color-foreground: var(--text);
@@ -109,10 +143,13 @@
     color: inherit;
   }
 
-  /* Orchid theme: subtle accent glow on focused inputs */
+  /* Themed focus glow on inputs */
   .theme-orchid input:focus,
   .theme-orchid textarea:focus,
-  .theme-orchid select:focus {
+  .theme-orchid select:focus,
+  .theme-beast input:focus,
+  .theme-beast textarea:focus,
+  .theme-beast select:focus {
     box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 25%, transparent);
   }
 

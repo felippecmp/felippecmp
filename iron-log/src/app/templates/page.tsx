@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Plus, ChevronRight, Layers } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getUserSettings } from "@/lib/settings";
 import { DuplicateButton } from "./DuplicateButton";
+import { ReorderButton } from "./ReorderButton";
 
 export const dynamic = "force-dynamic";
 
@@ -14,13 +16,15 @@ type TemplateRow = {
 
 export default async function TemplatesPage() {
   const supabase = await createClient();
+  const settings = await getUserSettings();
+  const isLinear = settings.rotation_mode === "linear";
 
   const { data: templates, error } = await supabase
     .from("workout_templates")
-    .select("id, name, session_type, template_exercises(count)")
+    .select("id, name, session_type, sort_order, template_exercises(count)")
     .eq("is_active", true)
-    .order("session_type")
-    .order("name");
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
 
   const rows: TemplateRow[] = (templates ?? []).map((t) => {
     const count = Array.isArray(t.template_exercises)
@@ -64,6 +68,61 @@ export default async function TemplatesPage() {
 
       {rows.length === 0 ? (
         <EmptyState />
+      ) : isLinear ? (
+        <section className="mb-10">
+          <div className="flex items-baseline justify-between mb-3">
+            <p className="label">Sequência de rotação</p>
+            <span className="text-[10px] text-[var(--text-dim)] tnum tracking-wider">
+              {rows.length.toString().padStart(2, "0")}
+            </span>
+          </div>
+          <ul className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border)]">
+            {rows.map((t, idx) => (
+              <li key={t.id} className="flex items-center pr-2">
+                <div className="flex flex-col gap-1 px-2 shrink-0">
+                  <ReorderButton
+                    templateId={t.id}
+                    direction="up"
+                    disabled={idx === 0}
+                  />
+                  <ReorderButton
+                    templateId={t.id}
+                    direction="down"
+                    disabled={idx === rows.length - 1}
+                  />
+                </div>
+                <Link
+                  href={`/templates/${t.id}`}
+                  className="flex items-center gap-3 px-2 py-3.5 hover:bg-[var(--bg-hover)] transition-colors flex-1 min-w-0"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[10px] uppercase tracking-widest text-[var(--text-dim)]">
+                        {t.session_type}
+                      </span>
+                      <span className="font-medium text-[15px] leading-tight truncate">
+                        {t.name}
+                      </span>
+                    </div>
+                    <div className="text-xs text-[var(--text-muted)] mt-1 tnum">
+                      {t.exercise_count} exercícios
+                    </div>
+                  </div>
+                  <ChevronRight
+                    size={16}
+                    className="shrink-0 text-[var(--text-dim)]"
+                    strokeWidth={1.75}
+                  />
+                </Link>
+                <DuplicateButton templateId={t.id} />
+              </li>
+            ))}
+          </ul>
+          <p className="text-[11px] text-[var(--text-dim)] mt-2 leading-relaxed">
+            O próximo treino sugerido segue esta ordem de cima pra baixo,
+            voltando pro topo ao chegar no último. Reordene com as setas.
+          </p>
+        </section>
       ) : (
         <>
           <TemplateGroup title="Upper" items={upper} />

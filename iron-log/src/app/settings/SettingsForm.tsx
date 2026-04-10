@@ -10,12 +10,16 @@ export function SettingsForm({ settings }: { settings: UserSettings }) {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [unit, setUnit] = useState<"kg" | "lb">(settings.unit);
+  const [rotationMode, setRotationMode] = useState<"auto" | "linear">(
+    settings.rotation_mode
+  );
 
   async function handleSubmit(formData: FormData) {
     setError(null);
     setSaved(false);
-    // The segmented control renders no native input, so feed it explicitly.
+    // Segmented controls render no native input, so feed them explicitly.
     formData.set("unit", unit);
+    formData.set("rotation_mode", rotationMode);
     startTransition(async () => {
       const result = await updateSettings(formData);
       if (result.ok) {
@@ -131,6 +135,39 @@ export function SettingsForm({ settings }: { settings: UserSettings }) {
         <p className="text-[11px] text-[var(--text-dim)] mt-1.5">
           Aparece como linha tracejada no gráfico de peso em /progresso e um
           chip com o delta atual. Deixa em branco pra não usar.
+        </p>
+      </div>
+
+      <div>
+        <label className="label block mb-2">Rotação de templates</label>
+        <div className="grid grid-cols-2 gap-2 p-1 bg-[var(--bg-raised)] border border-[var(--border)] rounded-xl">
+          {(
+            [
+              { value: "auto", label: "Auto" },
+              { value: "linear", label: "Sequência" },
+            ] as const
+          ).map((opt) => {
+            const active = rotationMode === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setRotationMode(opt.value)}
+                className={`text-center py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  active
+                    ? "bg-[var(--text)] text-[var(--bg)]"
+                    : "text-[var(--text-muted)] hover:text-[var(--text)]"
+                }`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[11px] text-[var(--text-dim)] mt-1.5 leading-relaxed">
+          {rotationMode === "auto"
+            ? "Alterna upper ↔ lower, rotacionando dentro do tipo."
+            : "Segue a ordem global que você definir em /templates (setas ↑↓). Ignora tipo."}
         </p>
       </div>
 

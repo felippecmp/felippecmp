@@ -51,6 +51,52 @@ export async function createTemplate(formData: FormData): Promise<ActionResult> 
  * Redirects to the new template's editor on success so the user can
  * immediately rename it and tweak which exercises to swap.
  */
+/**
+ * Swap the global sort_order of two templates. Used by the reorder arrows
+ * on /templates to let the user define the rotation sequence for linear mode.
+ */
+export async function reorderTemplate(
+  id: string,
+  direction: "up" | "down"
+): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const { data: all, error: fetchErr } = await supabase
+    .from("workout_templates")
+    .select("id, sort_order")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (fetchErr || !all) return { ok: false, error: fetchErr?.message ?? "Erro" };
+
+  const idx = all.findIndex((t) => t.id === id);
+  if (idx === -1) return { ok: false, error: "Não encontrado" };
+
+  const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+  if (swapIdx < 0 || swapIdx >= all.length) return { ok: true };
+
+  const a = all[idx];
+  const b = all[swapIdx];
+
+  await supabase
+    .from("workout_templates")
+    .update({ sort_order: -1 })
+    .eq("id", a.id);
+  await supabase
+    .from("workout_templates")
+    .update({ sort_order: a.sort_order })
+    .eq("id", b.id);
+  await supabase
+    .from("workout_templates")
+    .update({ sort_order: b.sort_order })
+    .eq("id", a.id);
+
+  revalidatePath("/templates");
+  revalidatePath("/treinar");
+  return { ok: true };
+}
+
 export async function duplicateTemplate(id: string): Promise<ActionResult> {
   const supabase = await createClient();
 

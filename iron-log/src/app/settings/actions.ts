@@ -54,6 +54,8 @@ export async function updateSettings(
     default_load_increment: num(formData.get("default_load_increment"), 0.25, 2.5),
     unit: (formData.get("unit") === "lb" ? "lb" : "kg") as "kg" | "lb",
     target_weight_kg: optionalNum(formData.get("target_weight_kg")),
+    rotation_mode:
+      formData.get("rotation_mode") === "linear" ? "linear" : "auto",
     updated_at: new Date().toISOString(),
   };
 

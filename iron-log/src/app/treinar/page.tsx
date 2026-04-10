@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, ChevronRight, Layers } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getUserSettings, type RotationMode } from "@/lib/settings";
 import { StartSessionButton } from "./StartSessionButton";
 
 export const dynamic = "force-dynamic";
@@ -25,17 +26,33 @@ function sessionTypeLabel(t: SessionType): string {
 }
 
 /**
- * Pick the next suggested template in rotation:
- *  1. Opposite session_type from the last finished session (default: upper).
- *  2. Within that type, the template that follows the last-used one in
- *     sort_order (wraps around). If none used yet, the first.
+ * Pick the next suggested template.
+ *
+ * Auto mode: opposite session_type from the last finished session,
+ * rotating within that type by sort_order.
+ *
+ * Linear mode: next template in global sort_order regardless of type,
+ * wrapping to the top when the end is reached.
  */
 function pickSuggestion(
   templates: TemplateRow[],
-  recent: RecentSession[]
+  recent: RecentSession[],
+  mode: RotationMode
 ): { template: TemplateRow; targetType: SessionType } | null {
   if (templates.length === 0) return null;
 
+  if (mode === "linear") {
+    // All templates sorted by sort_order. Find last used, pick next.
+    const lastUsedId = recent[0]?.template_id ?? null;
+    if (!lastUsedId) {
+      return { template: templates[0], targetType: templates[0].session_type };
+    }
+    const idx = templates.findIndex((t) => t.id === lastUsedId);
+    const next = templates[(idx + 1) % templates.length];
+    return { template: next, targetType: next.session_type };
+  }
+
+  // Auto mode: alternate upper↔lower, rotate within type.
   const lastType = recent[0]?.session_type ?? null;
   const targetType: SessionType = lastType === "upper" ? "lower" : "upper";
 
@@ -57,13 +74,13 @@ function pickSuggestion(
 
 export default async function TreinarPage() {
   const supabase = await createClient();
+  const settings = await getUserSettings();
 
   const [templatesRes, activeRes, recentRes] = await Promise.all([
     supabase
       .from("workout_templates")
       .select("id, name, session_type, sort_order, template_exercises(count)")
       .eq("is_active", true)
-      .order("session_type", { ascending: true })
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
     supabase
@@ -111,7 +128,7 @@ export default async function TreinarPage() {
       : active.workout_templates
     : null;
 
-  const suggestion = pickSuggestion(templates, recent);
+  const suggestion = pickSuggestion(templates, recent, settings.rotation_mode);
   const suggestedId = suggestion?.template.id;
 
   return (
