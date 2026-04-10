@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  /* Grayscale (zinc-inspired) */
+  /* Grayscale (zinc-inspired) — "Default" theme */
   --bg: #0a0a0a;
   --bg-raised: #121212;
   --bg-card: #171717;
@@ -27,6 +27,26 @@
   --status-progressed: #60a5fa;/* blue-400 — just leveled up */
   --status-stalled: #fb7185;   /* rose-400 — plateau */
   --danger: #f87171;
+}
+
+/* "Orchid" theme — pink-purple accent with warm undertone backgrounds.
+   Applied via .theme-orchid on <html>. */
+.theme-orchid {
+  --bg: #0a0a0c;
+  --bg-raised: #13111a;
+  --bg-card: #191620;
+  --bg-hover: #211e28;
+
+  --border: #252030;
+  --border-strong: #322b40;
+
+  --accent: #c084fc;
+  --accent-hover: #a855f7;
+  --accent-fg: #fafafa;
+
+  --status-ready: #86efac;
+  --status-stalled: #f0abfc;
+  --danger: #f0abfc;
 }
 
 @theme inline {
@@ -87,6 +107,13 @@
   select {
     font: inherit;
     color: inherit;
+  }
+
+  /* Orchid theme: subtle accent glow on focused inputs */
+  .theme-orchid input:focus,
+  .theme-orchid textarea:focus,
+  .theme-orchid select:focus {
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 25%, transparent);
   }
 
   button {

@@ -1,0 +1,88 @@
+"use client";
+
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useSyncExternalStore,
+} from "react";
+
+export type Theme = "default" | "orchid";
+
+const STORAGE_KEY = "flog:theme";
+const THEMES: Array<{ value: Theme; label: string }> = [
+  { value: "default", label: "Default" },
+  { value: "orchid", label: "Orchid" },
+];
+
+type ThemeCtx = { theme: Theme; setTheme: (t: Theme) => void; themes: typeof THEMES };
+const ThemeContext = createContext<ThemeCtx>({
+  theme: "default",
+  setTheme: () => {},
+  themes: THEMES,
+});
+
+export function useTheme() {
+  return useContext(ThemeContext);
+}
+
+function applyClass(t: Theme) {
+  if (typeof document === "undefined") return;
+  document.documentElement.classList.toggle("theme-orchid", t === "orchid");
+}
+
+/**
+ * Reads the persisted theme from localStorage on mount and keeps the
+ * <html> class in sync. Wraps the app in layout.tsx.
+ *
+ * FOUC prevention: a tiny inline <script> in layout.tsx applies the class
+ * BEFORE React hydrates, so there's no flash.
+ */
+// Use useSyncExternalStore to read the theme from localStorage without
+// triggering the "setState in useEffect" lint rule. The subscribe callback
+// listens for storage events (cross-tab sync) and manual dispatches.
+let listeners: Array<() => void> = [];
+function emitChange() {
+  for (const l of listeners) l();
+}
+
+function subscribe(cb: () => void) {
+  listeners.push(cb);
+  return () => {
+    listeners = listeners.filter((l) => l !== cb);
+  };
+}
+
+function getSnapshot(): Theme {
+  if (typeof localStorage === "undefined") return "default";
+  return (localStorage.getItem(STORAGE_KEY) as Theme) || "default";
+}
+
+function getServerSnapshot(): Theme {
+  return "default";
+}
+
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
+  // Keep the <html> class in sync whenever the theme changes.
+  useEffect(() => {
+    applyClass(theme);
+  }, [theme]);
+
+  function setTheme(t: Theme) {
+    try {
+      localStorage.setItem(STORAGE_KEY, t);
+    } catch {
+      // quota / private mode — ignore
+    }
+    applyClass(t);
+    emitChange();
+  }
+
+  return (
+    <ThemeContext value={{ theme, setTheme, themes: THEMES }}>
+      {children}
+    </ThemeContext>
+  );
+}

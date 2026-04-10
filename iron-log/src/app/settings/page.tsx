@@ -3,6 +3,7 @@ import { ChevronLeft, Download, LogOut } from "lucide-react";
 import { getUserSettings } from "@/lib/settings";
 import { logoutAction } from "../login/actions";
 import { SettingsForm } from "./SettingsForm";
+import { ThemeSelector } from "./ThemeSelector";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,12 @@ export default async function SettingsPage() {
           template, ou cria um exercício novo no catálogo. Templates
           existentes não são afetados.
         </p>
+      </section>
+
+      <section className="mb-10">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+          <ThemeSelector />
+        </div>
       </section>
 
       <section className="mb-10">

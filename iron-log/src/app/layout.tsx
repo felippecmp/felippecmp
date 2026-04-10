@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { BottomNav } from "@/components/BottomNav";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
   title: "Felippe's Log",
@@ -43,10 +44,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className="h-full">
+    <html lang="pt-BR" className="h-full" suppressHydrationWarning>
+      <head>
+        {/* Inline script to apply the saved theme class BEFORE React
+            hydrates, preventing a flash of the wrong palette. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(localStorage.getItem("flog:theme")==="orchid")document.documentElement.classList.add("theme-orchid")}catch{}`,
+          }}
+        />
+      </head>
       <body className="min-h-full bg-[var(--bg)] text-[var(--text)]">
-        <main className="max-w-xl mx-auto pb-24">{children}</main>
-        <BottomNav />
+        <ThemeProvider>
+          <main className="max-w-xl mx-auto pb-24">{children}</main>
+          <BottomNav />
+        </ThemeProvider>
         <ServiceWorkerRegister />
       </body>
     </html>
