@@ -13,6 +13,7 @@ export type UserSettings = {
   unit: Unit;
   target_weight_kg: number | null;
   rotation_mode: RotationMode;
+  max_hr: number | null;
 };
 
 /**
@@ -30,6 +31,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   unit: "kg",
   target_weight_kg: null,
   rotation_mode: "auto",
+  max_hr: null,
 };
 
 type SettingsRow = {
@@ -42,6 +44,7 @@ type SettingsRow = {
   unit: Unit;
   target_weight_kg: number | string | null;
   rotation_mode: string | null;
+  max_hr: number | null;
 };
 
 /**
@@ -55,7 +58,7 @@ export async function getUserSettings(): Promise<UserSettings> {
     const { data } = await supabase
       .from("user_settings")
       .select(
-        "id, default_target_sets, default_rep_range_low, default_rep_range_high, default_rest_seconds, default_load_increment, unit, target_weight_kg, rotation_mode"
+        "id, default_target_sets, default_rep_range_low, default_rep_range_high, default_rest_seconds, default_load_increment, unit, target_weight_kg, rotation_mode, max_hr"
       )
       .limit(1)
       .maybeSingle();
@@ -76,6 +79,7 @@ export async function getUserSettings(): Promise<UserSettings> {
           : null,
       rotation_mode:
         row.rotation_mode === "linear" ? "linear" : "auto",
+      max_hr: row.max_hr !== null ? Number(row.max_hr) : null,
     };
   } catch {
     return DEFAULT_SETTINGS;

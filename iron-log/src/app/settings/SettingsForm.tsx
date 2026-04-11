@@ -139,6 +139,32 @@ export function SettingsForm({ settings }: { settings: UserSettings }) {
       </div>
 
       <div>
+        <label className="label block mb-2">HR máximo</label>
+        <div className="relative">
+          <input
+            name="max_hr"
+            type="number"
+            min="100"
+            max="230"
+            step="1"
+            defaultValue={
+              settings.max_hr !== null ? String(settings.max_hr) : ""
+            }
+            placeholder="Opcional — ex: 188"
+            className="w-full bg-[var(--bg-raised)] border border-[var(--border)] rounded-xl px-4 py-3 pr-12 text-base tnum focus:outline-none focus:border-[var(--text-muted)] transition-colors"
+          />
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)]">
+            bpm
+          </span>
+        </div>
+        <p className="text-[11px] text-[var(--text-dim)] mt-1.5 leading-relaxed">
+          Necessário pra ver as zonas (Z1-Z5) embaixo do gráfico de
+          batimentos no treino. Se não souber, 220 - sua idade é uma
+          aproximação grosseira.
+        </p>
+      </div>
+
+      <div>
         <label className="label block mb-2">Rotação de templates</label>
         <div className="grid grid-cols-2 gap-2 p-1 bg-[var(--bg-raised)] border border-[var(--border)] rounded-xl">
           {(

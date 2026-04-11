@@ -522,7 +522,11 @@ export default async function WorkoutSessionPage({
       {/* HR curve from the uploaded FIT file, if present */}
       {hrSamples.length > 1 && (
         <div className="mb-6">
-          <SessionHrChart samples={hrSamples} markers={setMarkers} />
+          <SessionHrChart
+            samples={hrSamples}
+            markers={setMarkers}
+            maxHr={settings.max_hr}
+          />
         </div>
       )}
 

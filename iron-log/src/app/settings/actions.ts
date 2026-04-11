@@ -41,6 +41,22 @@ function optionalNum(raw: FormDataEntryValue | null): number | null {
 }
 
 /**
+ * Parse an optional integer field with bounds. Empty string or invalid → null.
+ */
+function optionalInt(
+  raw: FormDataEntryValue | null,
+  min: number,
+  max: number
+): number | null {
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (trimmed === "") return null;
+  const n = parseInt(trimmed, 10);
+  if (!Number.isFinite(n) || n < min || n > max) return null;
+  return n;
+}
+
+/**
  * Update (or create) the singleton user_settings row.
  */
 export async function updateSettings(
@@ -56,6 +72,7 @@ export async function updateSettings(
     target_weight_kg: optionalNum(formData.get("target_weight_kg")),
     rotation_mode:
       formData.get("rotation_mode") === "linear" ? "linear" : "auto",
+    max_hr: optionalInt(formData.get("max_hr"), 100, 230),
     updated_at: new Date().toISOString(),
   };
 
@@ -89,5 +106,6 @@ export async function updateSettings(
   revalidatePath("/settings");
   revalidatePath("/templates");
   revalidatePath("/exercicios/novo");
+  revalidatePath("/workout", "layout");
   return { ok: true };
 }
