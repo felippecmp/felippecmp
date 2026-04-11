@@ -18,11 +18,9 @@ import {
 } from "@/lib/stats";
 import { computeStreak } from "@/lib/streak";
 import { getUserSettings } from "@/lib/settings";
-import { buildInsights, type CoachContext } from "@/lib/coach/insights";
 import { PHASE_LABEL } from "@/lib/coach/mesocycle";
 import { getActiveMesocycle } from "@/lib/coach/mesocycle-server";
 import { WeightTrendChart } from "./WeightTrendChart";
-import { CoachInsights } from "./CoachInsights";
 
 export const dynamic = "force-dynamic";
 
@@ -47,18 +45,6 @@ type SessionRow = {
   started_at: string;
   finished_at: string | null;
   duration_minutes: number | null;
-  overall_feeling: number | null;
-};
-
-type ProgressionStateRow = {
-  exercise_id: string | null;
-  current_weight_kg: number | string | null;
-  current_status: string | null;
-  sessions_at_current_weight: number | null;
-  exercises:
-    | { id: string; name: string }
-    | { id: string; name: string }[]
-    | null;
 };
 
 type WeightRow = {
@@ -125,13 +111,10 @@ export default async function ProgressoPage() {
     cardioRes,
     stepsRes,
     restRes,
-    progressionRes,
   ] = await Promise.all([
     supabase
       .from("workout_sessions")
-      .select(
-        "id, started_at, finished_at, duration_minutes, overall_feeling"
-      )
+      .select("id, started_at, finished_at, duration_minutes")
       .not("finished_at", "is", null)
       .gte("started_at", yearAgo.toISOString())
       .order("started_at", { ascending: false }),
@@ -166,12 +149,6 @@ export default async function ProgressoPage() {
       .select("rest_date")
       .gte("rest_date", ninetyDaysAgo.toISOString().slice(0, 10))
       .order("rest_date", { ascending: false }),
-    supabase
-      .from("progression_state")
-      .select(
-        "exercise_id, current_weight_kg, current_status, sessions_at_current_weight, exercises(id, name)"
-      )
-      .eq("current_status", "stalled"),
   ]);
 
   const allSessions = (sessionsYearRes.data ?? []) as SessionRow[];
@@ -230,77 +207,6 @@ export default async function ProgressoPage() {
       (max, r) => Math.max(max, r.sets, targetFor(r.muscle, userTargets) * 1.5),
       6
     ) || 6;
-
-  // --- Coach context (Sprint G) ---
-  // Volume in days 8-14 for the week-over-week comparison. Reuse the
-  // setsPrev7d that's computed below for the activity stats — we need it
-  // here too.
-  const coachSetsPrev7d = sets.filter((s) => {
-    const t = new Date(s.performed_at);
-    return t >= fourteenDaysAgo && t < sevenDaysAgo;
-  });
-  const volume7d: Record<string, number> = {};
-  for (const r of volumeRows) volume7d[r.muscle] = r.sets;
-  const volumePrev7d: Record<string, number> = {};
-  for (const s of coachSetsPrev7d) {
-    const ex = pickJoined(s.exercises);
-    if (!ex) continue;
-    volumePrev7d[ex.primary_muscle] =
-      (volumePrev7d[ex.primary_muscle] ?? 0) + 1;
-  }
-
-  // Recent feelings (newest first) — last 30d so we have enough for trend.
-  const recentFeelings = allSessions
-    .filter((s) => s.overall_feeling !== null)
-    .slice(0, 30)
-    .map((s) => ({ feeling: s.overall_feeling as number, at: s.started_at }));
-
-  // Recent RIRs from working sets, newest first.
-  const recentRirs = sets
-    .filter((s) => s.rir !== null)
-    .sort(
-      (a, b) =>
-        new Date(b.performed_at).getTime() -
-        new Date(a.performed_at).getTime()
-    )
-    .slice(0, 30)
-    .map((s) => ({ rir: s.rir as number, at: s.performed_at }));
-
-  // Stalled exercises from progression_state.
-  const stalledRows = (progressionRes.data ?? []) as ProgressionStateRow[];
-  const stalledExercises = stalledRows
-    .map((r) => {
-      const ex = pickJoined(r.exercises);
-      if (!r.exercise_id || !ex) return null;
-      return {
-        exerciseId: r.exercise_id,
-        exerciseName: ex.name,
-        sessionsAtCurrentWeight: r.sessions_at_current_weight ?? 0,
-        currentWeightKg:
-          r.current_weight_kg !== null ? Number(r.current_weight_kg) : null,
-      };
-    })
-    .filter((e): e is NonNullable<typeof e> => e !== null);
-
-  const sessionsLast7d = allSessions.filter(
-    (s) => new Date(s.started_at) >= sevenDaysAgo
-  ).length;
-  const sessionsPrev7d = allSessions.filter((s) => {
-    const t = new Date(s.started_at);
-    return t >= fourteenDaysAgo && t < sevenDaysAgo;
-  }).length;
-
-  const coachContext: CoachContext = {
-    volume7d,
-    volumePrev7d,
-    userTargets,
-    recentFeelings,
-    recentRirs,
-    stalledExercises,
-    sessionsLast7d,
-    sessionsPrev7d,
-  };
-  const insights = buildInsights(coachContext);
 
   // --- Heatmap 90d ---
   const sessionsByDay = new Map<string, { count: number; minutes: number }>();
@@ -713,40 +619,23 @@ export default async function ProgressoPage() {
           )}
 
           {activeMeso && activeMeso.currentWeek && (
-            <section className="mb-6 rounded-2xl border border-[var(--accent)] bg-[var(--bg-card)] p-4">
-              <div className="flex items-center justify-between mb-2">
-                <p className="label">Bloco ativo</p>
-                <Link
-                  href="/coach"
-                  className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
-                >
-                  abrir →
-                </Link>
-              </div>
-              <div className="flex items-baseline justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="display-sm text-lg leading-tight truncate">
-                    {activeMeso.mesocycle.name}
-                  </p>
-                  <p className="text-xs text-[var(--text-muted)] tnum mt-0.5">
-                    semana {activeMeso.currentWeekNumber}/
-                    {activeMeso.mesocycle.total_weeks} ·{" "}
-                    {PHASE_LABEL[activeMeso.currentWeek.phase]}
-                    {activeMeso.currentWeek.intensity_target && (
-                      <>
-                        <span className="text-[var(--text-faint)]"> · </span>
-                        {activeMeso.currentWeek.intensity_target}
-                      </>
-                    )}
-                  </p>
-                </div>
-              </div>
-            </section>
+            <Link
+              href="/coach"
+              className="mb-6 flex items-center gap-3 rounded-xl border border-[var(--accent)] bg-[var(--bg-card)] px-4 py-2.5 hover:bg-[var(--bg-hover)] transition-colors"
+            >
+              <span className="text-[10px] uppercase tracking-wider text-[var(--accent)] font-semibold">
+                bloco
+              </span>
+              <span className="text-sm font-medium truncate flex-1 min-w-0">
+                {activeMeso.mesocycle.name}
+              </span>
+              <span className="text-[11px] text-[var(--text-muted)] tnum shrink-0">
+                {activeMeso.currentWeekNumber}/
+                {activeMeso.mesocycle.total_weeks} ·{" "}
+                {PHASE_LABEL[activeMeso.currentWeek.phase]}
+              </span>
+            </Link>
           )}
-
-          <section className="mb-10">
-            <CoachInsights insights={insights} />
-          </section>
 
           <section className="mb-10">
             <div className="flex items-baseline justify-between mb-3">
