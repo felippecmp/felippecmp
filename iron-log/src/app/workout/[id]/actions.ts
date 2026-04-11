@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
   computeProgressionState,
@@ -12,6 +11,20 @@ import {
 } from "@/lib/progression";
 
 export type SimpleResult = { ok: true } | { ok: false; error: string };
+
+export type PRDetection = {
+  exerciseId: string;
+  exerciseName: string;
+  kind: "weight" | "reps_at_top";
+  newWeight: number;
+  newReps: number;
+  priorWeight: number;
+  priorReps: number;
+};
+
+export type FinishSessionResult =
+  | { ok: true; prs: PRDetection[] }
+  | { ok: false; error: string };
 
 export type LogSetInput = {
   sessionId: string;
@@ -108,12 +121,13 @@ export type FinishSessionInput = {
 /**
  * Marks a workout session as finished, computing duration from started_at,
  * storing the optional RIR/feeling and notes, updating progression_state
- * for each exercise performed, then redirecting to home on success.
+ * for each exercise performed, and returning any PRs hit so the client
+ * can celebrate before navigating home.
  */
 export async function finishSession(
   sessionId: string,
   input: FinishSessionInput
-): Promise<SimpleResult> {
+): Promise<FinishSessionResult> {
   const supabase = await createClient();
 
   const { data: session, error: fetchErr } = await supabase
@@ -153,6 +167,15 @@ export async function finishSession(
 
   if (error) return { ok: false, error: error.message };
 
+  // Detect PRs before progression update — both read from workout_sets but
+  // PR detection wants the raw history while progression mutates state.
+  let prs: PRDetection[] = [];
+  try {
+    prs = await detectPRs(sessionId);
+  } catch {
+    // PRs are nice-to-have. Never block finalize on a detection failure.
+  }
+
   // Progression state updates — a failure here must not block finalize,
   // since the session is already marked finished. We swallow errors and
   // let the next session render still work with stale state.
@@ -165,7 +188,124 @@ export async function finishSession(
   revalidatePath("/");
   revalidatePath("/treinar");
   revalidatePath("/progresso");
-  redirect("/");
+  return { ok: true, prs };
+}
+
+type SessionMaxRow = {
+  exercise_id: string | null;
+  weight_kg: number | string;
+  reps: number;
+  exercises:
+    | { name: string }
+    | { name: string }[]
+    | null;
+};
+
+/**
+ * For each exercise lifted in the just-finished session, compare its top
+ * working set to all prior working sets of the same exercise. We only
+ * surface PRs when there's prior history (first-time exercises don't
+ * count — too noisy).
+ *
+ * Two PR kinds:
+ *  - "weight": top weight beat the all-time top weight
+ *  - "reps_at_top": same top weight as before, but more reps on the top set
+ */
+async function detectPRs(sessionId: string): Promise<PRDetection[]> {
+  const supabase = await createClient();
+
+  const { data: sessionSets } = await supabase
+    .from("workout_sets")
+    .select("exercise_id, weight_kg, reps, exercises(name)")
+    .eq("session_id", sessionId)
+    .eq("is_warmup", false);
+
+  if (!sessionSets || sessionSets.length === 0) return [];
+
+  // Reduce this session to its top set per exercise.
+  type SessionMax = {
+    exerciseId: string;
+    exerciseName: string;
+    maxWeight: number;
+    topReps: number;
+  };
+  const byExercise = new Map<string, SessionMax>();
+  for (const raw of sessionSets as SessionMaxRow[]) {
+    if (!raw.exercise_id) continue;
+    const w = Number(raw.weight_kg);
+    const r = raw.reps;
+    const name = Array.isArray(raw.exercises)
+      ? raw.exercises[0]?.name ?? "Exercício"
+      : raw.exercises?.name ?? "Exercício";
+    const cur = byExercise.get(raw.exercise_id);
+    if (!cur) {
+      byExercise.set(raw.exercise_id, {
+        exerciseId: raw.exercise_id,
+        exerciseName: name,
+        maxWeight: w,
+        topReps: r,
+      });
+      continue;
+    }
+    if (w > cur.maxWeight) {
+      cur.maxWeight = w;
+      cur.topReps = r;
+    } else if (w === cur.maxWeight && r > cur.topReps) {
+      cur.topReps = r;
+    }
+  }
+
+  const prs: PRDetection[] = [];
+  for (const sm of byExercise.values()) {
+    const { data: priorSets } = await supabase
+      .from("workout_sets")
+      .select("weight_kg, reps")
+      .eq("exercise_id", sm.exerciseId)
+      .eq("is_warmup", false)
+      .neq("session_id", sessionId);
+
+    if (!priorSets || priorSets.length === 0) continue; // no history → not a PR
+
+    let priorMaxWeight = 0;
+    let priorTopReps = 0;
+    for (const p of priorSets) {
+      const pw = Number(p.weight_kg);
+      const pr = p.reps;
+      if (pw > priorMaxWeight) {
+        priorMaxWeight = pw;
+        priorTopReps = pr;
+      } else if (pw === priorMaxWeight && pr > priorTopReps) {
+        priorTopReps = pr;
+      }
+    }
+
+    if (sm.maxWeight > priorMaxWeight) {
+      prs.push({
+        exerciseId: sm.exerciseId,
+        exerciseName: sm.exerciseName,
+        kind: "weight",
+        newWeight: sm.maxWeight,
+        newReps: sm.topReps,
+        priorWeight: priorMaxWeight,
+        priorReps: priorTopReps,
+      });
+    } else if (
+      sm.maxWeight === priorMaxWeight &&
+      sm.topReps > priorTopReps
+    ) {
+      prs.push({
+        exerciseId: sm.exerciseId,
+        exerciseName: sm.exerciseName,
+        kind: "reps_at_top",
+        newWeight: sm.maxWeight,
+        newReps: sm.topReps,
+        priorWeight: priorMaxWeight,
+        priorReps: priorTopReps,
+      });
+    }
+  }
+
+  return prs;
 }
 
 type ProgressionRowRaw = {

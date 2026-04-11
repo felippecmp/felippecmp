@@ -14,6 +14,7 @@ import { computeStreak } from "@/lib/streak";
 import { QuickWeightAdd } from "./QuickWeightAdd";
 import { QuickStepsAdd } from "./QuickStepsAdd";
 import { QuickRestDayToggle } from "./QuickRestDayToggle";
+import { TodayChecklist } from "./TodayChecklist";
 
 export const dynamic = "force-dynamic";
 
@@ -197,6 +198,16 @@ export default async function HomePage() {
   const restDays = (restDayRows ?? []) as Array<{ rest_date: string }>;
   const isRestDayToday = restDays.some((r) => r.rest_date === todayKey);
 
+  // Today's checklist hits — same goal definitions as the heatmap on /progresso.
+  const hasWeightToday = !!todayWeight;
+  const hasStrengthToday = strengthSessions.some(
+    (s) => localDayKey(new Date(s.started_at)) === todayKey
+  );
+  const hasCardioToday = cardioSessions.some(
+    (c) => localDayKey(new Date(c.started_at)) === todayKey
+  );
+  const hasStepsToday = (todaySteps?.steps ?? 0) >= 8000;
+
   // Build unified diary entries sorted by timestamp desc, grouped by day.
   const diary: DiaryEntry[] = [
     ...strengthSessions.slice(0, 30).map<DiaryEntry>((s) => ({
@@ -325,7 +336,7 @@ export default async function HomePage() {
 
       {/* Streak line — discreet, above the CTA */}
       {streak.current > 0 && (
-        <div className="mb-4 flex items-center gap-2 text-xs text-[var(--text-muted)]">
+        <div className="mb-3 flex items-center gap-2 text-xs text-[var(--text-muted)]">
           <Flame
             size={12}
             strokeWidth={1.75}
@@ -345,6 +356,17 @@ export default async function HomePage() {
             </span>
           )}
         </div>
+      )}
+
+      {/* Today's checklist — what's left to glow */}
+      {!firstRun && (
+        <TodayChecklist
+          hasWeight={hasWeightToday}
+          hasStrength={hasStrengthToday}
+          hasCardio={hasCardioToday}
+          hasSteps={hasStepsToday}
+          isRestDay={isRestDayToday}
+        />
       )}
 
       {/* Primary CTA card */}

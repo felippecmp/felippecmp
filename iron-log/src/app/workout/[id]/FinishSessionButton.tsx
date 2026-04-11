@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Flag, X } from "lucide-react";
-import { finishSession } from "./actions";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Flag, Trophy, X } from "lucide-react";
+import { finishSession, type PRDetection } from "./actions";
 
 const FEELING_OPTIONS = [
   { value: 1, label: "Fraco" },
@@ -19,11 +20,13 @@ export function FinishSessionButton({
   sessionId: string;
   totalLogged: number;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [feeling, setFeeling] = useState<number | null>(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [prs, setPrs] = useState<PRDetection[] | null>(null);
 
   function handleSubmit() {
     setError(null);
@@ -32,10 +35,20 @@ export function FinishSessionButton({
         overallFeeling: feeling,
         notes: notes.trim() || null,
       });
-      if (result && result.ok === false) {
+      if (!result.ok) {
         setError(result.error);
+        return;
+      }
+      if (result.prs.length > 0) {
+        setPrs(result.prs);
+      } else {
+        router.push("/");
       }
     });
+  }
+
+  function handleContinue() {
+    router.push("/");
   }
 
   return (
@@ -53,24 +66,92 @@ export function FinishSessionButton({
         <div
           className="fixed inset-x-0 top-0 z-[60] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center"
           style={{ height: "100dvh" }}
-          onClick={() => !isPending && setOpen(false)}
+          onClick={() => {
+            if (isPending) return;
+            if (prs) return; // celebration view requires explicit Continuar
+            setOpen(false);
+          }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
             className="w-full sm:max-w-md bg-[var(--bg-raised)] border-t sm:border border-[var(--border)] rounded-t-3xl sm:rounded-3xl max-h-[85dvh] flex flex-col"
           >
             <div className="px-6 pt-5 pb-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
-              <h2 className="display-sm text-xl">Finalizar sessão</h2>
-              <button
-                type="button"
-                onClick={() => !isPending && setOpen(false)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)]"
-                aria-label="Fechar"
-              >
-                <X size={18} strokeWidth={1.75} />
-              </button>
+              <h2 className="display-sm text-xl">
+                {prs ? "Você quebrou recorde" : "Finalizar sessão"}
+              </h2>
+              {!prs && (
+                <button
+                  type="button"
+                  onClick={() => !isPending && setOpen(false)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)]"
+                  aria-label="Fechar"
+                >
+                  <X size={18} strokeWidth={1.75} />
+                </button>
+              )}
             </div>
 
+            {prs ? (
+              <div
+                className="flex-1 overflow-y-auto px-6 py-5 space-y-5"
+                style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-accent text-accent-fg flex items-center justify-center shrink-0">
+                    <Trophy size={22} strokeWidth={2.25} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="display-sm text-2xl leading-tight">
+                      {prs.length === 1
+                        ? "1 PR no bolso"
+                        : `${prs.length} PRs no bolso`}
+                    </p>
+                    <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                      {prs.length === 1
+                        ? "Hoje você superou seu melhor."
+                        : "Hoje foi um massacre."}
+                    </p>
+                  </div>
+                </div>
+
+                <ul className="space-y-2">
+                  {prs.map((pr) => (
+                    <li
+                      key={pr.exerciseId + pr.kind}
+                      className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3"
+                    >
+                      <div className="flex items-baseline justify-between gap-2 mb-1">
+                        <p className="text-sm font-semibold truncate">
+                          {pr.exerciseName}
+                        </p>
+                        <span className="text-[10px] uppercase tracking-wider text-[var(--accent)] tnum shrink-0">
+                          {pr.kind === "weight" ? "Peso novo" : "Mais reps"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[var(--text-muted)] tnum">
+                        <span className="text-[var(--text)] font-semibold">
+                          {formatKg(pr.newWeight)} × {pr.newReps}
+                        </span>
+                        <span className="text-[var(--text-faint)]">
+                          {" "}
+                          · era {formatKg(pr.priorWeight)} × {pr.priorReps}
+                        </span>
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  type="button"
+                  onClick={handleContinue}
+                  className="w-full flex items-center justify-center gap-2 bg-accent text-accent-fg font-semibold py-3 rounded-xl hover:bg-accent-hover transition-colors"
+                >
+                  Continuar
+                  <ArrowRight size={16} strokeWidth={2.25} />
+                </button>
+              </div>
+            ) : (
             <div
               className="flex-1 overflow-y-auto px-6 py-5 space-y-6"
               style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
@@ -148,9 +229,16 @@ export function FinishSessionButton({
                 </button>
               </div>
             </div>
+            )}
           </div>
         </div>
       )}
     </>
   );
+}
+
+function formatKg(v: number): string {
+  const rounded = Math.round(v * 10) / 10;
+  if (Number.isInteger(rounded)) return `${rounded}kg`;
+  return `${rounded.toFixed(1)}kg`;
 }
