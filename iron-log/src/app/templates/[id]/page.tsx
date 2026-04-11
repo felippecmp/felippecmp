@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getTemplateProgression } from "@/lib/template-progression";
 import { TemplateEditor } from "./TemplateEditor";
+import { TemplateHistory } from "./TemplateHistory";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +40,8 @@ export default async function EditTemplatePage({
     .eq("session_type", template.session_type)
     .order("name");
 
+  const progression = await getTemplateProgression(id);
+
   return (
     <div className="px-6 pt-10">
       <Link
@@ -62,6 +66,8 @@ export default async function EditTemplatePage({
         }))}
         availableExercises={availableExercises ?? []}
       />
+
+      <TemplateHistory progression={progression} />
     </div>
   );
 }

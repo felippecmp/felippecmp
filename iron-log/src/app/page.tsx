@@ -17,6 +17,7 @@ import { QuickStepsAdd } from "./QuickStepsAdd";
 import { QuickRestDayToggle } from "./QuickRestDayToggle";
 import { TodayChecklist } from "./TodayChecklist";
 import { QuickNoteAdd } from "./QuickNoteAdd";
+import { WeeklyRecap } from "./WeeklyRecap";
 
 export const dynamic = "force-dynamic";
 
@@ -233,6 +234,77 @@ export default async function HomePage() {
   );
   const hasStepsToday = (todaySteps?.steps ?? 0) >= 8000;
 
+  // --- Weekly recap (rolling 7 days, only rendered Sunday/Monday) ---
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // inclusive 7-day window
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+
+  const recapDayOfWeek = now.getDay(); // 0 = Sun, 1 = Mon
+  const showRecap = recapDayOfWeek === 0 || recapDayOfWeek === 1;
+
+  let recapStrength = 0;
+  let recapCardio = 0;
+  let recapGlowDays = 0;
+  let recapWeightDelta: number | null = null;
+
+  if (showRecap) {
+    const last7Strength = strengthSessions.filter(
+      (s) => new Date(s.started_at) >= sevenDaysAgo
+    );
+    const last7Cardio = cardioSessions.filter(
+      (c) => new Date(c.started_at) >= sevenDaysAgo
+    );
+    recapStrength = last7Strength.length;
+    recapCardio = last7Cardio.length;
+
+    // Glow day count: walk the 7 days and recompute the same checklist hit/max
+    // logic that the heatmap uses. A "glow day" is hit === max.
+    const strengthDayKeys = new Set(
+      last7Strength.map((s) => localDayKey(new Date(s.started_at)))
+    );
+    const cardioDayKeys = new Set(
+      last7Cardio.map((c) => localDayKey(new Date(c.started_at)))
+    );
+    const weightDayKeys = new Set(
+      weights
+        .filter((w) => new Date(w.recorded_at) >= sevenDaysAgo)
+        .map((w) => localDayKey(new Date(w.recorded_at)))
+    );
+    const stepsDayMap = new Map<string, number>();
+    for (const s of stepsData) {
+      stepsDayMap.set(s.step_date, s.steps);
+    }
+    const restDayKeys = new Set(restDays.map((r) => r.rest_date));
+
+    for (let i = 0; i < 7; i++) {
+      const probe = new Date(sevenDaysAgo);
+      probe.setDate(probe.getDate() + i);
+      const k = localDayKey(probe);
+      const isRest = restDayKeys.has(k);
+      let hit = 0;
+      if (weightDayKeys.has(k)) hit++;
+      if (cardioDayKeys.has(k)) hit++;
+      if ((stepsDayMap.get(k) ?? 0) >= 8000) hit++;
+      if (!isRest && strengthDayKeys.has(k)) hit++;
+      const max = isRest ? 3 : 4;
+      if (hit >= max) recapGlowDays++;
+    }
+
+    // Weight delta: latest weight in window minus oldest weight in window.
+    const weightsInWindow = weights
+      .filter((w) => new Date(w.recorded_at) >= sevenDaysAgo)
+      .sort(
+        (a, b) =>
+          new Date(a.recorded_at).getTime() -
+          new Date(b.recorded_at).getTime()
+      );
+    if (weightsInWindow.length >= 2) {
+      const first = Number(weightsInWindow[0].weight_kg);
+      const last = Number(weightsInWindow[weightsInWindow.length - 1].weight_kg);
+      recapWeightDelta = Math.round((last - first) * 10) / 10;
+    }
+  }
+
   // Build unified diary entries sorted by timestamp desc, grouped by day.
   const diary: DiaryEntry[] = [
     ...strengthSessions.slice(0, 30).map<DiaryEntry>((s) => ({
@@ -400,6 +472,16 @@ export default async function HomePage() {
           hasCardio={hasCardioToday}
           hasSteps={hasStepsToday}
           isRestDay={isRestDayToday}
+        />
+      )}
+
+      {/* Weekly recap — Sunday + Monday only */}
+      {showRecap && !firstRun && (
+        <WeeklyRecap
+          strengthSessions={recapStrength}
+          cardioSessions={recapCardio}
+          glowDays={recapGlowDays}
+          weightDelta={recapWeightDelta}
         />
       )}
 
