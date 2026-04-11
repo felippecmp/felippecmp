@@ -55,15 +55,15 @@ CREATE POLICY "own mesocycles" ON mesocycles
 CREATE POLICY "own mesocycle weeks" ON mesocycle_weeks
   FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM mesocycles m
-      WHERE m.id = mesocycle_weeks.mesocycle_id
-        AND (auth.uid() = m.user_id OR m.user_id IS NULL)
+      SELECT 1 FROM mesocycles
+      WHERE mesocycles.id = mesocycle_weeks.mesocycle_id
+        AND (auth.uid() = mesocycles.user_id OR mesocycles.user_id IS NULL)
     )
   )
   WITH CHECK (
     EXISTS (
-      SELECT 1 FROM mesocycles m
-      WHERE m.id = mesocycle_weeks.mesocycle_id
-        AND (auth.uid() = m.user_id OR m.user_id IS NULL)
+      SELECT 1 FROM mesocycles
+      WHERE mesocycles.id = mesocycle_weeks.mesocycle_id
+        AND (auth.uid() = mesocycles.user_id OR mesocycles.user_id IS NULL)
     )
   );
