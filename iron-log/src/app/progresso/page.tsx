@@ -19,6 +19,8 @@ import {
 import { computeStreak } from "@/lib/streak";
 import { getUserSettings } from "@/lib/settings";
 import { buildInsights, type CoachContext } from "@/lib/coach/insights";
+import { PHASE_LABEL } from "@/lib/coach/mesocycle";
+import { getActiveMesocycle } from "@/lib/coach/mesocycle-server";
 import { WeightTrendChart } from "./WeightTrendChart";
 import { CoachInsights } from "./CoachInsights";
 
@@ -114,6 +116,7 @@ export default async function ProgressoPage() {
   // chart (90d), cardio (1 year for streak + 90d window for stats), and
   // user settings (for the optional body weight target).
   const settings = await getUserSettings();
+  const activeMeso = await getActiveMesocycle();
 
   const [
     sessionsYearRes,
@@ -213,7 +216,15 @@ export default async function ProgressoPage() {
   const volumeRows = Array.from(volumeMap.values()).sort(
     (a, b) => b.sets - a.sets
   );
-  const userTargets = settings.volume_targets;
+  // Effective targets = active week (if any) > settings overrides > defaults.
+  // Merge so the week overrides the settings on a per-muscle basis.
+  const userTargets: Record<string, number> | null = (() => {
+    const week = activeMeso?.currentWeek?.volume_targets;
+    if (week && settings.volume_targets) {
+      return { ...settings.volume_targets, ...week };
+    }
+    return week ?? settings.volume_targets;
+  })();
   const maxVolumeBarSets =
     volumeRows.reduce(
       (max, r) => Math.max(max, r.sets, targetFor(r.muscle, userTargets) * 1.5),
@@ -697,6 +708,38 @@ export default async function ProgressoPage() {
                   series={weightSeries}
                   target={settings.target_weight_kg}
                 />
+              </div>
+            </section>
+          )}
+
+          {activeMeso && activeMeso.currentWeek && (
+            <section className="mb-6 rounded-2xl border border-[var(--accent)] bg-[var(--bg-card)] p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="label">Bloco ativo</p>
+                <Link
+                  href="/coach"
+                  className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+                >
+                  abrir →
+                </Link>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="display-sm text-lg leading-tight truncate">
+                    {activeMeso.mesocycle.name}
+                  </p>
+                  <p className="text-xs text-[var(--text-muted)] tnum mt-0.5">
+                    semana {activeMeso.currentWeekNumber}/
+                    {activeMeso.mesocycle.total_weeks} ·{" "}
+                    {PHASE_LABEL[activeMeso.currentWeek.phase]}
+                    {activeMeso.currentWeek.intensity_target && (
+                      <>
+                        <span className="text-[var(--text-faint)]"> · </span>
+                        {activeMeso.currentWeek.intensity_target}
+                      </>
+                    )}
+                  </p>
+                </div>
               </div>
             </section>
           )}

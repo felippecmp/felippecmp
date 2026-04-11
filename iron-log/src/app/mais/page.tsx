@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  Brain,
   ChevronRight,
   Dumbbell,
   Footprints,
@@ -9,6 +10,12 @@ import {
 } from "lucide-react";
 
 const items = [
+  {
+    href: "/coach",
+    label: "Coach",
+    desc: "Periodização: blocos, fases, volume semanal.",
+    Icon: Brain,
+  },
   {
     href: "/exercicios",
     label: "Exercícios",
