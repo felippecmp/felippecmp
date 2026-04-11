@@ -108,6 +108,64 @@ export default async function ExerciseHistoryPage({
     0
   );
 
+  // Walk the timeline forward, tracking running max weight + top reps at
+  // that weight. Whenever a session beats either, record a PR. The first
+  // session is excluded — first time on an exercise is just a baseline.
+  type PR = {
+    sessionId: string;
+    date: string;
+    kind: "weight" | "reps_at_top";
+    weight: number;
+    reps: number;
+    prevWeight: number;
+    prevReps: number;
+  };
+  const prs: PR[] = [];
+  let runningMaxWeight = 0;
+  let runningTopReps = 0;
+  for (const point of timeline) {
+    let topW = 0;
+    let topR = 0;
+    for (const s of point.sets) {
+      if (s.weight > topW) {
+        topW = s.weight;
+        topR = s.reps;
+      } else if (s.weight === topW && s.reps > topR) {
+        topR = s.reps;
+      }
+    }
+    if (runningMaxWeight === 0) {
+      runningMaxWeight = topW;
+      runningTopReps = topR;
+      continue;
+    }
+    if (topW > runningMaxWeight) {
+      prs.push({
+        sessionId: point.sessionId,
+        date: point.date,
+        kind: "weight",
+        weight: topW,
+        reps: topR,
+        prevWeight: runningMaxWeight,
+        prevReps: runningTopReps,
+      });
+      runningMaxWeight = topW;
+      runningTopReps = topR;
+    } else if (topW === runningMaxWeight && topR > runningTopReps) {
+      prs.push({
+        sessionId: point.sessionId,
+        date: point.date,
+        kind: "reps_at_top",
+        weight: topW,
+        reps: topR,
+        prevWeight: runningMaxWeight,
+        prevReps: runningTopReps,
+      });
+      runningTopReps = topR;
+    }
+  }
+  const prsReversed = [...prs].reverse();
+
   return (
     <div className="px-6 pt-10">
       <Link
@@ -174,6 +232,46 @@ export default async function ExerciseHistoryPage({
               }))}
             />
           </section>
+
+          {prsReversed.length > 0 && (
+            <section className="mb-10">
+              <div className="flex items-baseline justify-between mb-3">
+                <p className="label">PRs</p>
+                <span className="text-[10px] text-[var(--text-dim)] tnum">
+                  {prsReversed.length}{" "}
+                  {prsReversed.length === 1 ? "marco" : "marcos"}
+                </span>
+              </div>
+              <ul className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border)]">
+                {prsReversed.map((pr) => (
+                  <li key={`${pr.sessionId}-${pr.kind}`}>
+                    <Link
+                      href={`/workout/${pr.sessionId}`}
+                      className="block px-4 py-3 hover:bg-[var(--bg-hover)] transition-colors"
+                    >
+                      <div className="flex items-baseline justify-between gap-3 mb-1">
+                        <span className="text-xs text-[var(--text-muted)] tnum uppercase tracking-wider">
+                          {formatDateShort(pr.date)}
+                        </span>
+                        <span className="text-[10px] uppercase tracking-wider text-[var(--accent)] tnum">
+                          {pr.kind === "weight" ? "Peso novo" : "Mais reps"}
+                        </span>
+                      </div>
+                      <p className="text-sm tnum tabular-nums">
+                        <span className="text-[var(--text)] font-semibold">
+                          {formatKg(pr.weight)}kg × {pr.reps}
+                        </span>
+                        <span className="text-[var(--text-faint)]">
+                          {" "}
+                          · era {formatKg(pr.prevWeight)}kg × {pr.prevReps}
+                        </span>
+                      </p>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <section className="mb-10">
             <p className="label mb-3">Histórico</p>

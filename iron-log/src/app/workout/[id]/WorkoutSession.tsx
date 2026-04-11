@@ -46,6 +46,8 @@ export type ExerciseBlockData = {
   repRangeHigh: number;
   restSeconds: number;
   previousSets: ReferenceSet[];
+  /** ISO timestamp of the session previousSets came from, when known. */
+  previousSetsAt: string | null;
   existingSets: ExistingSet[];
   suggestion: ProgressionSuggestion;
   /**
@@ -256,6 +258,7 @@ export function WorkoutSession({
       repRangeHigh: 8,
       restSeconds: 180,
       previousSets: [],
+      previousSetsAt: null,
       existingSets: [],
       suggestion: {
         suggestedWeight: null,
@@ -755,10 +758,12 @@ function ExerciseCard({
               {suggestion.message}
             </p>
 
-            <p className="text-[11px] text-[var(--text-dim)] mt-2 tnum">
+            <p className="text-[11px] text-[var(--text-soft)] mt-2 tnum">
               {reference.length > 0 ? (
                 <>
-                  <span className="uppercase tracking-wider mr-1">Último:</span>
+                  <span className="uppercase tracking-wider mr-1 text-[var(--text-dim)]">
+                    Último:
+                  </span>
                   {reference
                     .map(
                       (s) =>
@@ -767,9 +772,17 @@ function ExerciseCard({
                         }`
                     )
                     .join(" · ")}
+                  {exercise.previousSetsAt && (
+                    <span className="text-[var(--text-dim)]">
+                      {" · "}
+                      {formatRelativeDay(exercise.previousSetsAt)}
+                    </span>
+                  )}
                 </>
               ) : (
-                "Sem histórico"
+                <span className="text-[var(--text-dim)]">
+                  Primeira vez nesse exercício
+                </span>
               )}
             </p>
           </div>
@@ -1076,4 +1089,22 @@ function SetRowInput({
       )}
     </div>
   );
+}
+
+function formatRelativeDay(iso: string): string {
+  const then = new Date(iso);
+  const now = new Date();
+  const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const thenMid = new Date(then.getFullYear(), then.getMonth(), then.getDate());
+  const diffDays = Math.round(
+    (todayMid.getTime() - thenMid.getTime()) / 86400000
+  );
+  if (diffDays === 0) return "hoje";
+  if (diffDays === 1) return "ontem";
+  if (diffDays < 7) return `há ${diffDays}d`;
+  if (diffDays < 30) return `há ${Math.round(diffDays / 7)}sem`;
+  return then.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+  });
 }

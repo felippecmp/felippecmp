@@ -308,6 +308,8 @@ export default async function WorkoutSessionPage({
       repRangeHigh: te.rep_range_high,
       restSeconds: te.rest_seconds,
       previousSets: referenceByExercise.get(te.exercise_id) ?? [],
+      previousSetsAt:
+        latestSessionByExercise.get(te.exercise_id)?.startedAt ?? null,
       existingSets: existing,
       suggestion,
       isAdhoc: false,
@@ -354,6 +356,7 @@ export default async function WorkoutSessionPage({
       repRangeHigh: settings.default_rep_range_high,
       restSeconds: settings.default_rest_seconds,
       previousSets: referenceByExercise.get(adhocId) ?? [],
+      previousSetsAt: latestSessionByExercise.get(adhocId)?.startedAt ?? null,
       existingSets: existing,
       suggestion,
       isAdhoc: true,
