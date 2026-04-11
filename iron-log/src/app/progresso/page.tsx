@@ -101,7 +101,7 @@ export default async function ProgressoPage() {
   // user settings (for the optional body weight target).
   const settings = await getUserSettings();
 
-  const [sessionsYearRes, setsRes, weightRes, cardioRes, stepsRes] = await Promise.all([
+  const [sessionsYearRes, setsRes, weightRes, cardioRes, stepsRes, restRes] = await Promise.all([
     supabase
       .from("workout_sessions")
       .select("id, started_at, finished_at, duration_minutes")
@@ -134,6 +134,11 @@ export default async function ProgressoPage() {
       .select("step_date, steps")
       .gte("step_date", ninetyDaysAgo.toISOString().slice(0, 10))
       .order("step_date", { ascending: false }),
+    supabase
+      .from("rest_days")
+      .select("rest_date")
+      .gte("rest_date", ninetyDaysAgo.toISOString().slice(0, 10))
+      .order("rest_date", { ascending: false }),
   ]);
 
   const allSessions = (sessionsYearRes.data ?? []) as SessionRow[];
@@ -147,6 +152,8 @@ export default async function ProgressoPage() {
     step_date: string;
     steps: number;
   }>;
+  const restDaysData = (restRes.data ?? []) as Array<{ rest_date: string }>;
+  const restDaySet = new Set(restDaysData.map((r) => r.rest_date));
   const cardio30d = allCardio.filter(
     (c) => new Date(c.started_at) >= thirtyDaysAgo
   );
@@ -211,14 +218,22 @@ export default async function ProgressoPage() {
     stepsDayMap.set(s.step_date, s.steps);
   }
 
-  const completionByDay = new Map<string, number>();
+  // Beast Mode heatmap: compute per-day { hit, max, isRest }.
+  // Rest days drop the max from 4 to 3 (no strength expectation), so a
+  // rest day still earns the crimson glow at 3/3.
+  const completionByDay = new Map<
+    string,
+    { hit: number; max: number; isRest: boolean }
+  >();
   for (const d of days) {
-    let level = 0;
-    if (weightDays.has(d.key)) level++;
-    if (strengthDays.has(d.key)) level++;
-    if (cardioDays.has(d.key)) level++;
-    if ((stepsDayMap.get(d.key) ?? 0) >= 8000) level++;
-    completionByDay.set(d.key, level);
+    const isRest = restDaySet.has(d.key);
+    let hit = 0;
+    if (weightDays.has(d.key)) hit++;
+    if (cardioDays.has(d.key)) hit++;
+    if ((stepsDayMap.get(d.key) ?? 0) >= 8000) hit++;
+    if (!isRest && strengthDays.has(d.key)) hit++;
+    const max = isRest ? 3 : 4;
+    completionByDay.set(d.key, { hit, max, isRest });
   }
 
   // Pre-compute period-filtered sets (used by both activity map and stats).
@@ -984,13 +999,17 @@ function Heatmap({
 }: {
   days: Array<{ key: string; date: Date }>;
   sessionsByDay: Map<string, { count: number; minutes: number }>;
-  completionByDay: Map<string, number>;
+  completionByDay: Map<string, { hit: number; max: number; isRest: boolean }>;
 }) {
   const cells = days.map((d) => {
     const entry = sessionsByDay.get(d.key);
     const count = entry?.count ?? 0;
     const minutes = entry?.minutes ?? 0;
-    const completion = completionByDay.get(d.key) ?? 0;
+    const completion = completionByDay.get(d.key) ?? {
+      hit: 0,
+      max: 4,
+      isRest: false,
+    };
     let opacity = 0;
     if (count > 0) {
       opacity = Math.min(1, 0.35 + (minutes / 90) * 0.65);
@@ -1002,15 +1021,23 @@ function Heatmap({
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
       <div className="grid grid-cols-[repeat(13,1fr)] gap-1">
         {cells.map((c) => {
-          // Beast Mode reward: 4/4 completion = crimson + glow,
-          // 3/4 = crimson without glow. CSS classes handle the
-          // theme-conditional rendering.
-          const allComplete = c.completion >= 4;
-          const mostComplete = c.completion >= 3 && c.completion < 4;
+          // Beast Mode reward: hitting the day's full max = crimson + glow.
+          // Hitting max-1 = crimson without glow. Rest days have max 3, so
+          // weight + cardio + steps still triggers the glow.
+          const { hit, max, isRest } = c.completion;
+          const allComplete = max > 0 && hit >= max;
+          const mostComplete = max > 1 && hit >= max - 1 && hit < max;
+          const restMark = isRest && !allComplete && !mostComplete;
           return (
             <div
               key={c.key}
-              title={`${c.key} — ${c.count > 0 ? `${c.count} sessão${c.count === 1 ? "" : "es"} · ${c.minutes}min` : "rest"} — ${c.completion}/4 metas`}
+              title={`${c.key} — ${
+                c.count > 0
+                  ? `${c.count} sessão${c.count === 1 ? "" : "es"} · ${c.minutes}min`
+                  : isRest
+                    ? "descanso"
+                    : "rest"
+              } — ${hit}/${max} metas`}
               className={`aspect-square rounded-[3px] border border-[var(--border)] ${
                 allComplete ? "beast-complete" : ""
               } ${mostComplete ? "beast-almost" : ""}`}
@@ -1022,7 +1049,9 @@ function Heatmap({
                       ? `color-mix(in oklab, var(--status-ready) ${
                           c.opacity * 100
                         }%, transparent)`
-                      : "transparent",
+                      : restMark
+                        ? "var(--bg-raised)"
+                        : "transparent",
                 opacity: mostComplete && !allComplete ? 0.6 : undefined,
               }}
             />
@@ -1051,12 +1080,18 @@ function Heatmap({
           className="w-3 h-3 rounded-[2px] border border-[var(--border)]"
           style={{ background: "var(--accent)", opacity: 0.6 }}
         />
-        <span>3/4</span>
+        <span>quase</span>
         <div
           className="w-3 h-3 rounded-[2px] border border-[var(--border)] beast-complete"
           style={{ background: "var(--accent)" }}
         />
-        <span>4/4</span>
+        <span>completo</span>
+        <span className="text-[var(--text-faint)]">·</span>
+        <div
+          className="w-3 h-3 rounded-[2px] border border-[var(--border)]"
+          style={{ background: "var(--bg-raised)" }}
+        />
+        <span>descanso</span>
       </div>
     </div>
   );

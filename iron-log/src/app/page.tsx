@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 import { computeStreak } from "@/lib/streak";
 import { QuickWeightAdd } from "./QuickWeightAdd";
 import { QuickStepsAdd } from "./QuickStepsAdd";
+import { QuickRestDayToggle } from "./QuickRestDayToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -129,6 +130,7 @@ export default async function HomePage() {
     { data: weightRows },
     { data: stepsRows },
     { data: templatesData },
+    { data: restDayRows },
   ] = await Promise.all([
     supabase.from("exercises").select("*", { count: "exact", head: true }),
     supabase
@@ -162,6 +164,11 @@ export default async function HomePage() {
       .eq("is_active", true)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
+    supabase
+      .from("rest_days")
+      .select("rest_date")
+      .order("rest_date", { ascending: false })
+      .limit(60),
   ]);
 
   const { weekday, day, month } = formatHeaderDate(now);
@@ -186,6 +193,9 @@ export default async function HomePage() {
   const latestWeight = weights[0];
 
   const todaySteps = stepsData.find((s) => s.step_date === todayKey);
+
+  const restDays = (restDayRows ?? []) as Array<{ rest_date: string }>;
+  const isRestDayToday = restDays.some((r) => r.rest_date === todayKey);
 
   // Build unified diary entries sorted by timestamp desc, grouped by day.
   const diary: DiaryEntry[] = [
@@ -425,6 +435,12 @@ export default async function HomePage() {
                   }
                 : null
             }
+          />
+        </div>
+        <div className="mt-3">
+          <QuickRestDayToggle
+            isRestDay={isRestDayToday}
+            todayKey={todayKey}
           />
         </div>
       </section>
