@@ -4,7 +4,6 @@ import {
   Dumbbell,
   Flame,
   Footprints,
-  Layers,
   NotebookPen,
   Scale,
   Settings as SettingsIcon,
@@ -12,11 +11,8 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { computeStreak } from "@/lib/streak";
-import { QuickWeightAdd } from "./QuickWeightAdd";
-import { QuickStepsAdd } from "./QuickStepsAdd";
-import { QuickRestDayToggle } from "./QuickRestDayToggle";
 import { TodayChecklist } from "./TodayChecklist";
-import { QuickNoteAdd } from "./QuickNoteAdd";
+import { NotaDescansoRow } from "./NotaDescansoRow";
 import { WeeklyRecap } from "./WeeklyRecap";
 
 export const dynamic = "force-dynamic";
@@ -464,7 +460,7 @@ export default async function HomePage() {
         </div>
       )}
 
-      {/* Today's checklist — what's left to glow */}
+      {/* Today's checklist — interactive, doubles as the quick-add surface */}
       {!firstRun && (
         <TodayChecklist
           hasWeight={hasWeightToday}
@@ -472,6 +468,31 @@ export default async function HomePage() {
           hasCardio={hasCardioToday}
           hasSteps={hasStepsToday}
           isRestDay={isRestDayToday}
+          todayWeightKg={
+            todayWeight ? Number(todayWeight.weight_kg) : null
+          }
+          todayStepsCount={todaySteps?.steps ?? null}
+          latestWeightKg={
+            latestWeight ? Number(latestWeight.weight_kg) : null
+          }
+          todayKey={todayKey}
+        />
+      )}
+
+      {/* Compact secondary row: nota + descanso */}
+      {!firstRun && (
+        <NotaDescansoRow
+          todayNote={
+            todayNote
+              ? {
+                  id: todayNote.id,
+                  body: todayNote.body,
+                  noteDate: todayNote.note_date,
+                }
+              : null
+          }
+          isRestDay={isRestDayToday}
+          todayKey={todayKey}
         />
       )}
 
@@ -541,95 +562,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Quick-adds row */}
-      <section className="mb-6">
-        <QuickWeightAdd
-          todayWeight={
-            todayWeight
-              ? {
-                  id: todayWeight.id,
-                  weightKg: Number(todayWeight.weight_kg),
-                  recordedAt: todayWeight.recorded_at,
-                }
-              : null
-          }
-          latestWeight={
-            !todayWeight && latestWeight
-              ? {
-                  weightKg: Number(latestWeight.weight_kg),
-                  recordedAt: latestWeight.recorded_at,
-                }
-              : null
-          }
-        />
-        <div className="mt-3">
-          <QuickStepsAdd
-            todaySteps={
-              todaySteps
-                ? {
-                    id: todaySteps.id,
-                    steps: todaySteps.steps,
-                    stepDate: todaySteps.step_date,
-                  }
-                : null
-            }
-          />
-        </div>
-        <div className="mt-3">
-          <QuickRestDayToggle
-            isRestDay={isRestDayToday}
-            todayKey={todayKey}
-          />
-        </div>
-        <div className="mt-3">
-          <QuickNoteAdd
-            todayNote={
-              todayNote
-                ? {
-                    id: todayNote.id,
-                    body: todayNote.body,
-                    noteDate: todayNote.note_date,
-                  }
-                : null
-            }
-          />
-        </div>
-      </section>
-
-      <section className="mb-10 grid grid-cols-2 gap-3">
-        <Link
-          href="/cardio"
-          className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 text-sm hover:border-[var(--border-strong)] transition-colors"
-        >
-          <Footprints
-            size={14}
-            strokeWidth={1.75}
-            className="text-[var(--text-soft)]"
-          />
-          <span>Cardio</span>
-          <ArrowRight
-            size={12}
-            strokeWidth={1.75}
-            className="ml-auto text-[var(--text-dim)]"
-          />
-        </Link>
-        <Link
-          href="/templates"
-          className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 text-sm hover:border-[var(--border-strong)] transition-colors"
-        >
-          <Layers
-            size={14}
-            strokeWidth={1.75}
-            className="text-[var(--text-soft)]"
-          />
-          <span>Templates</span>
-          <ArrowRight
-            size={12}
-            strokeWidth={1.75}
-            className="ml-auto text-[var(--text-dim)]"
-          />
-        </Link>
-      </section>
 
       {/* Diary timeline */}
       {dayKeys.length > 0 && (
