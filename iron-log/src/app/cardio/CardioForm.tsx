@@ -92,7 +92,7 @@ export function CardioForm({
                 key={opt.value}
                 className={`cursor-pointer text-center py-2 rounded-lg text-[11px] font-medium transition-all ${
                   active
-                    ? "bg-[var(--text)] text-[var(--bg)]"
+                    ? "bg-accent text-accent-fg"
                     : "text-[var(--text-muted)] hover:text-[var(--text)]"
                 }`}
               >

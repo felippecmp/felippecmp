@@ -47,7 +47,7 @@ export function NewTemplateForm() {
                 key={t}
                 className={`cursor-pointer text-center py-2.5 rounded-lg text-sm font-medium transition-all ${
                   active
-                    ? "bg-[var(--text)] text-[var(--bg)]"
+                    ? "bg-accent text-accent-fg"
                     : "text-[var(--text-muted)] hover:text-[var(--text)]"
                 }`}
               >

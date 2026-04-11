@@ -97,7 +97,7 @@ export function FinishSessionButton({
                         disabled={isPending}
                         className={`rounded-xl border py-3 flex flex-col items-center justify-center gap-0.5 transition-colors ${
                           active
-                            ? "border-[var(--text)] bg-[var(--text)] text-[var(--bg)]"
+                            ? "border-[var(--text)] bg-accent text-accent-fg"
                             : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)]"
                         } disabled:opacity-50`}
                       >

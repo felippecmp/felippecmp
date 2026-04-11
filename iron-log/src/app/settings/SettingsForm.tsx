@@ -97,7 +97,7 @@ export function SettingsForm({ settings }: { settings: UserSettings }) {
                 onClick={() => setUnit(u)}
                 className={`text-center py-2.5 rounded-lg text-sm font-medium transition-all ${
                   active
-                    ? "bg-[var(--text)] text-[var(--bg)]"
+                    ? "bg-accent text-accent-fg"
                     : "text-[var(--text-muted)] hover:text-[var(--text)]"
                 }`}
               >
@@ -155,7 +155,7 @@ export function SettingsForm({ settings }: { settings: UserSettings }) {
                 onClick={() => setRotationMode(opt.value)}
                 className={`text-center py-2.5 rounded-lg text-sm font-medium transition-all ${
                   active
-                    ? "bg-[var(--text)] text-[var(--bg)]"
+                    ? "bg-accent text-accent-fg"
                     : "text-[var(--text-muted)] hover:text-[var(--text)]"
                 }`}
               >

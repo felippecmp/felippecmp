@@ -1059,7 +1059,7 @@ function SetRowInput({
               disabled={row.saving || disabled}
               className={`w-7 h-7 rounded-md border text-xs tnum font-semibold transition-colors ${
                 active
-                  ? "border-[var(--text)] bg-[var(--text)] text-[var(--bg)]"
+                  ? "border-[var(--text)] bg-accent text-accent-fg"
                   : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)]"
               } disabled:opacity-40`}
             >
