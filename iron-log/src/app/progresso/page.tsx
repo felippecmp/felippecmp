@@ -439,12 +439,27 @@ export default async function ProgressoPage() {
               value={totalSets7d}
               prev={totalSetsPrev7d}
             />
-            <TopStat
-              label="Tempo 30d"
-              value={Math.round(totalMinutes30d / 60)}
-              prev={Math.round(totalMinutesPrev30d / 60)}
-              suffix="h"
-            />
+            {(() => {
+              // Show minutes when both periods are under 2 hours, hours otherwise.
+              const useMin =
+                totalMinutes30d < 120 && totalMinutesPrev30d < 120;
+              return (
+                <TopStat
+                  label="Tempo 30d"
+                  value={
+                    useMin
+                      ? totalMinutes30d
+                      : Math.round(totalMinutes30d / 60)
+                  }
+                  prev={
+                    useMin
+                      ? totalMinutesPrev30d
+                      : Math.round(totalMinutesPrev30d / 60)
+                  }
+                  suffix={useMin ? "min" : "h"}
+                />
+              );
+            })()}
           </section>
 
           {/* Cardio */}
@@ -824,9 +839,9 @@ function TargetChip({
   target: number;
   current: number;
 }) {
-  const delta = current - target;
-  const reached = Math.abs(delta) < 0.05;
-  const sign = delta > 0 ? "+" : "";
+  const distance = Math.abs(current - target);
+  const reached = distance < 0.05;
+  const direction = current > target ? "perder" : "ganhar";
   return (
     <div>
       <p className="label mb-1">Meta</p>
@@ -840,8 +855,7 @@ function TargetChip({
           </span>
         ) : (
           <span className="text-[10px] tnum text-[var(--text-dim)]">
-            ({sign}
-            {delta.toFixed(1)})
+            {distance.toFixed(1)}kg pra {direction}
           </span>
         )}
       </div>
@@ -859,44 +873,43 @@ function StreakHero({
   todayActive: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-6">
-      <div className="flex items-center gap-2 mb-2">
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-5 py-4">
+      <div className="flex items-center gap-3">
         <Flame
           size={14}
           strokeWidth={1.75}
-          className="text-[var(--status-ready)]"
+          className="text-[var(--status-ready)] shrink-0"
         />
         <p className="label">Streak</p>
-      </div>
-      <div className="flex items-baseline gap-4">
-        <div>
-          <div className="display text-5xl tnum leading-none">
-            {current}
+        <div className="ml-auto flex items-baseline gap-3">
+          <div className="flex items-baseline gap-1">
+            <span className="display text-3xl tnum leading-none">
+              {current}
+            </span>
+            <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">
+              {current === 1 ? "dia" : "dias"}
+            </span>
           </div>
-          <p className="text-[10px] text-[var(--text-muted)] tracking-wider uppercase mt-1.5">
-            {current === 1 ? "dia" : "dias"} consecutivos
-          </p>
-        </div>
-        {best > 0 && (
-          <div className="pl-4 border-l border-[var(--border)]">
-            <div className="display-sm text-2xl tnum leading-none text-[var(--text-soft)]">
-              {best}
+          {best > 0 && best !== current && (
+            <div className="flex items-baseline gap-1 pl-3 border-l border-[var(--border)]">
+              <span className="text-base tnum text-[var(--text-soft)]">
+                {best}
+              </span>
+              <span className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider">
+                melhor
+              </span>
             </div>
-            <p className="text-[10px] text-[var(--text-dim)] tracking-wider uppercase mt-1.5">
-              melhor
-            </p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-      {current > 0 && !todayActive && (
-        <p className="text-[11px] text-[var(--text-muted)] mt-3">
-          Hoje ainda não conta. Qualquer treino ou caminhada mantém o streak.
+      {current === 0 && (
+        <p className="text-[11px] text-[var(--text-muted)] mt-2">
+          Registre qualquer treino ou caminhada pra começar.
         </p>
       )}
-      {current === 0 && (
-        <p className="text-[11px] text-[var(--text-muted)] mt-3">
-          Comece a registrar — qualquer treino ou caminhada conta como dia
-          ativo.
+      {current > 0 && !todayActive && (
+        <p className="text-[11px] text-[var(--text-muted)] mt-2">
+          Hoje ainda em aberto.
         </p>
       )}
     </div>

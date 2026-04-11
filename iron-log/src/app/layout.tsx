@@ -56,7 +56,12 @@ export default function RootLayout({
       </head>
       <body className="min-h-full bg-[var(--bg)] text-[var(--text)]">
         <ThemeProvider>
-          <main className="max-w-xl mx-auto pb-24">{children}</main>
+          <main
+            className="max-w-xl mx-auto pb-24"
+            style={{ paddingTop: "env(safe-area-inset-top)" }}
+          >
+            {children}
+          </main>
           <BottomNav />
         </ThemeProvider>
         <ServiceWorkerRegister />

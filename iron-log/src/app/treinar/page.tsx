@@ -217,7 +217,7 @@ export default async function TreinarPage() {
       )}
 
       {/* All templates list */}
-      {templates.length > 0 && (
+      {templates.length > 1 && (
         <section className="mb-10">
           <div className="flex items-baseline justify-between mb-3">
             <p className="label">Todos os templates</p>

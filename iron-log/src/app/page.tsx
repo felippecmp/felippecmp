@@ -128,6 +128,7 @@ export default async function HomePage() {
     { data: cardioYear },
     { data: weightRows },
     { data: stepsRows },
+    { data: templatesData },
   ] = await Promise.all([
     supabase.from("exercises").select("*", { count: "exact", head: true }),
     supabase
@@ -155,6 +156,12 @@ export default async function HomePage() {
       .select("id, step_date, steps")
       .order("step_date", { ascending: false })
       .limit(60),
+    supabase
+      .from("workout_templates")
+      .select("id, name, session_type, sort_order, template_exercises(count)")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true }),
   ]);
 
   const { weekday, day, month } = formatHeaderDate(now);
@@ -202,12 +209,25 @@ export default async function HomePage() {
       distanceKm: c.distance_km !== null ? Number(c.distance_km) : null,
       avgHr: c.avg_heart_rate,
     })),
-    ...weights.slice(0, 20).map<DiaryEntry>((w) => ({
-      kind: "weight",
-      id: w.id,
-      at: w.recorded_at,
-      weightKg: Number(w.weight_kg),
-    })),
+    // Dedupe: only the most recent weight entry per day shows in the diary.
+    // (weights is already sorted by recorded_at desc.)
+    ...(() => {
+      const seen = new Set<string>();
+      const out: DiaryEntry[] = [];
+      for (const w of weights) {
+        const dayK = localDayKey(new Date(w.recorded_at));
+        if (seen.has(dayK)) continue;
+        seen.add(dayK);
+        out.push({
+          kind: "weight",
+          id: w.id,
+          at: w.recorded_at,
+          weightKg: Number(w.weight_kg),
+        });
+        if (out.length >= 20) break;
+      }
+      return out;
+    })(),
     ...stepsData.slice(0, 20).map<DiaryEntry>((s) => ({
       kind: "steps",
       id: s.id,
@@ -232,18 +252,55 @@ export default async function HomePage() {
     cardioSessions.length === 0 &&
     weights.length === 0;
 
+  // Quick next-template hint for the Home CTA. The full rotation logic
+  // (auto vs linear, with full state) lives in /treinar — this is just a
+  // preview using the same simple heuristic: opposite of last session
+  // type, first by sort_order. With one template, picks that one.
+  type TemplateLite = {
+    id: string;
+    name: string;
+    session_type: "upper" | "lower";
+    exercise_count: number;
+  };
+  const templates: TemplateLite[] = (templatesData ?? []).map((t) => {
+    const count = Array.isArray(t.template_exercises)
+      ? (t.template_exercises[0] as { count: number } | undefined)?.count ?? 0
+      : 0;
+    return {
+      id: t.id,
+      name: t.name,
+      session_type: t.session_type,
+      exercise_count: count,
+    };
+  });
+
+  const nextTemplate: TemplateLite | null = (() => {
+    if (templates.length === 0) return null;
+    // No history → first template
+    if (strengthSessions.length === 0) return templates[0];
+    // Last finished session's template name → look it up to get type
+    const lastTplName = (() => {
+      const t = strengthSessions[0]?.workout_templates;
+      if (!t) return null;
+      return Array.isArray(t) ? t[0]?.name ?? null : t.name;
+    })();
+    const lastTpl = templates.find((t) => t.name === lastTplName);
+    const targetType: "upper" | "lower" =
+      lastTpl?.session_type === "upper" ? "lower" : "upper";
+    const ofType = templates.filter((t) => t.session_type === targetType);
+    return ofType[0] ?? templates[0];
+  })();
+
   return (
     <div className="px-6 pt-10">
       {/* Header */}
-      <header className="mb-8 flex items-start justify-between">
+      <header className="mb-6 flex items-start justify-between">
         <div>
           <p className="label mb-2">{weekday}</p>
-          <h1 className="display text-[44px] leading-[1.05] tracking-tighter">
-            Felippe&apos;s
-            <br />
-            Log
+          <h1 className="display text-[34px] leading-none tracking-tighter">
+            Felippe&apos;s Log
           </h1>
-          <p className="text-sm text-[var(--text-muted)] mt-3 tnum">
+          <p className="text-sm text-[var(--text-muted)] mt-2 tnum">
             {day} de {month}
           </p>
         </div>
@@ -303,16 +360,33 @@ export default async function HomePage() {
                 />
               </Link>
             </>
-          ) : (
+          ) : nextTemplate ? (
             <>
-              <p className="text-sm text-[var(--text-muted)] mb-4">
-                A sugestão aparece dentro da tela de treinar.
+              <h2 className="display-sm text-3xl mb-1 leading-none">
+                {nextTemplate.name}
+              </h2>
+              <p className="text-xs text-[var(--text-muted)] mb-5 tnum mt-1">
+                {nextTemplate.session_type === "upper" ? "Upper" : "Lower"}
+                <span className="text-[var(--text-faint)]"> · </span>
+                {nextTemplate.exercise_count} exercícios
               </p>
               <Link
                 href="/treinar"
                 className="block w-full text-center bg-accent text-accent-fg font-semibold py-3.5 rounded-xl hover:bg-accent-hover transition-colors"
               >
-                Iniciar sessão
+                Iniciar {nextTemplate.name}
+              </Link>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-[var(--text-muted)] mb-4">
+                Crie seu primeiro template em Mais → Templates.
+              </p>
+              <Link
+                href="/templates/novo"
+                className="block w-full text-center bg-accent text-accent-fg font-semibold py-3.5 rounded-xl hover:bg-accent-hover transition-colors"
+              >
+                Criar template
               </Link>
             </>
           )}

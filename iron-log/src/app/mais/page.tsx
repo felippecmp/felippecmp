@@ -11,8 +11,8 @@ import {
 const items = [
   {
     href: "/exercicios",
-    label: "Exercicios",
-    desc: "Catalogo de exercicios, usados e inativos.",
+    label: "Exercícios",
+    desc: "Catálogo de exercícios, usados e inativos.",
     Icon: Dumbbell,
   },
   {
@@ -30,13 +30,13 @@ const items = [
   {
     href: "/peso",
     label: "Peso corporal",
-    desc: "Historico de pesagens e meta.",
+    desc: "Histórico de pesagens e meta.",
     Icon: Scale,
   },
   {
     href: "/settings",
     label: "Settings",
-    desc: "Defaults, tema, rotacao, export, logout.",
+    desc: "Defaults, tema, rotação, export, logout.",
     Icon: Settings,
   },
 ];
