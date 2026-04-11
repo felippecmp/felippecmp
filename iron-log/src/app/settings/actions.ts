@@ -57,6 +57,26 @@ function optionalInt(
 }
 
 /**
+ * Walk the formData looking for `volume_target_<muscle>` fields, building a
+ * sparse map. Empty fields are dropped (fall back to compile-time defaults).
+ * Returns null when nothing was set.
+ */
+function parseVolumeTargets(
+  formData: FormData
+): Record<string, number> | null {
+  const out: Record<string, number> = {};
+  for (const [key, raw] of formData.entries()) {
+    if (!key.startsWith("volume_target_")) continue;
+    const muscle = key.slice("volume_target_".length);
+    if (typeof raw !== "string" || raw.trim() === "") continue;
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n) || n < 0 || n > 30) continue;
+    out[muscle] = n;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+/**
  * Update (or create) the singleton user_settings row.
  */
 export async function updateSettings(
@@ -73,6 +93,7 @@ export async function updateSettings(
     rotation_mode:
       formData.get("rotation_mode") === "linear" ? "linear" : "auto",
     max_hr: optionalInt(formData.get("max_hr"), 100, 230),
+    volume_targets: parseVolumeTargets(formData),
     updated_at: new Date().toISOString(),
   };
 
@@ -107,5 +128,6 @@ export async function updateSettings(
   revalidatePath("/templates");
   revalidatePath("/exercicios/novo");
   revalidatePath("/workout", "layout");
+  revalidatePath("/progresso");
   return { ok: true };
 }

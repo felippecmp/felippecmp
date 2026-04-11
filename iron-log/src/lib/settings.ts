@@ -14,6 +14,11 @@ export type UserSettings = {
   target_weight_kg: number | null;
   rotation_mode: RotationMode;
   max_hr: number | null;
+  /**
+   * Per-muscle weekly set targets. Partial overrides — only muscles listed
+   * here override the compile-time defaults in stats.ts. Null = no overrides.
+   */
+  volume_targets: Record<string, number> | null;
 };
 
 /**
@@ -32,6 +37,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   target_weight_kg: null,
   rotation_mode: "auto",
   max_hr: null,
+  volume_targets: null,
 };
 
 type SettingsRow = {
@@ -45,7 +51,22 @@ type SettingsRow = {
   target_weight_kg: number | string | null;
   rotation_mode: string | null;
   max_hr: number | null;
+  volume_targets: Record<string, number> | null;
 };
+
+function parseVolumeTargets(
+  raw: Record<string, number> | null | undefined
+): Record<string, number> | null {
+  if (!raw || typeof raw !== "object") return null;
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    const n = Number(v);
+    if (Number.isFinite(n) && n >= 0 && n <= 30) {
+      out[k] = Math.round(n);
+    }
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
 
 /**
  * Fetch the (single) user_settings row, or return the compile-time defaults
@@ -58,7 +79,7 @@ export async function getUserSettings(): Promise<UserSettings> {
     const { data } = await supabase
       .from("user_settings")
       .select(
-        "id, default_target_sets, default_rep_range_low, default_rep_range_high, default_rest_seconds, default_load_increment, unit, target_weight_kg, rotation_mode, max_hr"
+        "id, default_target_sets, default_rep_range_low, default_rep_range_high, default_rest_seconds, default_load_increment, unit, target_weight_kg, rotation_mode, max_hr, volume_targets"
       )
       .limit(1)
       .maybeSingle();
@@ -80,6 +101,7 @@ export async function getUserSettings(): Promise<UserSettings> {
       rotation_mode:
         row.rotation_mode === "linear" ? "linear" : "auto",
       max_hr: row.max_hr !== null ? Number(row.max_hr) : null,
+      volume_targets: parseVolumeTargets(row.volume_targets),
     };
   } catch {
     return DEFAULT_SETTINGS;

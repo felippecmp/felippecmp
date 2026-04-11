@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check } from "lucide-react";
+import { Check, RotateCcw } from "lucide-react";
+import { MUSCLES } from "@/lib/muscles";
 import type { UserSettings } from "@/lib/settings";
+import { WEEKLY_VOLUME_TARGET } from "@/lib/stats";
 import { updateSettings } from "./actions";
 
 export function SettingsForm({ settings }: { settings: UserSettings }) {
@@ -13,6 +15,29 @@ export function SettingsForm({ settings }: { settings: UserSettings }) {
   const [rotationMode, setRotationMode] = useState<"auto" | "linear">(
     settings.rotation_mode
   );
+  // Per-muscle weekly targets, kept in client state so the "Restaurar padrão"
+  // button can wipe them without a round-trip.
+  const [volumeTargets, setVolumeTargets] = useState<Record<string, string>>(
+    () => {
+      const out: Record<string, string> = {};
+      for (const m of MUSCLES) {
+        const override = settings.volume_targets?.[m.value];
+        out[m.value] =
+          override !== undefined
+            ? String(override)
+            : String(WEEKLY_VOLUME_TARGET[m.value] ?? 0);
+      }
+      return out;
+    }
+  );
+
+  function resetVolumeTargets() {
+    const out: Record<string, string> = {};
+    for (const m of MUSCLES) {
+      out[m.value] = String(WEEKLY_VOLUME_TARGET[m.value] ?? 0);
+    }
+    setVolumeTargets(out);
+  }
 
   async function handleSubmit(formData: FormData) {
     setError(null);
@@ -20,6 +45,16 @@ export function SettingsForm({ settings }: { settings: UserSettings }) {
     // Segmented controls render no native input, so feed them explicitly.
     formData.set("unit", unit);
     formData.set("rotation_mode", rotationMode);
+    // Volume targets too — only the ones that differ from the default land
+    // in the JSONB so the table stays clean.
+    for (const m of MUSCLES) {
+      const raw = volumeTargets[m.value] ?? "";
+      const def = WEEKLY_VOLUME_TARGET[m.value] ?? 0;
+      const n = parseInt(raw, 10);
+      if (Number.isFinite(n) && n !== def) {
+        formData.set(`volume_target_${m.value}`, String(n));
+      }
+    }
     startTransition(async () => {
       const result = await updateSettings(formData);
       if (result.ok) {
@@ -161,6 +196,53 @@ export function SettingsForm({ settings }: { settings: UserSettings }) {
           Necessário pra ver as zonas (Z1-Z5) embaixo do gráfico de
           batimentos no treino. Se não souber, 220 - sua idade é uma
           aproximação grosseira.
+        </p>
+      </div>
+
+      <div>
+        <div className="flex items-baseline justify-between mb-2">
+          <label className="label">Volume semanal por músculo</label>
+          <button
+            type="button"
+            onClick={resetVolumeTargets}
+            disabled={isPending}
+            className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+          >
+            <RotateCcw size={10} strokeWidth={1.75} />
+            Padrão
+          </button>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {MUSCLES.map((m) => (
+            <label
+              key={m.value}
+              className="rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2 py-1.5"
+            >
+              <span className="block text-[9px] uppercase tracking-wider text-[var(--text-muted)] truncate leading-tight">
+                {m.label}
+              </span>
+              <input
+                type="number"
+                min="0"
+                max="30"
+                step="1"
+                value={volumeTargets[m.value] ?? ""}
+                onChange={(e) =>
+                  setVolumeTargets((prev) => ({
+                    ...prev,
+                    [m.value]: e.target.value,
+                  }))
+                }
+                disabled={isPending}
+                className="w-full bg-transparent border-0 focus:outline-none text-base tnum tabular-nums py-0.5 disabled:opacity-60"
+              />
+            </label>
+          ))}
+        </div>
+        <p className="text-[11px] text-[var(--text-dim)] mt-1.5 leading-relaxed">
+          Sets diretos por semana. Aparece como linha de referência nas
+          barras de volume em /progresso. Use 0 pra muscle group que você não
+          quer trackear.
         </p>
       </div>
 

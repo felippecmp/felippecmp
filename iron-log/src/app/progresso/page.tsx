@@ -183,9 +183,10 @@ export default async function ProgressoPage() {
   const volumeRows = Array.from(volumeMap.values()).sort(
     (a, b) => b.sets - a.sets
   );
+  const userTargets = settings.volume_targets;
   const maxVolumeBarSets =
     volumeRows.reduce(
-      (max, r) => Math.max(max, r.sets, targetFor(r.muscle) * 1.5),
+      (max, r) => Math.max(max, r.sets, targetFor(r.muscle, userTargets) * 1.5),
       6
     ) || 6;
 
@@ -617,6 +618,7 @@ export default async function ProgressoPage() {
                     key={row.muscle}
                     row={row}
                     maxScale={maxVolumeBarSets}
+                    userTargets={userTargets}
                   />
                 ))}
               </ul>
@@ -952,11 +954,13 @@ function findClosestWeight(
 function VolumeBar({
   row,
   maxScale,
+  userTargets,
 }: {
   row: VolumeEntry;
   maxScale: number;
+  userTargets: Record<string, number> | null;
 }) {
-  const target = targetFor(row.muscle);
+  const target = targetFor(row.muscle, userTargets);
   const band = volumeBand(row.sets, target);
   const color = bandCssVar(band);
   const width = Math.min(100, (row.sets / maxScale) * 100);

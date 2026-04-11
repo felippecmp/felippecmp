@@ -24,7 +24,13 @@ export const WEEKLY_VOLUME_TARGET: Record<string, number> = {
   lower_back: 0,
 };
 
-export function targetFor(muscle: string): number {
+export function targetFor(
+  muscle: string,
+  overrides?: Record<string, number> | null
+): number {
+  if (overrides && Object.prototype.hasOwnProperty.call(overrides, muscle)) {
+    return overrides[muscle];
+  }
   return WEEKLY_VOLUME_TARGET[muscle] ?? 0;
 }
 
