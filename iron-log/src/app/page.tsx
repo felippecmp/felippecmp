@@ -5,6 +5,7 @@ import {
   Flame,
   Footprints,
   Layers,
+  NotebookPen,
   Scale,
   Settings as SettingsIcon,
   TrendingUp,
@@ -15,6 +16,7 @@ import { QuickWeightAdd } from "./QuickWeightAdd";
 import { QuickStepsAdd } from "./QuickStepsAdd";
 import { QuickRestDayToggle } from "./QuickRestDayToggle";
 import { TodayChecklist } from "./TodayChecklist";
+import { QuickNoteAdd } from "./QuickNoteAdd";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +56,7 @@ type StrengthSessionRow = {
   duration_minutes: number | null;
   avg_heart_rate: number | null;
   overall_feeling: number | null;
+  notes: string | null;
   workout_templates: { name: string } | { name: string }[] | null;
 };
 
@@ -72,6 +75,13 @@ type StepsRow = {
   steps: number;
 };
 
+type DailyNoteRow = {
+  id: string;
+  note_date: string;
+  body: string;
+  updated_at: string;
+};
+
 type DiaryEntry =
   | {
       kind: "strength";
@@ -81,6 +91,7 @@ type DiaryEntry =
       durationMinutes: number | null;
       avgHr: number | null;
       feeling: number | null;
+      notes: string | null;
     }
   | {
       kind: "cardio";
@@ -102,6 +113,12 @@ type DiaryEntry =
       id: string;
       at: string;
       steps: number;
+    }
+  | {
+      kind: "note";
+      id: string;
+      at: string;
+      body: string;
     };
 
 const FEELING_SHORT: Record<number, string> = {
@@ -132,12 +149,13 @@ export default async function HomePage() {
     { data: stepsRows },
     { data: templatesData },
     { data: restDayRows },
+    { data: dailyNoteRows },
   ] = await Promise.all([
     supabase.from("exercises").select("*", { count: "exact", head: true }),
     supabase
       .from("workout_sessions")
       .select(
-        "id, started_at, duration_minutes, avg_heart_rate, overall_feeling, workout_templates(name)"
+        "id, started_at, duration_minutes, avg_heart_rate, overall_feeling, notes, workout_templates(name)"
       )
       .not("finished_at", "is", null)
       .order("started_at", { ascending: false })
@@ -170,6 +188,11 @@ export default async function HomePage() {
       .select("rest_date")
       .order("rest_date", { ascending: false })
       .limit(60),
+    supabase
+      .from("daily_notes")
+      .select("id, note_date, body, updated_at")
+      .order("note_date", { ascending: false })
+      .limit(60),
   ]);
 
   const { weekday, day, month } = formatHeaderDate(now);
@@ -177,6 +200,8 @@ export default async function HomePage() {
   const cardioSessions = (cardioYear ?? []) as CardioRow[];
   const weights = (weightRows ?? []) as WeightRow[];
   const stepsData = (stepsRows ?? []) as StepsRow[];
+  const dailyNotes = (dailyNoteRows ?? []) as DailyNoteRow[];
+  const todayNote = dailyNotes.find((n) => n.note_date === todayKey) ?? null;
 
   // Streak = days with any strength OR cardio activity.
   const streak = computeStreak({
@@ -220,6 +245,7 @@ export default async function HomePage() {
       durationMinutes: s.duration_minutes,
       avgHr: s.avg_heart_rate,
       feeling: s.overall_feeling,
+      notes: s.notes,
     })),
     ...cardioSessions.slice(0, 30).map<DiaryEntry>((c) => ({
       kind: "cardio",
@@ -255,6 +281,14 @@ export default async function HomePage() {
       // step_date is YYYY-MM-DD; place at noon so it sorts mid-day.
       at: `${s.step_date}T12:00:00`,
       steps: s.steps,
+    })),
+    ...dailyNotes.slice(0, 20).map<DiaryEntry>((n) => ({
+      kind: "note",
+      id: n.id,
+      // note_date is YYYY-MM-DD; place near end of day so it sorts last
+      // within the day, after the workouts.
+      at: `${n.note_date}T22:00:00`,
+      body: n.body,
     })),
   ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
@@ -465,6 +499,19 @@ export default async function HomePage() {
             todayKey={todayKey}
           />
         </div>
+        <div className="mt-3">
+          <QuickNoteAdd
+            todayNote={
+              todayNote
+                ? {
+                    id: todayNote.id,
+                    body: todayNote.body,
+                    noteDate: todayNote.note_date,
+                  }
+                : null
+            }
+          />
+        </div>
       </section>
 
       <section className="mb-10 grid grid-cols-2 gap-3">
@@ -546,12 +593,12 @@ function DiaryRow({ entry }: { entry: DiaryEntry }) {
         <li>
           <Link
             href={`/workout/${entry.id}`}
-            className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-hover)] transition-colors"
+            className="flex items-start gap-3 px-4 py-3 hover:bg-[var(--bg-hover)] transition-colors"
           >
             <Icon
               size={14}
               strokeWidth={1.75}
-              className="shrink-0 text-[var(--text-soft)]"
+              className="shrink-0 text-[var(--text-soft)] mt-0.5"
             />
             <div className="min-w-0 flex-1">
               <div className="text-sm font-medium truncate">
@@ -574,8 +621,13 @@ function DiaryRow({ entry }: { entry: DiaryEntry }) {
                   </>
                 )}
               </div>
+              {entry.notes && (
+                <p className="text-[11px] text-[var(--text-dim)] mt-1 leading-snug line-clamp-2 italic">
+                  {entry.notes}
+                </p>
+              )}
             </div>
-            <span className="text-[11px] tnum text-[var(--text-dim)] tabular-nums">
+            <span className="text-[11px] tnum text-[var(--text-dim)] tabular-nums mt-0.5">
               {formatHM(entry.at)}
             </span>
           </Link>
@@ -669,6 +721,22 @@ function DiaryRow({ entry }: { entry: DiaryEntry }) {
                 </span>
               )}
             </div>
+          </div>
+        </li>
+      );
+    }
+    case "note": {
+      return (
+        <li className="flex items-start gap-3 px-4 py-3">
+          <NotebookPen
+            size={14}
+            strokeWidth={1.75}
+            className="shrink-0 text-[var(--text-soft)] mt-0.5"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-[var(--text)] leading-snug whitespace-pre-wrap">
+              {entry.body}
+            </p>
           </div>
         </li>
       );
