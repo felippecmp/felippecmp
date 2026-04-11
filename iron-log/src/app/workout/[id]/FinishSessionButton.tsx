@@ -51,12 +51,13 @@ export function FinishSessionButton({
 
       {open && (
         <div
-          className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center"
+          className="fixed inset-x-0 top-0 z-[60] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center"
+          style={{ height: "100dvh" }}
           onClick={() => !isPending && setOpen(false)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full sm:max-w-md bg-[var(--bg-raised)] border-t sm:border border-[var(--border)] rounded-t-3xl sm:rounded-3xl max-h-[85vh] flex flex-col"
+            className="w-full sm:max-w-md bg-[var(--bg-raised)] border-t sm:border border-[var(--border)] rounded-t-3xl sm:rounded-3xl max-h-[85dvh] flex flex-col"
           >
             <div className="px-6 pt-5 pb-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
               <h2 className="display-sm text-xl">Finalizar sessão</h2>
