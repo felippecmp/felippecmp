@@ -1,29 +1,16 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Calendar, Check, Trash2, X } from "lucide-react";
-import { MUSCLES, muscleLabel } from "@/lib/muscles";
+import { Calendar, Trash2 } from "lucide-react";
 import {
   PHASE_LABEL,
   type ActiveMesocycle,
-  type MesocycleWeekRow,
-  type Phase,
 } from "@/lib/coach/mesocycle";
-import {
-  closeMesocycleEarly,
-  deleteMesocycle,
-  updateMesocycleWeek,
-} from "./actions";
+import { closeMesocycleEarly, deleteMesocycle } from "./actions";
+import { WeekRow } from "./components/WeekRow";
 
 type Props = {
   active: ActiveMesocycle;
-};
-
-const PHASE_DOT: Record<Phase, string> = {
-  accumulation: "bg-[var(--text-soft)]",
-  intensification: "bg-[var(--text)]",
-  realization: "bg-[var(--accent)]",
-  deload: "bg-transparent border border-dashed border-[var(--text-dim)]",
 };
 
 /**
@@ -174,158 +161,6 @@ export function CoachBlockView({ active }: Props) {
           </div>
         )}
       </section>
-    </div>
-  );
-}
-
-function WeekRow({
-  week,
-  isCurrent,
-  expanded,
-  onToggle,
-}: {
-  week: MesocycleWeekRow;
-  isCurrent: boolean;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  const targets = week.volume_targets ?? {};
-  const muscleCount = Object.keys(targets).filter(
-    (k) => (targets[k] ?? 0) > 0
-  ).length;
-  const totalSets = Object.values(targets).reduce((a, b) => a + (b ?? 0), 0);
-
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={onToggle}
-        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[var(--bg-hover)] transition-colors ${
-          isCurrent ? "bg-[var(--bg-hover)]/50" : ""
-        }`}
-      >
-        <span
-          className={`shrink-0 w-2.5 h-2.5 rounded-full ${PHASE_DOT[week.phase]}`}
-          aria-hidden="true"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2">
-            <span className="text-[11px] uppercase tracking-wider text-[var(--text-dim)] tnum">
-              S{week.week_number}
-            </span>
-            <span className="text-sm font-medium">
-              {PHASE_LABEL[week.phase]}
-            </span>
-            {isCurrent && (
-              <span className="text-[9px] uppercase tracking-wider text-[var(--accent)] font-semibold">
-                atual
-              </span>
-            )}
-            {week.user_overrode && (
-              <span className="text-[9px] uppercase tracking-wider text-[var(--text-dim)]">
-                editado
-              </span>
-            )}
-          </div>
-          <div className="text-xs text-[var(--text-muted)] tnum mt-0.5">
-            {totalSets} sets · {muscleCount} músculos
-            {week.intensity_target && (
-              <>
-                <span className="text-[var(--text-faint)]"> · </span>
-                {week.intensity_target}
-              </>
-            )}
-          </div>
-        </div>
-      </button>
-
-      {expanded && <WeekTargetsEditor week={week} />}
-    </li>
-  );
-}
-
-function WeekTargetsEditor({ week }: { week: MesocycleWeekRow }) {
-  const [targets, setTargets] = useState<Record<string, string>>(() => {
-    const out: Record<string, string> = {};
-    for (const m of MUSCLES) {
-      out[m.value] = String(week.volume_targets?.[m.value] ?? 0);
-    }
-    return out;
-  });
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [isPending, startTransition] = useTransition();
-
-  function handleSave() {
-    setError(null);
-    setSaved(false);
-    const out: Record<string, number> = {};
-    for (const m of MUSCLES) {
-      const n = parseInt(targets[m.value] ?? "0", 10);
-      if (Number.isFinite(n) && n >= 0 && n <= 30 && n > 0) {
-        out[m.value] = n;
-      }
-    }
-    startTransition(async () => {
-      const result = await updateMesocycleWeek(week.id, {
-        volume_targets: out,
-      });
-      if (result.ok) {
-        setSaved(true);
-      } else {
-        setError(result.error);
-      }
-    });
-  }
-
-  return (
-    <div className="px-4 pb-4 pt-1 bg-[var(--bg-raised)]/50 border-t border-[var(--border)]">
-      <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-2 mt-2">
-        Targets de volume (sets/semana)
-      </p>
-      <div className="grid grid-cols-3 gap-1.5">
-        {MUSCLES.map((m) => (
-          <label
-            key={m.value}
-            className="rounded-md border border-[var(--border)] bg-[var(--bg-card)] px-2 py-1"
-          >
-            <span className="block text-[9px] uppercase tracking-wider text-[var(--text-muted)] truncate leading-tight">
-              {m.label}
-            </span>
-            <input
-              type="number"
-              min="0"
-              max="30"
-              value={targets[m.value] ?? ""}
-              onChange={(e) =>
-                setTargets((prev) => ({ ...prev, [m.value]: e.target.value }))
-              }
-              disabled={isPending}
-              className="w-full bg-transparent border-0 focus:outline-none text-sm tnum tabular-nums py-0.5 disabled:opacity-60"
-            />
-          </label>
-        ))}
-      </div>
-      {error && (
-        <p className="text-[10px] text-[var(--danger)] mt-2">{error}</p>
-      )}
-      <button
-        type="button"
-        onClick={handleSave}
-        disabled={isPending}
-        className="mt-3 w-full text-xs bg-accent text-accent-fg py-2 rounded-lg font-semibold disabled:opacity-60 inline-flex items-center justify-center gap-1.5"
-      >
-        {saved ? (
-          <>
-            <Check size={12} strokeWidth={2.5} />
-            Salvo
-          </>
-        ) : isPending ? (
-          "Salvando…"
-        ) : (
-          "Salvar semana"
-        )}
-      </button>
     </div>
   );
 }
