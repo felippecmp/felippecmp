@@ -24,13 +24,11 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-50 border-t border-[var(--border)] bg-[var(--bg)]/85 backdrop-blur-xl"
+      className="fixed bottom-0 inset-x-0 z-50 border-t border-[var(--border)] bg-[var(--bg)]/90 backdrop-blur-xl"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <ul className="max-w-xl mx-auto grid grid-cols-4">
         {tabs.map(({ href, label, Icon }) => {
-          // The "Mais" tab should highlight for any sub-page it houses
-          // (exercicios, templates, cardio, peso, settings).
           const MAIS_PREFIXES = ["/mais", "/exercicios", "/templates", "/cardio", "/peso", "/settings"];
           const active =
             href === "/"
@@ -42,17 +40,17 @@ export function BottomNav() {
             <li key={href}>
               <Link
                 href={href}
-                className={`relative flex flex-col items-center justify-center gap-1 py-3 transition-colors ${
+                className={`relative flex flex-col items-center justify-center gap-1 py-3 transition-all duration-200 ${
                   active
                     ? "text-[var(--text)]"
-                    : "text-[var(--text-dim)] hover:text-[var(--text-soft)]"
+                    : "text-[var(--text-dim)] hover:text-[var(--text-soft)] active:scale-95"
                 }`}
               >
                 {active && (
-                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[2px] bg-[var(--text)] rounded-full" />
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-[2px] bg-[var(--accent)] rounded-full transition-all duration-200" />
                 )}
                 <Icon size={20} strokeWidth={active ? 2.25 : 1.75} />
-                <span className="text-[10px] tracking-wide font-medium">
+                <span className={`text-[10px] tracking-wide ${active ? "font-semibold" : "font-medium"}`}>
                   {label}
                 </span>
               </Link>

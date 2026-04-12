@@ -61,7 +61,7 @@ export default function MaisPage() {
           <li key={href}>
             <Link
               href={href}
-              className="flex items-center gap-4 px-5 py-4 hover:bg-[var(--bg-hover)] transition-colors"
+              className="flex items-center gap-4 px-5 py-4 hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-colors"
             >
               <div className="shrink-0 w-9 h-9 rounded-xl bg-[var(--bg-raised)] border border-[var(--border)] flex items-center justify-center text-[var(--text-soft)]">
                 <Icon size={16} strokeWidth={1.75} />

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Bed, Check, NotebookPen, X } from "lucide-react";
+import { useToast } from "@/components/Toast";
 import { saveDailyNote } from "./notas/actions";
 import { markRestDay, unmarkRestDay } from "./descanso/actions";
 
@@ -18,7 +19,7 @@ type Props = {
  */
 export function NotaDescansoRow({ todayNote, isRestDay, todayKey }: Props) {
   return (
-    <div className="mb-6 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-start">
+    <div className="mb-5 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-start">
       <NotaSlot todayNote={todayNote} />
       <DescansoSlot isRestDay={isRestDay} todayKey={todayKey} />
     </div>
@@ -29,6 +30,7 @@ function NotaSlot({ todayNote }: { todayNote: Props["todayNote"] }) {
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
 
   if (editing) {
     return (
@@ -39,6 +41,7 @@ function NotaSlot({ todayNote }: { todayNote: Props["todayNote"] }) {
             const result = await saveDailyNote(formData);
             if (result.ok) {
               setEditing(false);
+              toast("Nota salva");
             } else {
               setError(result.error);
             }
@@ -106,7 +109,7 @@ function NotaSlot({ todayNote }: { todayNote: Props["todayNote"] }) {
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className="flex items-start gap-2 px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--border-strong)] transition-colors text-left min-w-0"
+        className="flex items-start gap-2 px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--border-strong)] active:bg-[var(--bg-hover)] transition-colors text-left min-w-0"
       >
         <NotebookPen
           size={12}
@@ -124,7 +127,7 @@ function NotaSlot({ todayNote }: { todayNote: Props["todayNote"] }) {
     <button
       type="button"
       onClick={() => setEditing(true)}
-      className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-[var(--border-strong)] hover:border-[var(--text-muted)] transition-colors text-left text-[var(--text-muted)] hover:text-[var(--text)]"
+      className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-[var(--border-strong)] hover:border-[var(--text-muted)] active:bg-[var(--bg-card)] transition-colors text-left text-[var(--text-muted)] hover:text-[var(--text)]"
     >
       <NotebookPen size={12} strokeWidth={1.75} />
       <span className="text-xs">Escrever nota</span>
@@ -140,15 +143,18 @@ function DescansoSlot({
   todayKey: string;
 }) {
   const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
 
   function toggle() {
     startTransition(async () => {
       if (isRestDay) {
         await unmarkRestDay(todayKey);
+        toast("Dia de descanso removido");
       } else {
         const form = new FormData();
         form.append("rest_date", todayKey);
         await markRestDay(form);
+        toast("Dia de descanso marcado");
       }
     });
   }

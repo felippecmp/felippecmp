@@ -221,4 +221,68 @@
     box-shadow: 0 0 6px rgba(225, 29, 72, 0.5),
       0 0 2px rgba(225, 29, 72, 0.3);
   }
+
+  /* Smooth page-level transitions */
+  .animate-in {
+    animation: fadeSlideIn 0.25s ease-out both;
+  }
+
+  @keyframes fadeSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Fade in for modals/overlays */
+  .fade-in {
+    animation: fadeIn 0.2s ease-out both;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* Subtle scale feedback on tap for buttons */
+  .tap-scale {
+    transition: transform 0.1s ease;
+  }
+  .tap-scale:active {
+    transform: scale(0.97);
+  }
+
+  /* Toast slide-in from top */
+  .animate-toast-in {
+    animation: toastIn 0.25s ease-out both;
+  }
+  .animate-toast-out {
+    animation: toastOut 0.2s ease-in both;
+  }
+
+  @keyframes toastIn {
+    from {
+      opacity: 0;
+      transform: translateY(-12px) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes toastOut {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-8px) scale(0.96);
+    }
+  }
 }

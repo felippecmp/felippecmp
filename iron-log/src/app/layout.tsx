@@ -3,6 +3,7 @@ import "./globals.css";
 import { BottomNav } from "@/components/BottomNav";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { ToastProvider } from "@/components/Toast";
 
 export const metadata: Metadata = {
   title: "Felippe's Log",
@@ -56,13 +57,15 @@ export default function RootLayout({
       </head>
       <body className="min-h-full bg-[var(--bg)] text-[var(--text)]">
         <ThemeProvider>
-          <main
-            className="max-w-xl mx-auto pb-24"
-            style={{ paddingTop: "env(safe-area-inset-top)" }}
-          >
-            {children}
-          </main>
-          <BottomNav />
+          <ToastProvider>
+            <main
+              className="max-w-xl mx-auto pb-24"
+              style={{ paddingTop: "env(safe-area-inset-top)" }}
+            >
+              {children}
+            </main>
+            <BottomNav />
+          </ToastProvider>
         </ThemeProvider>
         <ServiceWorkerRegister />
       </body>
