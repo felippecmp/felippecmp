@@ -175,29 +175,24 @@ export default async function TreinarPage() {
         </section>
       )}
 
-      {/* Suggestion card — hero style */}
+      {/* Suggestion card — gradient CTA */}
       {!active && suggestion && (
         <section className="mb-8">
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
-            <div className="p-6 pb-4">
-              <div className="flex items-baseline justify-between mb-3">
-                <p className="text-[10px] uppercase tracking-wider font-semibold text-[var(--accent)]">
-                  Sugerido
-                </p>
-                <span className="text-[10px] tnum text-[var(--text-dim)] uppercase tracking-wider">
-                  {sessionTypeLabel(suggestion.targetType)} · {suggestion.template.exercise_count} ex.
-                </span>
-              </div>
-              <h2 className="display text-4xl leading-none mb-2">
+          <div className="rounded-2xl bg-[var(--bg-card)] overflow-hidden">
+            <div className="p-6 pb-5">
+              <p className="text-xs uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-3">
+                {sessionTypeLabel(suggestion.targetType)} · {suggestion.template.exercise_count} exercícios
+              </p>
+              <h2 className="display text-[40px] leading-none tracking-tighter">
                 {suggestion.template.name}
               </h2>
               {suggestion.template.exercise_count === 0 && (
-                <p className="text-xs text-[var(--text-muted)] mt-2">
+                <p className="text-xs text-[var(--text-muted)] mt-3">
                   Adicione exercícios ao template antes de iniciar.
                 </p>
               )}
             </div>
-            <div className="px-6 pb-6">
+            <div className="px-0">
               <StartSessionButton
                 templateId={suggestion.template.id}
                 label={`Iniciar ${suggestion.template.name}`}

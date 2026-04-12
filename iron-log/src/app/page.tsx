@@ -396,73 +396,48 @@ export default async function HomePage() {
 
   return (
     <div className="px-6 pt-10">
-      {/* Header — greeting with personality */}
-      <header className="mb-6 flex items-start justify-between">
+      {/* Header */}
+      <header className="mb-8 flex items-start justify-between">
         <div>
-          <h1 className="display text-[28px] leading-none tracking-tighter">
-            {greet}, Felippe
-          </h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1.5 tnum">
+          <p className="text-sm text-[var(--text-muted)] mb-1 tnum">
             {weekday}, {day} de {month}
-            {streak.current > 0 && (
-              <>
-                {" "}·{" "}
-                <Flame
-                  size={11}
-                  strokeWidth={1.75}
-                  className="inline text-[var(--status-ready)] -mt-0.5"
-                />
-                {" "}{streak.current}d streak
-              </>
-            )}
           </p>
+          <h1 className="display text-[32px] leading-none tracking-tighter">
+            {greet}
+          </h1>
         </div>
-        <Link
-          href="/settings"
-          aria-label="Configurações"
-          className="shrink-0 w-10 h-10 rounded-xl border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--border-strong)] flex items-center justify-center transition-colors"
-        >
-          <SettingsIcon size={16} strokeWidth={1.75} />
-        </Link>
+        <div className="flex items-center gap-3">
+          {streak.current > 0 && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--status-ready)]/15">
+              <Flame size={14} strokeWidth={2} className="text-[var(--status-ready)]" />
+              <span className="text-sm font-bold tnum text-[var(--status-ready)]">{streak.current}</span>
+            </div>
+          )}
+          <Link
+            href="/settings"
+            aria-label="Configurações"
+            className="shrink-0 w-10 h-10 rounded-full bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text)] flex items-center justify-center transition-colors"
+          >
+            <SettingsIcon size={16} strokeWidth={1.75} />
+          </Link>
+        </div>
       </header>
 
-      {/* Quick stats strip — at-a-glance numbers with semantic color */}
-      {!firstRun && (
-        <div className="mb-5 grid grid-cols-3 gap-2">
-          <Link href="/progresso" className="stat-card rounded-xl bg-[var(--bg-card)] pl-5 pr-3 py-2.5 hover:bg-[var(--bg-hover)] transition-colors" style={{ "--stat-color": "var(--status-ready)" } as React.CSSProperties}>
-            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Treinos 7d</p>
-            <p className="display-sm text-xl tnum mt-0.5">{sessions7d}</p>
-          </Link>
-          <Link href="/cardio" className="stat-card rounded-xl bg-[var(--bg-card)] pl-5 pr-3 py-2.5 hover:bg-[var(--bg-hover)] transition-colors" style={{ "--stat-color": "var(--status-stalled)" } as React.CSSProperties}>
-            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Cardio 7d</p>
-            <p className="display-sm text-xl tnum mt-0.5">{cardio7d}</p>
-          </Link>
-          <Link href="/peso" className="stat-card rounded-xl bg-[var(--bg-card)] pl-5 pr-3 py-2.5 hover:bg-[var(--bg-hover)] transition-colors" style={{ "--stat-color": "var(--status-progressed)" } as React.CSSProperties}>
-            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Peso</p>
-            <p className="display-sm text-xl tnum mt-0.5">
-              {latestWeight ? `${Number(latestWeight.weight_kg).toFixed(1)}` : "—"}
-            </p>
-          </Link>
-        </div>
-      )}
-
-      {/* Active session banner — impossible to miss */}
+      {/* Active session — pulsing accent gradient, dominates the screen */}
       {activeSession && (
         <Link
           href={`/workout/${activeSession.id}`}
-          className="mb-5 flex items-center gap-4 rounded-2xl border-2 border-[var(--accent)] bg-[var(--bg-card)] p-4 hover:bg-[var(--bg-hover)] transition-colors"
+          className="block mb-6 rounded-2xl p-5 relative overflow-hidden active:scale-[0.98] transition-transform"
+          style={{ background: `linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 70%, var(--bg)))` }}
         >
-          <div className="shrink-0 w-11 h-11 rounded-xl bg-[var(--accent)] text-[var(--accent-fg)] flex items-center justify-center">
-            <Play size={18} strokeWidth={2.5} fill="currentColor" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] uppercase tracking-wider text-[var(--accent)] font-semibold">
+          <div className="relative z-10">
+            <p className="text-xs uppercase tracking-wider font-bold text-[var(--accent-fg)]/70 mb-2">
               Em andamento
             </p>
-            <p className="font-semibold text-lg leading-tight truncate mt-0.5">
+            <p className="display text-[28px] leading-none text-[var(--accent-fg)]">
               {activeSession.templateName}
             </p>
-            <p className="text-xs text-[var(--text-muted)] tnum mt-0.5">
+            <p className="text-sm text-[var(--accent-fg)]/60 tnum mt-2">
               Iniciado{" "}
               {new Date(activeSession.startedAt).toLocaleTimeString("pt-BR", {
                 hour: "2-digit",
@@ -470,68 +445,74 @@ export default async function HomePage() {
               })}
             </p>
           </div>
-          <ArrowRight size={18} strokeWidth={2} className="shrink-0 text-[var(--accent)]" />
+          <ArrowRight size={24} strokeWidth={2.5} className="absolute right-5 top-1/2 -translate-y-1/2 text-[var(--accent-fg)]/40" />
         </Link>
       )}
 
-      {/* Hero CTA — next workout (only when no active session) */}
-      {!activeSession && (
-        <section className="mb-5">
-          {firstRun ? (
-            <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-5">
-              <p className="label mb-2">Primeiro passo</p>
-              <h2 className="display-sm text-2xl mb-1">Ainda vazio</h2>
-              <p className="text-sm text-[var(--text-muted)] mb-5 leading-relaxed">
-                Cadastre seus exercícios, monte um template de
-                rotina e inicie sua primeira sessão.
+      {/* Hero CTA — gradient button, big template name */}
+      {!activeSession && !firstRun && nextTemplate && (
+        <section className="mb-6">
+          <div className="rounded-2xl bg-[var(--bg-card)] overflow-hidden">
+            <div className="p-6 pb-5">
+              <p className="text-xs uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-3">
+                {nextTemplate.session_type === "upper" ? "Upper" : "Lower"} · {nextTemplate.exercise_count} exercícios
               </p>
-              <Link
-                href="/exercicios"
-                className="group inline-flex items-center gap-2 text-[var(--text)] font-semibold text-sm"
-              >
-                Configurar exercícios
-                <ArrowRight
-                  size={16}
-                  className="transition-transform group-hover:translate-x-1"
-                />
-              </Link>
+              <h2 className="display text-[36px] leading-none tracking-tighter">
+                {nextTemplate.name}
+              </h2>
             </div>
-          ) : nextTemplate ? (
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
-              <div className="p-5">
-                <div className="flex items-baseline justify-between mb-3">
-                  <p className="label">Próximo treino</p>
-                  <span className="text-[10px] tnum text-[var(--text-dim)] uppercase tracking-wider">
-                    {nextTemplate.session_type === "upper" ? "Upper" : "Lower"} · {nextTemplate.exercise_count} ex.
-                  </span>
-                </div>
-                <h2 className="display-sm text-3xl leading-none">
-                  {nextTemplate.name}
-                </h2>
-              </div>
-              <Link
-                href="/treinar"
-                className="flex items-center justify-center gap-2 bg-[var(--accent)] text-[var(--accent-fg)] font-semibold py-3.5 hover:bg-[var(--accent-hover)] transition-colors"
-              >
-                <Play size={16} strokeWidth={2.5} fill="currentColor" />
-                Iniciar treino
-              </Link>
-            </div>
-          ) : (
-            <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-5">
-              <p className="label mb-2">Treinar</p>
-              <p className="text-sm text-[var(--text-muted)] mb-4">
-                Crie seu primeiro template para começar.
-              </p>
-              <Link
-                href="/templates/novo"
-                className="block w-full text-center bg-accent text-accent-fg font-semibold py-3.5 rounded-xl hover:bg-accent-hover transition-colors"
-              >
-                Criar template
-              </Link>
-            </div>
-          )}
+            <Link
+              href="/treinar"
+              className="flex items-center justify-center gap-2 font-bold text-[15px] py-4 transition-all active:scale-[0.98]"
+              style={{ background: `linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 75%, var(--bg)))`, color: "var(--accent-fg)" }}
+            >
+              <Play size={16} strokeWidth={2.5} fill="currentColor" />
+              Iniciar treino
+            </Link>
+          </div>
         </section>
+      )}
+
+      {!activeSession && firstRun && (
+        <section className="mb-6 rounded-2xl bg-[var(--bg-card)] p-6">
+          <h2 className="display text-2xl mb-2">Ainda vazio</h2>
+          <p className="text-sm text-[var(--text-muted)] mb-5 leading-relaxed">
+            Cadastre exercícios, monte um template e inicie.
+          </p>
+          <Link href="/exercicios" className="group inline-flex items-center gap-2 text-[var(--text)] font-semibold text-sm">
+            Configurar exercícios
+            <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+          </Link>
+        </section>
+      )}
+
+      {!activeSession && !firstRun && !nextTemplate && (
+        <section className="mb-6 rounded-2xl bg-[var(--bg-card)] p-6">
+          <p className="text-sm text-[var(--text-muted)] mb-4">Crie seu primeiro template para começar.</p>
+          <Link href="/templates/novo" className="block w-full text-center font-semibold py-3.5 rounded-xl" style={{ background: "var(--accent)", color: "var(--accent-fg)" }}>
+            Criar template
+          </Link>
+        </section>
+      )}
+
+      {/* Stats — big numbers, colored accents */}
+      {!firstRun && (
+        <div className="mb-5 grid grid-cols-3 gap-3">
+          <Link href="/progresso" className="rounded-2xl bg-[var(--bg-card)] p-4 hover:bg-[var(--bg-hover)] transition-colors text-center">
+            <p className="display text-[28px] tnum leading-none" style={{ color: "var(--status-ready)" }}>{sessions7d}</p>
+            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mt-1.5">treinos</p>
+          </Link>
+          <Link href="/cardio" className="rounded-2xl bg-[var(--bg-card)] p-4 hover:bg-[var(--bg-hover)] transition-colors text-center">
+            <p className="display text-[28px] tnum leading-none" style={{ color: "var(--status-stalled)" }}>{cardio7d}</p>
+            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mt-1.5">cardio</p>
+          </Link>
+          <Link href="/peso" className="rounded-2xl bg-[var(--bg-card)] p-4 hover:bg-[var(--bg-hover)] transition-colors text-center">
+            <p className="display text-[28px] tnum leading-none" style={{ color: "var(--status-progressed)" }}>
+              {latestWeight ? `${Number(latestWeight.weight_kg).toFixed(1)}` : "—"}
+            </p>
+            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mt-1.5">peso</p>
+          </Link>
+        </div>
       )}
 
       {/* Today's checklist */}
