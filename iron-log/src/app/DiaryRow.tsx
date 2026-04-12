@@ -89,13 +89,15 @@ function StrengthRow({
     <li>
       <Link
         href={`/workout/${entry.id}`}
-        className="flex items-start gap-3 px-4 py-3 hover:bg-[var(--bg-hover)] transition-colors"
+        className="flex items-start gap-3 px-4 py-3.5 hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-colors"
       >
-        <Dumbbell
-          size={14}
-          strokeWidth={1.75}
-          className="shrink-0 text-[var(--text-soft)] mt-0.5"
-        />
+        <div className="shrink-0 w-7 h-7 rounded-lg bg-[var(--bg-raised)] border border-[var(--border)] flex items-center justify-center mt-0.5">
+          <Dumbbell
+            size={12}
+            strokeWidth={1.75}
+            className="text-[var(--text-soft)]"
+          />
+        </div>
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium truncate">
             {entry.templateName ?? "Treino de força"}
@@ -121,7 +123,7 @@ function StrengthRow({
             </p>
           )}
         </div>
-        <span className="text-[11px] tnum text-[var(--text-dim)] tabular-nums mt-0.5">
+        <span className="text-[11px] tnum text-[var(--text-dim)] tabular-nums mt-1">
           {formatHM(entry.at)}
         </span>
       </Link>
@@ -138,13 +140,15 @@ function CardioRow({
     <li>
       <Link
         href={`/cardio/${entry.id}`}
-        className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-hover)] transition-colors"
+        className="flex items-center gap-3 px-4 py-3.5 hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-colors"
       >
-        <Footprints
-          size={14}
-          strokeWidth={1.75}
-          className="shrink-0 text-[var(--text-soft)]"
-        />
+        <div className="shrink-0 w-7 h-7 rounded-lg bg-[var(--bg-raised)] border border-[var(--border)] flex items-center justify-center">
+          <Footprints
+            size={12}
+            strokeWidth={1.75}
+            className="text-[var(--text-soft)]"
+          />
+        </div>
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium truncate">
             {CARDIO_TYPE_LABELS[entry.activityType] ?? "Cardio"}
@@ -182,19 +186,18 @@ function WeightRow({
     <li>
       <Link
         href="/peso"
-        className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-hover)] transition-colors"
+        className="flex items-center gap-3 px-4 py-3.5 hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-colors"
       >
-        <Scale
-          size={14}
-          strokeWidth={1.75}
-          className="shrink-0 text-[var(--text-soft)]"
-        />
+        <div className="shrink-0 w-7 h-7 rounded-lg bg-[var(--bg-raised)] border border-[var(--border)] flex items-center justify-center">
+          <Scale
+            size={12}
+            strokeWidth={1.75}
+            className="text-[var(--text-soft)]"
+          />
+        </div>
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium">
-            Peso:{" "}
-            <span className="tnum tabular-nums">
-              {entry.weightKg.toFixed(1)} kg
-            </span>
+          <div className="text-sm font-medium tnum tabular-nums">
+            {entry.weightKg.toFixed(1)} kg
           </div>
         </div>
         <span className="text-[11px] tnum text-[var(--text-dim)] tabular-nums">
@@ -211,12 +214,14 @@ function StepsRow({
   entry: Extract<DiaryEntry, { kind: "steps" }>;
 }) {
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
-      <TrendingUp
-        size={14}
-        strokeWidth={1.75}
-        className="shrink-0 text-[var(--text-soft)]"
-      />
+    <li className="flex items-center gap-3 px-4 py-3.5">
+      <div className="shrink-0 w-7 h-7 rounded-lg bg-[var(--bg-raised)] border border-[var(--border)] flex items-center justify-center">
+        <TrendingUp
+          size={12}
+          strokeWidth={1.75}
+          className="text-[var(--text-soft)]"
+        />
+      </div>
       <div className="min-w-0 flex-1">
         <div className="text-sm font-medium">
           <span className="tnum tabular-nums">
@@ -224,8 +229,8 @@ function StepsRow({
           </span>{" "}
           passos
           {entry.steps >= 8000 && (
-            <span className="text-[10px] ml-1.5 text-[var(--status-ready)]">
-              meta
+            <span className="text-[10px] ml-1.5 text-[var(--status-ready)] font-semibold">
+              meta ✓
             </span>
           )}
         </div>
@@ -240,12 +245,14 @@ function NoteRow({
   entry: Extract<DiaryEntry, { kind: "note" }>;
 }) {
   return (
-    <li className="flex items-start gap-3 px-4 py-3">
-      <NotebookPen
-        size={14}
-        strokeWidth={1.75}
-        className="shrink-0 text-[var(--text-soft)] mt-0.5"
-      />
+    <li className="flex items-start gap-3 px-4 py-3.5">
+      <div className="shrink-0 w-7 h-7 rounded-lg bg-[var(--bg-raised)] border border-[var(--border)] flex items-center justify-center mt-0.5">
+        <NotebookPen
+          size={12}
+          strokeWidth={1.75}
+          className="text-[var(--text-soft)]"
+        />
+      </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm text-[var(--text)] leading-snug whitespace-pre-wrap">
           {entry.body}

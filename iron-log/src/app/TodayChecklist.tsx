@@ -11,6 +11,7 @@ import {
   Scale,
   X,
 } from "lucide-react";
+import { useToast } from "@/components/Toast";
 import { logBodyWeight } from "./peso/actions";
 import { logDailySteps } from "./passos/actions";
 
@@ -61,6 +62,7 @@ export function TodayChecklist({
   const [expanded, setExpanded] = useState<Expanded>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
 
   const chips: Chip[] = [
     {
@@ -117,6 +119,7 @@ export function TodayChecklist({
       const result = await logBodyWeight(formData);
       if (result.ok) {
         setExpanded(null);
+        toast("Peso registrado");
       } else {
         setError(result.error);
       }
@@ -129,6 +132,7 @@ export function TodayChecklist({
       const result = await logDailySteps(formData);
       if (result.ok) {
         setExpanded(null);
+        toast("Passos registrados");
       } else {
         setError(result.error);
       }
@@ -137,13 +141,13 @@ export function TodayChecklist({
 
   return (
     <div
-      className={`mb-4 rounded-xl border px-4 py-3 ${
+      className={`mb-4 rounded-2xl border px-4 py-3.5 transition-colors ${
         allDone
-          ? "border-[var(--accent)] bg-[var(--bg-card)]"
+          ? "border-[var(--accent)]/40 bg-[var(--bg-card)]"
           : "border-[var(--border)] bg-[var(--bg-card)]"
       }`}
     >
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2">
           {isRestDay && (
             <Bed
@@ -152,26 +156,26 @@ export function TodayChecklist({
               className="text-[var(--text-dim)]"
             />
           )}
-          <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
+          <p className="label">
             Hoje
           </p>
         </div>
         <p
           className={`text-xs tnum ${
             allDone
-              ? "text-[var(--accent)] font-semibold"
+              ? "text-[var(--status-ready)] font-semibold"
               : "text-[var(--text-muted)]"
           }`}
         >
           {hit}/{max}
-          {allDone && " — fechou"}
+          {allDone && " ✓"}
         </p>
       </div>
 
       <div className="flex items-center gap-1.5 flex-wrap">
         {chips.map((chip) => {
           const baseClass =
-            "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] tracking-wider uppercase tnum transition-colors";
+            "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[10px] tracking-wider uppercase tnum transition-all duration-150 active:scale-95";
           const stateClass = chip.done
             ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-fg)]"
             : "border-[var(--border)] text-[var(--text-dim)] hover:border-[var(--text-muted)] hover:text-[var(--text-muted)]";

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Flag, Trophy, X } from "lucide-react";
+import { useToast } from "@/components/Toast";
 import { finishSession, type PRDetection } from "./actions";
 
 const FEELING_OPTIONS = [
@@ -27,6 +28,7 @@ export function FinishSessionButton({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [prs, setPrs] = useState<PRDetection[] | null>(null);
+  const { toast } = useToast();
 
   function handleSubmit() {
     setError(null);
@@ -42,6 +44,7 @@ export function FinishSessionButton({
       if (result.prs.length > 0) {
         setPrs(result.prs);
       } else {
+        toast("Treino finalizado");
         router.push("/");
       }
     });

@@ -357,16 +357,35 @@ export default async function HomePage() {
 
   return (
     <div className="px-6 pt-10">
-      {/* Header */}
-      <header className="mb-6 flex items-start justify-between">
+      {/* Header — compact with integrated streak */}
+      <header className="mb-5 flex items-start justify-between">
         <div>
-          <p className="label mb-2">{weekday}</p>
+          <p className="label mb-1.5">{weekday}</p>
           <h1 className="display text-[34px] leading-none tracking-tighter">
             Felippe&apos;s Log
           </h1>
-          <p className="text-sm text-[var(--text-muted)] mt-2 tnum">
-            {day} de {month}
-          </p>
+          <div className="flex items-center gap-3 mt-2">
+            <span className="text-sm text-[var(--text-muted)] tnum">
+              {day} de {month}
+            </span>
+            {streak.current > 0 && (
+              <span className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                <Flame
+                  size={11}
+                  strokeWidth={1.75}
+                  className="text-[var(--status-ready)]"
+                />
+                <span className="tnum">
+                  {streak.current}d
+                  {streak.best > streak.current && (
+                    <span className="text-[var(--text-dim)]">
+                      {" "}/ {streak.best}
+                    </span>
+                  )}
+                </span>
+              </span>
+            )}
+          </div>
         </div>
         <Link
           href="/settings"
@@ -377,31 +396,64 @@ export default async function HomePage() {
         </Link>
       </header>
 
-      {/* Streak line — discreet, above the CTA */}
-      {streak.current > 0 && (
-        <div className="mb-3 flex items-center gap-2 text-xs text-[var(--text-muted)]">
-          <Flame
-            size={12}
-            strokeWidth={1.75}
-            className="text-[var(--status-ready)]"
-          />
-          <span className="tnum">
-            streak {streak.current} {streak.current === 1 ? "dia" : "dias"}
-          </span>
-          {streak.best > streak.current && (
-            <span className="text-[var(--text-dim)] tnum">
-              · melhor {streak.best}
-            </span>
-          )}
-          {!streak.todayActive && (
-            <span className="text-[var(--text-dim)]">
-              · hoje ainda tá em aberto
-            </span>
+      {/* Hero CTA — the primary action, always visible first */}
+      <section className="mb-5">
+        <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-5 transition-colors">
+          {firstRun ? (
+            <>
+              <p className="label mb-2">Primeiro passo</p>
+              <h2 className="display-sm text-2xl mb-1">Ainda vazio</h2>
+              <p className="text-sm text-[var(--text-muted)] mb-5 leading-relaxed">
+                Cadastre seus exercícios, monte um template de
+                rotina e inicie sua primeira sessão.
+              </p>
+              <Link
+                href="/exercicios"
+                className="group inline-flex items-center gap-2 text-[var(--text)] font-semibold text-sm"
+              >
+                Configurar exercícios
+                <ArrowRight
+                  size={16}
+                  className="transition-transform group-hover:translate-x-1"
+                />
+              </Link>
+            </>
+          ) : nextTemplate ? (
+            <>
+              <div className="flex items-baseline justify-between mb-3">
+                <p className="label">Próximo treino</p>
+                <span className="text-[10px] tnum text-[var(--text-dim)] uppercase tracking-wider">
+                  {nextTemplate.session_type === "upper" ? "Upper" : "Lower"} · {nextTemplate.exercise_count} ex.
+                </span>
+              </div>
+              <h2 className="display-sm text-3xl mb-4 leading-none">
+                {nextTemplate.name}
+              </h2>
+              <Link
+                href="/treinar"
+                className="block w-full text-center bg-accent text-accent-fg font-semibold py-3.5 rounded-xl hover:bg-accent-hover active:scale-[0.98] transition-all"
+              >
+                Iniciar treino
+              </Link>
+            </>
+          ) : (
+            <>
+              <p className="label mb-2">Treinar</p>
+              <p className="text-sm text-[var(--text-muted)] mb-4">
+                Crie seu primeiro template para começar.
+              </p>
+              <Link
+                href="/templates/novo"
+                className="block w-full text-center bg-accent text-accent-fg font-semibold py-3.5 rounded-xl hover:bg-accent-hover active:scale-[0.98] transition-all"
+              >
+                Criar template
+              </Link>
+            </>
           )}
         </div>
-      )}
+      </section>
 
-      {/* Today's checklist — interactive, doubles as the quick-add surface */}
+      {/* Today's checklist — interactive quick-add surface */}
       {!firstRun && (
         <TodayChecklist
           hasWeight={hasWeightToday}
@@ -447,63 +499,6 @@ export default async function HomePage() {
         />
       )}
 
-      {/* Primary CTA card */}
-      <section className="mb-6">
-        <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-6">
-          <p className="label mb-3">Próximo treino</p>
-          {firstRun ? (
-            <>
-              <h2 className="display-sm text-2xl mb-1">Ainda vazio</h2>
-              <p className="text-sm text-[var(--text-muted)] mb-6 leading-relaxed">
-                Para começar, cadastre seus exercícios, monte um template de
-                rotina e inicie sua primeira sessão. Você também pode
-                registrar um peso corporal ou uma caminhada.
-              </p>
-              <Link
-                href="/exercicios"
-                className="group inline-flex items-center gap-2 text-[var(--text)] font-semibold text-sm"
-              >
-                Configurar exercícios
-                <ArrowRight
-                  size={16}
-                  className="transition-transform group-hover:translate-x-1"
-                />
-              </Link>
-            </>
-          ) : nextTemplate ? (
-            <>
-              <h2 className="display-sm text-3xl mb-1 leading-none">
-                {nextTemplate.name}
-              </h2>
-              <p className="text-xs text-[var(--text-muted)] mb-5 tnum mt-1">
-                {nextTemplate.session_type === "upper" ? "Upper" : "Lower"}
-                <span className="text-[var(--text-faint)]"> · </span>
-                {nextTemplate.exercise_count} exercícios
-              </p>
-              <Link
-                href="/treinar"
-                className="block w-full text-center bg-accent text-accent-fg font-semibold py-3.5 rounded-xl hover:bg-accent-hover transition-colors"
-              >
-                Iniciar {nextTemplate.name}
-              </Link>
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-[var(--text-muted)] mb-4">
-                Crie seu primeiro template em Mais → Templates.
-              </p>
-              <Link
-                href="/templates/novo"
-                className="block w-full text-center bg-accent text-accent-fg font-semibold py-3.5 rounded-xl hover:bg-accent-hover transition-colors"
-              >
-                Criar template
-              </Link>
-            </>
-          )}
-        </div>
-      </section>
-
-
       {/* Diary timeline */}
       {dayKeys.length > 0 && (
         <section className="mb-10">
@@ -513,7 +508,7 @@ export default async function HomePage() {
               href="/progresso"
               className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
             >
-              Análise
+              Análise →
             </Link>
           </div>
 

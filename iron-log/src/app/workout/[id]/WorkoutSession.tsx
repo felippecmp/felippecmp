@@ -8,7 +8,6 @@ import {
   Flame,
   Loader2,
   Plus,
-  Timer,
   Trash2,
   WifiOff,
   X,
@@ -494,60 +493,79 @@ function RestTimer({
     Math.max(0, (Math.min(elapsed, rest.totalSeconds) / rest.totalSeconds) * 100)
   );
 
+  // Circular progress: the ring draws from top (12 o'clock) clockwise.
+  const RADIUS = 38;
+  const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+  const strokeOffset = CIRCUMFERENCE * (1 - progress / 100);
+
   return (
     <div
-      className="fixed inset-x-0 z-40 px-4 pointer-events-none"
-      style={{ bottom: "calc(68px + env(safe-area-inset-bottom))" }}
+      className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none"
     >
-      <div className="pointer-events-auto max-w-xl mx-auto">
-        <div
-          className={`relative overflow-hidden rounded-xl border bg-[var(--bg-card)] shadow-lg flex items-center gap-3 px-4 py-3 ${
-            done
-              ? "border-[var(--status-ready)]/60"
-              : "border-[var(--border-strong)]"
-          }`}
-        >
-          <div
-            className={`absolute inset-y-0 left-0 transition-all ${
-              done
-                ? "bg-[var(--status-ready)]/15"
-                : "bg-[var(--text)]/5"
-            }`}
-            style={{ width: `${progress}%` }}
+      <div
+        className="pointer-events-auto flex flex-col items-center gap-4 animate-in fade-in"
+        onClick={done ? onDismiss : undefined}
+      >
+        {/* Circular timer */}
+        <div className="relative w-32 h-32">
+          <svg
+            viewBox="0 0 96 96"
+            className="w-full h-full -rotate-90"
             aria-hidden="true"
-          />
-          <Timer
-            size={16}
-            strokeWidth={1.75}
-            className={`shrink-0 relative ${
-              done ? "text-[var(--status-ready)]" : "text-[var(--text-soft)]"
-            }`}
-          />
-          <div className="flex-1 min-w-0 relative">
-            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
-              {done ? "Pronto" : "Descanso"}
-            </p>
-            <p className="text-xs text-[var(--text-soft)] truncate">
-              {rest.exerciseName}
-            </p>
-          </div>
-          <div
-            className={`tnum display-sm text-xl shrink-0 relative ${
-              done ? "text-[var(--status-ready)]" : ""
-            }`}
           >
-            {formatMMSS(Math.max(0, remaining))}
+            <circle
+              cx="48" cy="48" r={RADIUS}
+              fill="none"
+              stroke="var(--border)"
+              strokeWidth="3"
+            />
+            <circle
+              cx="48" cy="48" r={RADIUS}
+              fill="none"
+              stroke={done ? "var(--status-ready)" : "var(--text-soft)"}
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeDasharray={CIRCUMFERENCE}
+              strokeDashoffset={strokeOffset}
+              className="transition-[stroke-dashoffset] duration-300 ease-linear"
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span
+              className={`tnum display text-3xl ${
+                done ? "text-[var(--status-ready)]" : "text-[var(--text)]"
+              }`}
+            >
+              {formatMMSS(Math.max(0, remaining))}
+            </span>
+            <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mt-0.5">
+              {done ? "Pronto!" : "Descanso"}
+            </span>
           </div>
-          <button
-            type="button"
-            onClick={onDismiss}
-            aria-label="Dispensar timer"
-            className="relative shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--text)] transition-colors"
-          >
-            <X size={14} strokeWidth={1.75} />
-          </button>
         </div>
+
+        {/* Exercise label */}
+        <p className="text-xs text-[var(--text-muted)] text-center truncate max-w-[200px]">
+          {rest.exerciseName}
+        </p>
+
+        {/* Dismiss */}
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-xs text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--border-strong)] transition-colors shadow-lg"
+        >
+          <X size={12} strokeWidth={1.75} />
+          {done ? "Continuar" : "Dispensar"}
+        </button>
       </div>
+
+      {/* Dimmed backdrop */}
+      <div
+        className="absolute inset-0 bg-[var(--bg)]/80 backdrop-blur-sm -z-10"
+        onClick={onDismiss}
+        aria-hidden="true"
+      />
     </div>
   );
 }

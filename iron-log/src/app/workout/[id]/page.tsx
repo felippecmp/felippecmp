@@ -14,6 +14,7 @@ import { PHASE_LABEL } from "@/lib/coach/mesocycle";
 import { getActiveMesocycle } from "@/lib/coach/mesocycle-server";
 import { userDayKey } from "@/lib/timezone";
 import { AbandonSessionButton } from "./AbandonSessionButton";
+import { ElapsedTimer } from "./ElapsedTimer";
 import { FinishSessionButton } from "./FinishSessionButton";
 import { FitUploadButton } from "./FitUploadButton";
 import {
@@ -484,17 +485,28 @@ export default async function WorkoutSessionPage({
           .filter((m): m is SetMarker => m !== null)
       : [];
 
+  // Progress: how many exercises have at least one working set logged
+  const exercisesWithSets = new Set(
+    currentSets.filter((s) => !s.is_warmup).map((s) => s.exercise_id)
+  ).size;
+  const totalTarget = exercises.reduce((sum, ex) => sum + ex.targetSets, 0);
+  const progressPct =
+    totalTarget > 0 ? Math.min(100, Math.round((totalLogged / totalTarget) * 100)) : 0;
+
   return (
     <div className="px-6 pt-10">
-      <Link
-        href="/treinar"
-        className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text)] mb-6 transition-colors"
-      >
-        <ChevronLeft size={16} strokeWidth={1.75} />
-        Treinar
-      </Link>
+      <div className="flex items-center justify-between mb-5">
+        <Link
+          href="/treinar"
+          className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+        >
+          <ChevronLeft size={16} strokeWidth={1.75} />
+          Treinar
+        </Link>
+        {!isFinished && <ElapsedTimer startedAt={session.started_at} />}
+      </div>
 
-      <header className="mb-8">
+      <header className="mb-6">
         <p className="label mb-2 uppercase">
           {template?.session_type ?? "Sessão"}
         </p>
@@ -502,16 +514,31 @@ export default async function WorkoutSessionPage({
           {template?.name ?? "Sessão"}
         </h1>
         <div className="mt-3 flex items-center gap-3 text-xs text-[var(--text-muted)] tnum">
-          <span className="inline-flex items-center gap-1">
-            <Clock size={12} strokeWidth={1.75} />
-            {isFinished ? "Finalizado" : "Iniciado"}{" "}
-            {formatTime(session.started_at)}
-          </span>
+          {isFinished && (
+            <>
+              <span className="inline-flex items-center gap-1">
+                <Clock size={12} strokeWidth={1.75} />
+                Finalizado {formatTime(session.started_at)}
+              </span>
+              <span className="text-[var(--text-faint)]">·</span>
+            </>
+          )}
+          <span>{exercisesWithSets}/{exercises.length} exercícios</span>
           <span className="text-[var(--text-faint)]">·</span>
-          <span>{exercises.length} exercícios</span>
-          <span className="text-[var(--text-faint)]">·</span>
-          <span>{totalLogged} sets</span>
+          <span>{totalLogged}/{totalTarget} sets</span>
         </div>
+
+        {/* Session progress bar */}
+        {!isFinished && totalTarget > 0 && (
+          <div className="mt-3">
+            <div className="h-1 rounded-full bg-[var(--border)] overflow-hidden">
+              <div
+                className="h-full rounded-full bg-[var(--status-ready)] transition-all duration-500 ease-out"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* HR / calories pills from FIT upload */}
         {(session.avg_heart_rate ||
