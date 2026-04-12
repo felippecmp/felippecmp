@@ -426,18 +426,18 @@ export default async function HomePage() {
         </Link>
       </header>
 
-      {/* Quick stats strip — at-a-glance numbers */}
+      {/* Quick stats strip — at-a-glance numbers with semantic color */}
       {!firstRun && (
         <div className="mb-5 grid grid-cols-3 gap-2">
-          <Link href="/progresso" className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2.5 hover:border-[var(--border-strong)] transition-colors">
+          <Link href="/progresso" className="stat-card rounded-xl bg-[var(--bg-card)] pl-5 pr-3 py-2.5 hover:bg-[var(--bg-hover)] transition-colors" style={{ "--stat-color": "var(--status-ready)" } as React.CSSProperties}>
             <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Treinos 7d</p>
             <p className="display-sm text-xl tnum mt-0.5">{sessions7d}</p>
           </Link>
-          <Link href="/cardio" className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2.5 hover:border-[var(--border-strong)] transition-colors">
+          <Link href="/cardio" className="stat-card rounded-xl bg-[var(--bg-card)] pl-5 pr-3 py-2.5 hover:bg-[var(--bg-hover)] transition-colors" style={{ "--stat-color": "var(--status-stalled)" } as React.CSSProperties}>
             <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Cardio 7d</p>
             <p className="display-sm text-xl tnum mt-0.5">{cardio7d}</p>
           </Link>
-          <Link href="/peso" className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2.5 hover:border-[var(--border-strong)] transition-colors">
+          <Link href="/peso" className="stat-card rounded-xl bg-[var(--bg-card)] pl-5 pr-3 py-2.5 hover:bg-[var(--bg-hover)] transition-colors" style={{ "--stat-color": "var(--status-progressed)" } as React.CSSProperties}>
             <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Peso</p>
             <p className="display-sm text-xl tnum mt-0.5">
               {latestWeight ? `${Number(latestWeight.weight_kg).toFixed(1)}` : "—"}

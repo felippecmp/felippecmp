@@ -91,11 +91,11 @@ function StrengthRow({
         href={`/workout/${entry.id}`}
         className="flex items-start gap-3 px-4 py-3.5 hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-colors"
       >
-        <div className="shrink-0 w-7 h-7 rounded-lg bg-[var(--bg-raised)] border border-[var(--border)] flex items-center justify-center mt-0.5">
+        <div className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center mt-0.5" style={{ background: "color-mix(in oklab, var(--status-ready) 15%, transparent)" }}>
           <Dumbbell
             size={12}
             strokeWidth={1.75}
-            className="text-[var(--text-soft)]"
+            className="text-[var(--status-ready)]"
           />
         </div>
         <div className="min-w-0 flex-1">
@@ -142,11 +142,11 @@ function CardioRow({
         href={`/cardio/${entry.id}`}
         className="flex items-center gap-3 px-4 py-3.5 hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-colors"
       >
-        <div className="shrink-0 w-7 h-7 rounded-lg bg-[var(--bg-raised)] border border-[var(--border)] flex items-center justify-center">
+        <div className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in oklab, var(--status-stalled) 15%, transparent)" }}>
           <Footprints
             size={12}
             strokeWidth={1.75}
-            className="text-[var(--text-soft)]"
+            className="text-[var(--status-stalled)]"
           />
         </div>
         <div className="min-w-0 flex-1">
@@ -188,11 +188,11 @@ function WeightRow({
         href="/peso"
         className="flex items-center gap-3 px-4 py-3.5 hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-colors"
       >
-        <div className="shrink-0 w-7 h-7 rounded-lg bg-[var(--bg-raised)] border border-[var(--border)] flex items-center justify-center">
+        <div className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in oklab, var(--status-progressed) 15%, transparent)" }}>
           <Scale
             size={12}
             strokeWidth={1.75}
-            className="text-[var(--text-soft)]"
+            className="text-[var(--status-progressed)]"
           />
         </div>
         <div className="min-w-0 flex-1">
@@ -215,11 +215,11 @@ function StepsRow({
 }) {
   return (
     <li className="flex items-center gap-3 px-4 py-3.5">
-      <div className="shrink-0 w-7 h-7 rounded-lg bg-[var(--bg-raised)] border border-[var(--border)] flex items-center justify-center">
+      <div className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in oklab, var(--status-building) 15%, transparent)" }}>
         <TrendingUp
           size={12}
           strokeWidth={1.75}
-          className="text-[var(--text-soft)]"
+          className="text-[var(--status-building)]"
         />
       </div>
       <div className="min-w-0 flex-1">
@@ -246,11 +246,11 @@ function NoteRow({
 }) {
   return (
     <li className="flex items-start gap-3 px-4 py-3.5">
-      <div className="shrink-0 w-7 h-7 rounded-lg bg-[var(--bg-raised)] border border-[var(--border)] flex items-center justify-center mt-0.5">
+      <div className="shrink-0 w-7 h-7 rounded-lg bg-[var(--bg-raised)] flex items-center justify-center mt-0.5">
         <NotebookPen
           size={12}
           strokeWidth={1.75}
-          className="text-[var(--text-soft)]"
+          className="text-[var(--text-muted)]"
         />
       </div>
       <div className="min-w-0 flex-1">

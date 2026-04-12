@@ -34,6 +34,7 @@ type ChipBase = {
   label: string;
   done: boolean;
   Icon: typeof Check;
+  color: string; // CSS var for the chip's semantic color
 };
 
 type LinkChip = ChipBase & { kind: "link"; href: string };
@@ -72,6 +73,7 @@ export function TodayChecklist({
       Icon: Scale,
       kind: "form",
       expand: "weight",
+      color: "var(--status-progressed)",
     },
     ...(isRestDay
       ? []
@@ -83,6 +85,7 @@ export function TodayChecklist({
             Icon: Dumbbell,
             kind: "link",
             href: "/treinar",
+            color: "var(--status-ready)",
           },
         ] as Chip[])),
     {
@@ -92,6 +95,7 @@ export function TodayChecklist({
       Icon: Heart,
       kind: "link",
       href: "/cardio/novo",
+      color: "var(--status-stalled)",
     },
     {
       key: "steps",
@@ -100,6 +104,7 @@ export function TodayChecklist({
       Icon: Footprints,
       kind: "form",
       expand: "steps",
+      color: "var(--status-building)",
     },
   ];
 
@@ -143,7 +148,7 @@ export function TodayChecklist({
     <div
       className={`mb-4 rounded-2xl border px-4 py-3.5 transition-colors ${
         allDone
-          ? "border-[var(--accent)]/40 bg-[var(--bg-card)]"
+          ? "border-[var(--status-ready)]/40 bg-[var(--bg-card)] checklist-glow"
           : "border-[var(--border)] bg-[var(--bg-card)]"
       }`}
     >
@@ -186,13 +191,16 @@ export function TodayChecklist({
           const baseClass =
             "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[10px] tracking-wider uppercase tnum transition-all duration-150 active:scale-95";
           const stateClass = chip.done
-            ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-fg)]"
-            : "border-[var(--border)] text-[var(--text-dim)] hover:border-[var(--text-muted)] hover:text-[var(--text-muted)]";
+            ? "border-transparent text-[var(--accent-fg)]"
+            : "border-[var(--border)] hover:border-[var(--text-muted)]";
           const expandedClass =
             chip.kind === "form" && expanded === chip.expand
               ? "ring-1 ring-[var(--text-muted)]"
               : "";
           const className = `${baseClass} ${stateClass} ${expandedClass}`;
+          const chipStyle = chip.done
+            ? { background: chip.color }
+            : { color: chip.color };
 
           const inner = (
             <>
@@ -207,7 +215,7 @@ export function TodayChecklist({
 
           if (chip.kind === "link") {
             return (
-              <Link key={chip.key} href={chip.href} className={className}>
+              <Link key={chip.key} href={chip.href} className={className} style={chipStyle}>
                 {inner}
               </Link>
             );
@@ -220,6 +228,7 @@ export function TodayChecklist({
               onClick={() => toggleExpand(chip.expand)}
               disabled={isPending}
               className={`${className} disabled:opacity-60`}
+              style={chipStyle}
             >
               {inner}
             </button>
