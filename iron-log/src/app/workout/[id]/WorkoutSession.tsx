@@ -103,12 +103,14 @@ function initialRows(exercise: ExerciseBlockData): RowState[] {
     pendingOffline: false,
   }));
 
-  // Pre-fill empty working rows with the suggested weight so the user only
-  // types reps. We don't pre-fill warmup rows; those are opt-in.
+  // Pre-fill empty working rows with the suggested weight AND the reps from
+  // the last session, so the user just adjusts what changed instead of typing
+  // from scratch. warmup rows are not pre-filled (they're opt-in).
   const seedWeight =
     exercise.suggestion.suggestedWeight !== null
       ? String(exercise.suggestion.suggestedWeight)
       : "";
+  const previousReps = exercise.previousSets.map((s) => String(s.reps));
 
   const workingCount = rows.filter((r) => !r.isWarmup).length;
   const missing = Math.max(0, exercise.targetSets - workingCount);
@@ -117,7 +119,7 @@ function initialRows(exercise: ExerciseBlockData): RowState[] {
       key: `empty-${i}`,
       id: null,
       weight: seedWeight,
-      reps: "",
+      reps: previousReps[i] ?? "",
       rir: null,
       isWarmup: false,
       saving: false,
