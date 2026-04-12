@@ -416,8 +416,12 @@ export default async function ProgressoPage() {
   return (
     <div className="px-6 pt-10">
       <header className="mb-8">
-        <p className="label mb-2">Análise</p>
         <h1 className="display text-4xl leading-none">Progresso</h1>
+        {!empty && (
+          <p className="text-sm text-[var(--text-muted)] mt-2 tnum">
+            {totalSessions30d} treinos · {totalSets7d} sets esta semana
+          </p>
+        )}
       </header>
 
       {empty ? (

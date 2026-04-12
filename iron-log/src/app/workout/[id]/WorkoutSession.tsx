@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowLeftRight,
   Check,
+  ChevronDown,
   CloudOff,
   Flame,
   Loader2,
@@ -811,120 +812,103 @@ function ExerciseCard({
 
   const reference = exercise.previousSets;
   const suggestion = exercise.suggestion;
+  const [detailOpen, setDetailOpen] = useState(false);
 
   // Allow removing/swapping while no sets have been logged.
   const hasAnySet = rows.some((r) => r.id !== null);
-  const canRemove = !!onRemoveBlock && !hasAnySet && !disabled;
   const canSwap = !!onSwapExercise && !hasAnySet && !disabled;
-  // Allow deleting an exercise entirely (even template ones) when no sets saved.
   const canDelete = !hasAnySet && !disabled;
 
   return (
     <li className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
+      {/* Compact header: number + name + status + weight — always visible */}
       <div className="px-4 pt-4 pb-3">
-        <div className="flex items-start gap-3">
-          <span className="shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--text-dim)] flex items-center justify-center text-xs tnum font-semibold">
+        <div className="flex items-center gap-3">
+          <span className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs tnum font-semibold" style={{ background: `color-mix(in oklab, ${statusCssVar(suggestion.status)} 15%, transparent)`, color: statusCssVar(suggestion.status) }}>
             {number}
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <div className="font-medium text-[15px] leading-tight truncate flex-1 min-w-0">
+              <span className="font-medium text-[15px] leading-tight truncate flex-1 min-w-0">
                 {exercise.exerciseName}
-              </div>
+              </span>
               {exercise.isAdhoc && (
                 <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border border-[var(--border-strong)] text-[var(--text-muted)]">
                   ad-hoc
                 </span>
               )}
               {canSwap && (
-                <button
-                  type="button"
-                  onClick={() => onSwapExercise?.({} as CatalogExercise)}
-                  aria-label="Trocar exercício"
-                  title="Trocar exercício"
-                  className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--text-muted)] transition-colors"
-                >
+                <button type="button" onClick={() => onSwapExercise?.({} as CatalogExercise)} aria-label="Trocar exercício" className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--text-muted)] transition-colors">
                   <ArrowLeftRight size={12} strokeWidth={1.75} />
                 </button>
               )}
               {canDelete && (
-                <button
-                  type="button"
-                  onClick={() => onRemoveBlock?.()}
-                  aria-label="Remover exercício da sessão"
-                  title="Remover exercício"
-                  className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--danger)] transition-colors"
-                >
+                <button type="button" onClick={() => onRemoveBlock?.()} aria-label="Remover exercício" className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--danger)] transition-colors">
                   <X size={12} strokeWidth={1.75} />
                 </button>
               )}
             </div>
-            <div className="text-xs text-[var(--text-muted)] mt-1 tnum">
-              {muscleLabel(exercise.primaryMuscle)} · {exercise.targetSets} sets ·{" "}
-              {exercise.repRangeLow}-{exercise.repRangeHigh} reps
-            </div>
-
-            <div className="mt-3 flex items-center gap-2 flex-wrap">
-              <StatusBadge suggestion={suggestion} />
+            {/* Single compact line: muscle · sets · reps · suggested weight */}
+            <div className="text-xs text-[var(--text-muted)] mt-1 tnum flex items-center gap-1.5 flex-wrap">
+              <span>{muscleLabel(exercise.primaryMuscle)}</span>
+              <span className="text-[var(--text-faint)]">·</span>
+              <span>{exercise.targetSets}×{exercise.repRangeLow}-{exercise.repRangeHigh}</span>
               {suggestion.suggestedWeight !== null && (
-                <span className="text-[11px] text-[var(--text-soft)] tnum">
-                  Hoje:{" "}
-                  <strong className="text-[var(--text)]">
+                <>
+                  <span className="text-[var(--text-faint)]">·</span>
+                  <strong className="text-[var(--text-soft)]">
                     {suggestion.suggestedWeight}kg
                   </strong>
-                </span>
+                </>
               )}
+              {phaseRirTarget && (
+                <>
+                  <span className="text-[var(--text-faint)]">·</span>
+                  <span className="text-[var(--accent)]">{phaseRirTarget}</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Expandable detail section */}
+        <button
+          type="button"
+          onClick={() => setDetailOpen((v) => !v)}
+          className="mt-2 ml-10 flex items-center gap-1 text-[10px] text-[var(--text-dim)] hover:text-[var(--text-muted)] transition-colors"
+        >
+          <ChevronDown size={10} strokeWidth={1.75} className={`transition-transform ${detailOpen ? "rotate-180" : ""}`} />
+          {detailOpen ? "Esconder" : "Detalhes"}
+        </button>
+
+        {detailOpen && (
+          <div className="mt-2 ml-10 space-y-1.5 text-[11px]">
+            <div className="flex items-center gap-2 flex-wrap">
+              <StatusBadge suggestion={suggestion} />
               {suggestion.status === "stalled" &&
                 suggestion.suggestedWeight !== null &&
                 !disabled && (
-                  <button
-                    type="button"
-                    onClick={handleDeload}
-                    className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md border border-[var(--status-stalled)] text-[var(--status-stalled)] hover:bg-[var(--status-stalled)]/10 transition-colors"
-                  >
+                  <button type="button" onClick={handleDeload} className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md border border-[var(--status-stalled)] text-[var(--status-stalled)] hover:bg-[var(--status-stalled)]/10 transition-colors">
                     Deload -10%
                   </button>
                 )}
             </div>
-            <p className="text-[11px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
-              {suggestion.message}
-            </p>
-
-            <p className="text-[11px] text-[var(--text-soft)] mt-2 tnum">
+            <p className="text-[var(--text-muted)] leading-relaxed">{suggestion.message}</p>
+            <p className="text-[var(--text-soft)] tnum">
               {reference.length > 0 ? (
                 <>
-                  <span className="uppercase tracking-wider mr-1 text-[var(--text-dim)]">
-                    Último:
-                  </span>
-                  {reference
-                    .map(
-                      (s) =>
-                        `${s.weightKg}×${s.reps}${
-                          s.rir != null ? ` @${s.rir}` : ""
-                        }`
-                    )
-                    .join(" · ")}
+                  <span className="uppercase tracking-wider mr-1 text-[var(--text-dim)]">Último:</span>
+                  {reference.map((s) => `${s.weightKg}×${s.reps}${s.rir != null ? ` @${s.rir}` : ""}`).join(" · ")}
                   {exercise.previousSetsAt && (
-                    <span className="text-[var(--text-dim)]">
-                      {" · "}
-                      {formatRelativeDay(exercise.previousSetsAt)}
-                    </span>
+                    <span className="text-[var(--text-dim)]"> · {formatRelativeDay(exercise.previousSetsAt)}</span>
                   )}
                 </>
               ) : (
-                <span className="text-[var(--text-dim)]">
-                  Primeira vez nesse exercício
-                </span>
+                <span className="text-[var(--text-dim)]">Primeira vez nesse exercício</span>
               )}
             </p>
-
-            {phaseRirTarget && (
-              <p className="text-[10px] text-[var(--accent)] mt-1.5 uppercase tracking-wider tnum">
-                Fase: {phaseRirTarget}
-              </p>
-            )}
           </div>
-        </div>
+        )}
       </div>
 
       <div className="border-t border-[var(--border)] bg-[var(--bg-raised)] divide-y divide-[var(--border)]">
@@ -1122,9 +1106,21 @@ function SetRowInput({
   const saved = row.id !== null && !row.saving;
   const pending = row.pendingOffline;
   const warmup = row.isWarmup;
+  const [justSaved, setJustSaved] = useState(false);
+  const prevSavedRef = useRef(saved);
+
+  // Trigger flash when row transitions from unsaved → saved
+  useEffect(() => {
+    if (saved && !prevSavedRef.current) {
+      setJustSaved(true);
+      const t = setTimeout(() => setJustSaved(false), 600);
+      return () => clearTimeout(t);
+    }
+    prevSavedRef.current = saved;
+  }, [saved]);
 
   return (
-    <div className={`px-4 py-3 ${warmup ? "bg-[var(--bg-card)]/40" : ""}`}>
+    <div className={`px-4 py-3 transition-colors ${warmup ? "bg-[var(--bg-card)]/40" : ""} ${justSaved ? "set-saved-flash" : ""}`}>
       <div className="flex items-center gap-2">
         <span
           className={`shrink-0 w-6 text-[10px] tnum font-semibold tracking-wider ${

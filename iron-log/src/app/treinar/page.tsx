@@ -134,8 +134,15 @@ export default async function TreinarPage() {
   return (
     <div className="px-6 pt-10">
       <header className="mb-8">
-        <p className="label mb-2">Sessão</p>
         <h1 className="display text-4xl leading-none">Treinar</h1>
+        {suggestion && !active && (
+          <p className="text-sm text-[var(--text-muted)] mt-2">
+            Próximo:{" "}
+            <span className="text-[var(--text-soft)] font-medium">
+              {sessionTypeLabel(suggestion.targetType)}
+            </span>
+          </p>
+        )}
       </header>
 
       {/* Active session banner */}
