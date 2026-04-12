@@ -1,14 +1,20 @@
 "use client";
 
 import { Palette } from "lucide-react";
-import { useTheme } from "@/components/ThemeProvider";
+import { useTheme, type Theme } from "@/components/ThemeProvider";
+
+const SWATCHES: Record<Theme, string[]> = {
+  default: ["#0a0a0a", "#171717", "#ffffff", "#a3e635"],
+  orchid: ["#0a0a0c", "#191620", "#c084fc", "#86efac"],
+  beast: ["#0c0816", "#1a1430", "#e11d48", "#a855f7"],
+};
 
 export function ThemeSelector() {
   const { theme, setTheme, themes } = useTheme();
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-4">
         <Palette
           size={14}
           strokeWidth={1.75}
@@ -16,24 +22,32 @@ export function ThemeSelector() {
         />
         <p className="label">Tema</p>
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-3">
         {themes.map((t) => {
           const active = theme === t.value;
+          const colors = SWATCHES[t.value];
           return (
             <button
               key={t.value}
               type="button"
               onClick={() => setTheme(t.value)}
-              className={`rounded-xl border py-3 px-2 flex flex-col items-center justify-center gap-1 transition-all ${
+              className={`rounded-xl border py-3 px-3 flex flex-col items-center gap-2 transition-all ${
                 active
-                  ? "border-accent bg-accent/10 text-[var(--text)]"
+                  ? "border-accent bg-accent/10 text-[var(--text)] ring-1 ring-accent/30"
                   : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:text-[var(--text-soft)]"
               }`}
             >
-              <span className="text-sm font-semibold">{t.label}</span>
-              <span className="text-[9px] leading-tight text-center opacity-75">
-                {t.desc}
-              </span>
+              {/* Color swatches preview */}
+              <div className="flex gap-1">
+                {colors.map((c, i) => (
+                  <span
+                    key={i}
+                    className="w-4 h-4 rounded-full border border-white/10"
+                    style={{ background: c }}
+                  />
+                ))}
+              </div>
+              <span className="text-xs font-semibold">{t.label}</span>
             </button>
           );
         })}

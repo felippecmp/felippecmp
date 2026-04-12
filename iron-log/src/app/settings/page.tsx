@@ -22,7 +22,7 @@ export default async function SettingsPage() {
 
       <header className="mb-8">
         <p className="label mb-2">Preferências</p>
-        <h1 className="display text-4xl leading-none">Settings</h1>
+        <h1 className="display text-4xl leading-none">Ajustes</h1>
       </header>
 
       <section className="mb-10">

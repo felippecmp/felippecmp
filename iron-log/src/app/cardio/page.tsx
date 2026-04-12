@@ -60,28 +60,30 @@ export default async function CardioPage() {
         Hoje
       </Link>
 
-      <header className="mb-8 flex items-end justify-between">
-        <div>
-          <p className="label mb-2">Registro</p>
-          <h1 className="display text-4xl leading-none">Cardio</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-2 tnum">
-            {sessions.length}{" "}
-            {sessions.length === 1 ? "sessão" : "sessões"}
-            {totalKm > 0 && (
-              <>
-                <span className="text-[var(--text-faint)]"> · </span>
-                {totalKm.toFixed(1)} km
-              </>
-            )}
-            {totalMinutes > 0 && (
-              <>
-                <span className="text-[var(--text-faint)]"> · </span>
-                {Math.round(totalMinutes / 60)}h {totalMinutes % 60}min
-              </>
-            )}
-          </p>
-        </div>
+      <header className="mb-6">
+        <p className="label mb-2">Registro</p>
+        <h1 className="display text-4xl leading-none">Cardio</h1>
       </header>
+
+      {/* Stats strip */}
+      {sessions.length > 0 && (
+        <div className="mb-5 grid grid-cols-3 gap-2">
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2.5">
+            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Sessões</p>
+            <p className="display-sm text-xl tnum mt-0.5">{sessions.length}</p>
+          </div>
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2.5">
+            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Distância</p>
+            <p className="display-sm text-xl tnum mt-0.5">{totalKm.toFixed(1)}<span className="text-xs font-normal text-[var(--text-muted)]"> km</span></p>
+          </div>
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2.5">
+            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Tempo</p>
+            <p className="display-sm text-xl tnum mt-0.5">
+              {totalMinutes >= 60 ? `${Math.floor(totalMinutes / 60)}h` : `${totalMinutes}m`}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="mb-6 grid grid-cols-2 gap-3">
         <Link
