@@ -6,8 +6,8 @@
  * user's language, and includes the key frameworks from the literature
  * so Claude doesn't need to rely on generic training knowledge.
  *
- * Model: Claude Haiku 4.5 — fast, cheap, and capable enough for structured
- * planning tasks. Can be bumped to Sonnet if the user wants deeper reasoning.
+ * Model: Claude Opus 4.6 — deepest reasoning for a single-user app where
+ * quality matters more than cost (~$2/month at ~20 calls/week).
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -26,7 +26,7 @@ export function isAIAvailable(): boolean {
   return !!process.env.ANTHROPIC_API_KEY;
 }
 
-export const COACH_MODEL = "claude-haiku-4-5-20251001";
+export const COACH_MODEL = "claude-opus-4-6";
 
 export const COACH_SYSTEM_PROMPT = `Você é o coach de treino do Felippe. Ele é um trainee intermediário que usa um app pessoal de tracking (Felippe's Log). Você fala em PT-BR direto, como um amigo de academia que manja de ciência — sem motivação rasa, sem corporate speak, sem emoji.
 

@@ -14,10 +14,12 @@ import { PHASE_LABEL } from "@/lib/coach/mesocycle";
 import { getActiveMesocycle } from "@/lib/coach/mesocycle-server";
 import { WeightTrendChart } from "./WeightTrendChart";
 import { DeltaChip, formatKg, PercentChip, TargetChip } from "./components/Chips";
+import { DonutChart, type DonutEntry } from "./components/DonutChart";
 import { Heatmap } from "./components/Heatmap";
 import { StreakHero } from "./components/StreakHero";
 import { CardioStat, TopStat } from "./components/Stats";
 import { VolumeBar, type VolumeEntry } from "./components/VolumeBar";
+import { WeeklyBars, type WeekData } from "./components/WeeklyBars";
 
 export const dynamic = "force-dynamic";
 
@@ -411,6 +413,36 @@ export default async function ProgressoPage() {
       ? latestWeight.weightKg - weight30dAgoRef.weightKg
       : null;
 
+  // --- Weekly frequency bars (4 weeks) ---
+  const weeklyBarsData: WeekData[] = (() => {
+    const weeks: WeekData[] = [];
+    for (let i = 3; i >= 0; i--) {
+      const weekStart = new Date(now.getTime() - (i * 7 + now.getDay()) * 86400000);
+      weekStart.setHours(0, 0, 0, 0);
+      const weekEnd = new Date(weekStart.getTime() + 7 * 86400000);
+      const wStrength = allSessions.filter((s) => {
+        const t = new Date(s.started_at);
+        return t >= weekStart && t < weekEnd;
+      }).length;
+      const wCardio = allCardio.filter((c) => {
+        const t = new Date(c.started_at);
+        return t >= weekStart && t < weekEnd;
+      }).length;
+      weeks.push({
+        label: i === 0 ? "Atual" : `S-${i}`,
+        strength: wStrength,
+        cardio: wCardio,
+      });
+    }
+    return weeks;
+  })();
+
+  // Donut data from volumeRows
+  const donutData: DonutEntry[] = volumeRows.map((r) => ({
+    muscle: r.muscle,
+    sets: r.sets,
+  }));
+
   const empty = sessions.length === 0 && weightSeries.length === 0;
 
   return (
@@ -428,6 +460,28 @@ export default async function ProgressoPage() {
         <EmptyState />
       ) : (
         <>
+          {/* Weekly frequency bars */}
+          {weeklyBarsData.some((w) => w.strength + w.cardio > 0) && (
+            <section className="mb-6">
+              <div className="rounded-2xl bg-[var(--bg-card)] p-5">
+                <div className="flex items-baseline justify-between mb-4">
+                  <p className="label">Frequência · 4 semanas</p>
+                  <div className="flex items-center gap-3 text-[10px] text-[var(--text-dim)]">
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full" style={{ background: "var(--status-ready)" }} />
+                      Força
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full" style={{ background: "var(--status-stalled)" }} />
+                      Cardio
+                    </span>
+                  </div>
+                </div>
+                <WeeklyBars weeks={weeklyBarsData} />
+              </div>
+            </section>
+          )}
+
           {/* Streak hero + comparison stats */}
           <section className="mb-6">
             <StreakHero
@@ -630,6 +684,16 @@ export default async function ProgressoPage() {
                 {PHASE_LABEL[activeMeso.currentWeek.phase]}
               </span>
             </Link>
+          )}
+
+          {/* Donut chart — volume distribution */}
+          {donutData.length > 0 && (
+            <section className="mb-6">
+              <div className="rounded-2xl bg-[var(--bg-card)] p-5">
+                <p className="label mb-4">Distribuição · 7 dias</p>
+                <DonutChart data={donutData} />
+              </div>
+            </section>
           )}
 
           <section className="mb-10">

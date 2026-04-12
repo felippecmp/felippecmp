@@ -8,6 +8,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { computeStreak } from "@/lib/streak";
 import { userDayKey } from "@/lib/timezone";
+import { Sparkline } from "@/components/Sparkline";
 import { DiaryRow, type DiaryEntry } from "./DiaryRow";
 import { TodayChecklist } from "./TodayChecklist";
 import { NotaDescansoRow } from "./NotaDescansoRow";
@@ -394,6 +395,28 @@ export default async function HomePage() {
     return ofType[0] ?? templates[0];
   })();
 
+  // Sparkline data: daily counts for last 7 days
+  const sparkStrength: number[] = [];
+  const sparkCardio: number[] = [];
+  const sparkWeight: number[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const k = localDayKey(d);
+    sparkStrength.push(
+      strengthSessions.filter((s) => localDayKey(new Date(s.started_at)) === k).length
+    );
+    sparkCardio.push(
+      cardioSessions.filter((c) => localDayKey(new Date(c.started_at)) === k).length
+    );
+    const wt = weights.find((w) => localDayKey(new Date(w.recorded_at)) === k);
+    sparkWeight.push(wt ? Number(wt.weight_kg) : 0);
+  }
+  // Fill weight gaps (carry forward)
+  for (let i = 1; i < sparkWeight.length; i++) {
+    if (sparkWeight[i] === 0 && sparkWeight[i - 1] > 0) sparkWeight[i] = sparkWeight[i - 1];
+  }
+
   return (
     <div className="px-6 pt-10">
       {/* Header */}
@@ -495,22 +518,31 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* Stats — big numbers, colored accents */}
+      {/* Stats — big numbers with sparklines */}
       {!firstRun && (
         <div className="mb-5 grid grid-cols-3 gap-3">
-          <Link href="/progresso" className="rounded-2xl bg-[var(--bg-card)] p-4 hover:bg-[var(--bg-hover)] transition-colors text-center">
-            <p className="display text-[28px] tnum leading-none" style={{ color: "var(--status-ready)" }}>{sessions7d}</p>
-            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mt-1.5">treinos</p>
+          <Link href="/progresso" className="rounded-2xl bg-[var(--bg-card)] p-4 hover:bg-[var(--bg-hover)] transition-colors">
+            <div className="flex items-start justify-between">
+              <p className="display text-[28px] tnum leading-none" style={{ color: "var(--status-ready)" }}>{sessions7d}</p>
+              <Sparkline values={sparkStrength} color="var(--status-ready)" />
+            </div>
+            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mt-2">treinos</p>
           </Link>
-          <Link href="/cardio" className="rounded-2xl bg-[var(--bg-card)] p-4 hover:bg-[var(--bg-hover)] transition-colors text-center">
-            <p className="display text-[28px] tnum leading-none" style={{ color: "var(--status-stalled)" }}>{cardio7d}</p>
-            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mt-1.5">cardio</p>
+          <Link href="/cardio" className="rounded-2xl bg-[var(--bg-card)] p-4 hover:bg-[var(--bg-hover)] transition-colors">
+            <div className="flex items-start justify-between">
+              <p className="display text-[28px] tnum leading-none" style={{ color: "var(--status-stalled)" }}>{cardio7d}</p>
+              <Sparkline values={sparkCardio} color="var(--status-stalled)" />
+            </div>
+            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mt-2">cardio</p>
           </Link>
-          <Link href="/peso" className="rounded-2xl bg-[var(--bg-card)] p-4 hover:bg-[var(--bg-hover)] transition-colors text-center">
-            <p className="display text-[28px] tnum leading-none" style={{ color: "var(--status-progressed)" }}>
-              {latestWeight ? `${Number(latestWeight.weight_kg).toFixed(1)}` : "—"}
-            </p>
-            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mt-1.5">peso</p>
+          <Link href="/peso" className="rounded-2xl bg-[var(--bg-card)] p-4 hover:bg-[var(--bg-hover)] transition-colors">
+            <div className="flex items-start justify-between">
+              <p className="display text-[28px] tnum leading-none" style={{ color: "var(--status-progressed)" }}>
+                {latestWeight ? `${Number(latestWeight.weight_kg).toFixed(1)}` : "—"}
+              </p>
+              <Sparkline values={sparkWeight.some((v) => v > 0) ? sparkWeight : []} color="var(--status-progressed)" />
+            </div>
+            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mt-2">peso</p>
           </Link>
         </div>
       )}

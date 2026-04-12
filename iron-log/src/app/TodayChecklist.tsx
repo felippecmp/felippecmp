@@ -152,38 +152,33 @@ export function TodayChecklist({
           : "border-[var(--border)] bg-[var(--bg-card)]"
       }`}
     >
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-2">
-          {isRestDay && (
-            <Bed
-              size={12}
-              strokeWidth={1.75}
-              className="text-[var(--text-dim)]"
-            />
-          )}
-          <p className="label">
-            Hoje
-          </p>
+      <div className="flex items-center gap-3 mb-3">
+        {/* Ring progress */}
+        {(() => {
+          const R = 14;
+          const C = 2 * Math.PI * R;
+          const pct = max > 0 ? hit / max : 0;
+          const offset = C * (1 - pct);
+          const ringColor = allDone ? "var(--status-ready)" : "var(--accent)";
+          return (
+            <div className="shrink-0 relative w-9 h-9">
+              <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                <circle cx="18" cy="18" r={R} fill="none" stroke="var(--border)" strokeWidth="3" />
+                <circle cx="18" cy="18" r={R} fill="none" stroke={ringColor} strokeWidth="3" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={offset} className="transition-all duration-500" />
+              </svg>
+              <span className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold tnum ${allDone ? "text-[var(--status-ready)]" : "text-[var(--text-soft)]"}`}>
+                {hit}
+              </span>
+            </div>
+          );
+        })()}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            {isRestDay && <Bed size={12} strokeWidth={1.75} className="text-[var(--text-dim)]" />}
+            <p className="text-sm font-semibold">{allDone ? "Dia completo" : "Hoje"}</p>
+          </div>
+          <p className="text-[11px] text-[var(--text-muted)] tnum">{hit}/{max} metas</p>
         </div>
-        <p
-          className={`text-xs tnum ${
-            allDone
-              ? "text-[var(--status-ready)] font-semibold"
-              : "text-[var(--text-muted)]"
-          }`}
-        >
-          {hit}/{max}
-        </p>
-      </div>
-
-      {/* Progress bar */}
-      <div className="h-1 rounded-full bg-[var(--border)] overflow-hidden mb-3">
-        <div
-          className={`h-full rounded-full transition-all duration-500 ease-out ${
-            allDone ? "bg-[var(--status-ready)]" : "bg-[var(--accent)]"
-          }`}
-          style={{ width: `${max > 0 ? (hit / max) * 100 : 0}%` }}
-        />
       </div>
 
       <div className="flex items-center gap-1.5 flex-wrap">
