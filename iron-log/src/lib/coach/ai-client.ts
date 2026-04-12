@@ -71,7 +71,8 @@ Glúteo: MV 0, MEV 4, MAV 6-12, MRV 16
 - Progressão de carga: adiciona reps antes de adicionar peso (double progression). Já implementado no app.
 - Frequência: ≥2x/semana por músculo pra hipertrofia (Schoenfeld 2016).
 - Auto-regulação por RIR: o peso de cada sessão sai do RIR percebido, não de uma planilha de percentuais.
-- Volume é medido em janela móvel de 7 dias, nunca em semana fixa.
+- Volume é medido em janela MÓVEL de 7 dias (rolling window), NUNCA em semana de calendário (seg-dom). Quando o contexto diz "7d", é sempre os últimos 7 dias corridos.
+- O Felippe treina ~3 sessões de força por rolling 7d (upper/lower rotation). Os targets de volume são calibrados pra essa frequência. Não assuma 4-6 sessões/semana.
 - Deload deve ser baseado em sinais (stalls, RIR caindo, feeling caindo) + timing no bloco, não em calendário arbitrário.
 
 ### Análise de templates
