@@ -1,16 +1,12 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  Dumbbell,
   Flame,
-  Footprints,
-  NotebookPen,
-  Scale,
   Settings as SettingsIcon,
-  TrendingUp,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { computeStreak } from "@/lib/streak";
+import { DiaryRow, type DiaryEntry } from "./DiaryRow";
 import { TodayChecklist } from "./TodayChecklist";
 import { NotaDescansoRow } from "./NotaDescansoRow";
 import { WeeklyRecap } from "./WeeklyRecap";
@@ -77,60 +73,6 @@ type DailyNoteRow = {
   note_date: string;
   body: string;
   updated_at: string;
-};
-
-type DiaryEntry =
-  | {
-      kind: "strength";
-      id: string;
-      at: string;
-      templateName: string | null;
-      durationMinutes: number | null;
-      avgHr: number | null;
-      feeling: number | null;
-      notes: string | null;
-    }
-  | {
-      kind: "cardio";
-      id: string;
-      at: string;
-      activityType: string;
-      durationSeconds: number;
-      distanceKm: number | null;
-      avgHr: number | null;
-    }
-  | {
-      kind: "weight";
-      id: string;
-      at: string;
-      weightKg: number;
-    }
-  | {
-      kind: "steps";
-      id: string;
-      at: string;
-      steps: number;
-    }
-  | {
-      kind: "note";
-      id: string;
-      at: string;
-      body: string;
-    };
-
-const FEELING_SHORT: Record<number, string> = {
-  1: "fraco",
-  2: "ok",
-  3: "bom",
-  4: "forte",
-  5: "PR",
-};
-
-const CARDIO_TYPE_LABELS: Record<string, string> = {
-  walking: "Caminhada",
-  running: "Corrida",
-  cycling: "Bike",
-  other: "Cardio",
 };
 
 export default async function HomePage() {
@@ -599,165 +541,6 @@ export default async function HomePage() {
   );
 }
 
-function DiaryRow({ entry }: { entry: DiaryEntry }) {
-  switch (entry.kind) {
-    case "strength": {
-      const Icon = Dumbbell;
-      return (
-        <li>
-          <Link
-            href={`/workout/${entry.id}`}
-            className="flex items-start gap-3 px-4 py-3 hover:bg-[var(--bg-hover)] transition-colors"
-          >
-            <Icon
-              size={14}
-              strokeWidth={1.75}
-              className="shrink-0 text-[var(--text-soft)] mt-0.5"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium truncate">
-                {entry.templateName ?? "Treino de força"}
-              </div>
-              <div className="text-xs text-[var(--text-muted)] mt-0.5 tnum">
-                {entry.durationMinutes
-                  ? `${entry.durationMinutes} min`
-                  : "—"}
-                {entry.avgHr && (
-                  <>
-                    <span className="text-[var(--text-faint)]"> · </span>
-                    HR {entry.avgHr}
-                  </>
-                )}
-                {entry.feeling !== null && (
-                  <>
-                    <span className="text-[var(--text-faint)]"> · </span>
-                    {FEELING_SHORT[entry.feeling] ?? entry.feeling}
-                  </>
-                )}
-              </div>
-              {entry.notes && (
-                <p className="text-[11px] text-[var(--text-dim)] mt-1 leading-snug line-clamp-2 italic">
-                  {entry.notes}
-                </p>
-              )}
-            </div>
-            <span className="text-[11px] tnum text-[var(--text-dim)] tabular-nums mt-0.5">
-              {formatHM(entry.at)}
-            </span>
-          </Link>
-        </li>
-      );
-    }
-    case "cardio": {
-      const Icon = Footprints;
-      return (
-        <li>
-          <Link
-            href={`/cardio/${entry.id}`}
-            className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-hover)] transition-colors"
-          >
-            <Icon
-              size={14}
-              strokeWidth={1.75}
-              className="shrink-0 text-[var(--text-soft)]"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium truncate">
-                {CARDIO_TYPE_LABELS[entry.activityType] ?? "Cardio"}
-              </div>
-              <div className="text-xs text-[var(--text-muted)] mt-0.5 tnum">
-                {Math.round(entry.durationSeconds / 60)} min
-                {entry.distanceKm !== null && (
-                  <>
-                    <span className="text-[var(--text-faint)]"> · </span>
-                    {entry.distanceKm.toFixed(2)} km
-                  </>
-                )}
-                {entry.avgHr && (
-                  <>
-                    <span className="text-[var(--text-faint)]"> · </span>
-                    HR {entry.avgHr}
-                  </>
-                )}
-              </div>
-            </div>
-            <span className="text-[11px] tnum text-[var(--text-dim)] tabular-nums">
-              {formatHM(entry.at)}
-            </span>
-          </Link>
-        </li>
-      );
-    }
-    case "weight": {
-      return (
-        <li>
-          <Link
-            href="/peso"
-            className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-hover)] transition-colors"
-          >
-            <Scale
-              size={14}
-              strokeWidth={1.75}
-              className="shrink-0 text-[var(--text-soft)]"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium">
-                Peso:{" "}
-                <span className="tnum tabular-nums">
-                  {entry.weightKg.toFixed(1)} kg
-                </span>
-              </div>
-            </div>
-            <span className="text-[11px] tnum text-[var(--text-dim)] tabular-nums">
-              {formatHM(entry.at)}
-            </span>
-          </Link>
-        </li>
-      );
-    }
-    case "steps": {
-      return (
-        <li className="flex items-center gap-3 px-4 py-3">
-          <TrendingUp
-            size={14}
-            strokeWidth={1.75}
-            className="shrink-0 text-[var(--text-soft)]"
-          />
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium">
-              <span className="tnum tabular-nums">
-                {entry.steps.toLocaleString("pt-BR")}
-              </span>{" "}
-              passos
-              {entry.steps >= 8000 && (
-                <span className="text-[10px] ml-1.5 text-[var(--status-ready)]">
-                  meta
-                </span>
-              )}
-            </div>
-          </div>
-        </li>
-      );
-    }
-    case "note": {
-      return (
-        <li className="flex items-start gap-3 px-4 py-3">
-          <NotebookPen
-            size={14}
-            strokeWidth={1.75}
-            className="shrink-0 text-[var(--text-soft)] mt-0.5"
-          />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm text-[var(--text)] leading-snug whitespace-pre-wrap">
-              {entry.body}
-            </p>
-          </div>
-        </li>
-      );
-    }
-  }
-}
-
 function formatDayLabel(key: string): string {
   const [y, m, d] = key.split("-").map((n) => parseInt(n, 10));
   const date = new Date(y, m - 1, d);
@@ -773,10 +556,3 @@ function formatDayLabel(key: string): string {
   });
 }
 
-function formatHM(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
