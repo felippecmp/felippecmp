@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getUserSettings } from "@/lib/settings";
 import { loadCoachContext } from "@/lib/coach/context-loader";
 import { buildInsights } from "@/lib/coach/insights";
 import { isAIAvailable } from "@/lib/coach/ai-client";
@@ -31,9 +32,10 @@ function pickJoined<T>(v: T | T[] | null): T | null {
 
 export default async function CoachPage() {
   const supabase = await createClient();
-  const [active, context, templatesRes, lastSessionRes] = await Promise.all([
+  const [active, context, settings, templatesRes, lastSessionRes] = await Promise.all([
     getActiveMesocycle(),
     loadCoachContext(),
+    getUserSettings(),
     supabase
       .from("workout_templates")
       .select("id, name, session_type")
@@ -92,7 +94,7 @@ export default async function CoachPage() {
         {templates.length > 1 && (
           <RotationPreview
             templates={templates}
-            lastSessionAt={lastSession?.started_at ?? null}
+            savedPattern={settings.rotation_pattern}
             lastTemplateName={lastTemplateName}
           />
         )}

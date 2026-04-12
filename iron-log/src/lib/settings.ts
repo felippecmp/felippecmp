@@ -19,6 +19,8 @@ export type UserSettings = {
    * here override the compile-time defaults in stats.ts. Null = no overrides.
    */
   volume_targets: Record<string, number> | null;
+  /** Custom rotation pattern. Each slot is { t: template_id } or { t: "rest" }. */
+  rotation_pattern: Array<{ t: string }> | null;
 };
 
 /**
@@ -38,6 +40,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   rotation_mode: "auto",
   max_hr: null,
   volume_targets: null,
+  rotation_pattern: null,
 };
 
 type SettingsRow = {
@@ -52,7 +55,18 @@ type SettingsRow = {
   rotation_mode: string | null;
   max_hr: number | null;
   volume_targets: Record<string, number> | null;
+  rotation_pattern: Array<{ t: string }> | null;
 };
+
+function parseRotationPattern(
+  raw: Array<{ t: string }> | null | undefined
+): Array<{ t: string }> | null {
+  if (!raw || !Array.isArray(raw)) return null;
+  const out = raw.filter(
+    (slot) => slot && typeof slot === "object" && typeof slot.t === "string"
+  );
+  return out.length > 0 ? out : null;
+}
 
 function parseVolumeTargets(
   raw: Record<string, number> | null | undefined
@@ -79,7 +93,7 @@ export async function getUserSettings(): Promise<UserSettings> {
     const { data } = await supabase
       .from("user_settings")
       .select(
-        "id, default_target_sets, default_rep_range_low, default_rep_range_high, default_rest_seconds, default_load_increment, unit, target_weight_kg, rotation_mode, max_hr, volume_targets"
+        "id, default_target_sets, default_rep_range_low, default_rep_range_high, default_rest_seconds, default_load_increment, unit, target_weight_kg, rotation_mode, max_hr, volume_targets, rotation_pattern"
       )
       .limit(1)
       .maybeSingle();
@@ -102,6 +116,7 @@ export async function getUserSettings(): Promise<UserSettings> {
         row.rotation_mode === "linear" ? "linear" : "auto",
       max_hr: row.max_hr !== null ? Number(row.max_hr) : null,
       volume_targets: parseVolumeTargets(row.volume_targets),
+      rotation_pattern: parseRotationPattern(row.rotation_pattern),
     };
   } catch {
     return DEFAULT_SETTINGS;

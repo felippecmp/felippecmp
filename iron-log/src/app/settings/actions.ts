@@ -129,5 +129,37 @@ export async function updateSettings(
   revalidatePath("/exercicios/novo");
   revalidatePath("/workout", "layout");
   revalidatePath("/progresso");
+  revalidatePath("/coach");
+  return { ok: true };
+}
+
+/**
+ * Save a custom rotation pattern (array of { t: template_id | "rest" }).
+ * Null clears the pattern (falls back to auto-derived).
+ */
+export async function saveRotationPattern(
+  pattern: Array<{ t: string }> | null
+): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  const { data: existing } = await supabase
+    .from("user_settings")
+    .select("id")
+    .limit(1)
+    .maybeSingle();
+
+  const payload = {
+    rotation_pattern: pattern,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = existing
+    ? await supabase.from("user_settings").update(payload).eq("id", existing.id)
+    : await supabase.from("user_settings").insert(payload);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/coach");
+  revalidatePath("/");
   return { ok: true };
 }
