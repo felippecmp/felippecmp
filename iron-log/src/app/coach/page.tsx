@@ -2,9 +2,11 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { loadCoachContext } from "@/lib/coach/context-loader";
 import { buildInsights } from "@/lib/coach/insights";
+import { isAIAvailable } from "@/lib/coach/ai-client";
 import { getActiveMesocycle } from "@/lib/coach/mesocycle-server";
 import { CoachBlockView } from "./CoachBlockView";
 import { CoachInsights } from "./CoachInsights";
+import { CreateBlockAI } from "./CreateBlockAI";
 import { CreateBlockForm } from "./CreateBlockForm";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +38,14 @@ export default async function CoachPage() {
       </header>
 
       <div className="space-y-8">
-        {active ? <CoachBlockView active={active} /> : <CreateBlockForm />}
+        {active ? (
+          <CoachBlockView active={active} />
+        ) : (
+          <>
+            {isAIAvailable() && <CreateBlockAI />}
+            <CreateBlockForm />
+          </>
+        )}
 
         <CoachInsights insights={insights} />
       </div>
