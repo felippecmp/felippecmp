@@ -59,7 +59,7 @@ export default function RootLayout({
         <ThemeProvider>
           <ToastProvider>
             <main
-              className="max-w-xl mx-auto pb-24"
+              className="max-w-xl mx-auto pb-24 min-h-[100dvh]"
               style={{ paddingTop: "env(safe-area-inset-top)" }}
             >
               {children}
