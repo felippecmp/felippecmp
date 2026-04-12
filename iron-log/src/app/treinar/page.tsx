@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, ChevronRight, Layers } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getUserSettings, type RotationMode } from "@/lib/settings";
+import { PreWorkoutBriefing } from "./PreWorkoutBriefing";
 import { StartSessionButton } from "./StartSessionButton";
 
 export const dynamic = "force-dynamic";
@@ -131,6 +132,22 @@ export default async function TreinarPage() {
   const suggestion = pickSuggestion(templates, recent, settings.rotation_mode);
   const suggestedId = suggestion?.template.id;
 
+  // Fetch exercise names for the suggested template (for AI briefing)
+  let suggestedExerciseNames: string[] = [];
+  if (suggestedId) {
+    const { data: teRows } = await supabase
+      .from("template_exercises")
+      .select("exercises(name)")
+      .eq("template_id", suggestedId)
+      .order("slot_order", { ascending: true });
+    suggestedExerciseNames = (teRows ?? [])
+      .map((r) => {
+        const ex = Array.isArray(r.exercises) ? r.exercises[0] : r.exercises;
+        return (ex as { name: string } | null)?.name ?? null;
+      })
+      .filter((n): n is string => n !== null);
+  }
+
   return (
     <div className="px-6 pt-10">
       <header className="mb-8">
@@ -200,6 +217,17 @@ export default async function TreinarPage() {
               />
             </div>
           </div>
+
+          {/* AI Briefing — below the CTA */}
+          {suggestion.template.exercise_count > 0 && (
+            <div className="mt-3">
+              <PreWorkoutBriefing
+                templateName={suggestion.template.name}
+                sessionType={sessionTypeLabel(suggestion.targetType)}
+                exercises={suggestedExerciseNames}
+              />
+            </div>
+          )}
         </section>
       )}
 

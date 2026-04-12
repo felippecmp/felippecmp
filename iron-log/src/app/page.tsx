@@ -13,6 +13,7 @@ import { DiaryRow, type DiaryEntry } from "./DiaryRow";
 import { TodayChecklist } from "./TodayChecklist";
 import { NotaDescansoRow } from "./NotaDescansoRow";
 import { WeeklyRecap } from "./WeeklyRecap";
+import { WeeklySummary } from "./WeeklySummary";
 
 export const dynamic = "force-dynamic";
 
@@ -592,6 +593,9 @@ export default async function HomePage() {
           weightDelta={recapWeightDelta}
         />
       )}
+
+      {/* AI Weekly Summary */}
+      {!firstRun && <WeeklySummary />}
 
       {/* Diary timeline */}
       {dayKeys.length > 0 && (

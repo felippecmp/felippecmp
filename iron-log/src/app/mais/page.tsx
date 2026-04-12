@@ -3,6 +3,7 @@ import {
   Brain,
   ChevronRight,
   Dumbbell,
+  MessageCircle,
   Footprints,
   Layers,
   Scale,
@@ -16,6 +17,13 @@ const items = [
     desc: "Periodização: blocos, fases, volume semanal.",
     Icon: Brain,
     iconColor: "text-[var(--status-progressed)]",
+  },
+  {
+    href: "/coach/chat",
+    label: "Coach AI Chat",
+    desc: "Converse com o coach sobre treino e dúvidas.",
+    Icon: MessageCircle,
+    iconColor: "text-[var(--accent)]",
   },
   {
     href: "/exercicios",

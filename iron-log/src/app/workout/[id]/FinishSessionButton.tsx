@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Flag, Trophy, X } from "lucide-react";
+import { ArrowRight, Brain, Flag, Loader2, Trophy, X } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { finishSession, type PRDetection } from "./actions";
+import { generatePostWorkoutInsight } from "./ai-actions";
 
 const FEELING_OPTIONS = [
   { value: 1, label: "Fraco" },
@@ -28,6 +29,8 @@ export function FinishSessionButton({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [prs, setPrs] = useState<PRDetection[] | null>(null);
+  const [aiInsight, setAiInsight] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
   const { toast } = useToast();
 
   function handleSubmit() {
@@ -41,11 +44,20 @@ export function FinishSessionButton({
         setError(result.error);
         return;
       }
+
+      // Fire AI insight in background (don't block the flow)
+      setAiLoading(true);
+      generatePostWorkoutInsight(sessionId)
+        .then((r) => {
+          if (r.ok) setAiInsight(r.insight);
+        })
+        .finally(() => setAiLoading(false));
+
       if (result.prs.length > 0) {
         setPrs(result.prs);
       } else {
-        toast("Treino finalizado");
-        router.push("/");
+        // No PRs — show a simple "done" view with AI insight
+        setPrs([]);
       }
     });
   }
@@ -81,7 +93,11 @@ export function FinishSessionButton({
           >
             <div className="px-6 pt-5 pb-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
               <h2 className="display-sm text-xl">
-                {prs ? "Você quebrou recorde" : "Finalizar sessão"}
+                {prs && prs.length > 0
+                  ? "Você quebrou recorde"
+                  : prs
+                    ? "Treino finalizado"
+                    : "Finalizar sessão"}
               </h2>
               {!prs && (
                 <button
@@ -100,6 +116,7 @@ export function FinishSessionButton({
                 className="flex-1 overflow-y-auto px-6 py-5 space-y-5"
                 style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
               >
+                {prs.length > 0 && (
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-2xl bg-accent text-accent-fg flex items-center justify-center shrink-0">
                     <Trophy size={22} strokeWidth={2.25} />
@@ -117,7 +134,9 @@ export function FinishSessionButton({
                     </p>
                   </div>
                 </div>
+                )}
 
+                {prs.length > 0 && (
                 <ul className="space-y-2">
                   {prs.map((pr) => (
                     <li
@@ -144,6 +163,21 @@ export function FinishSessionButton({
                     </li>
                   ))}
                 </ul>
+                )}
+
+                {/* AI Insight */}
+                {aiLoading && (
+                  <div className="flex items-center gap-2 text-xs text-[var(--text-muted)] py-2">
+                    <Loader2 size={12} className="animate-spin" />
+                    Analisando treino...
+                  </div>
+                )}
+                {aiInsight && (
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3 flex items-start gap-2">
+                    <Brain size={14} strokeWidth={1.75} className="shrink-0 mt-0.5 text-[var(--accent)]" />
+                    <p className="text-sm text-[var(--text-soft)] leading-snug">{aiInsight}</p>
+                  </div>
+                )}
 
                 <button
                   type="button"
