@@ -199,12 +199,15 @@ export function WorkoutSession({
   catalog,
   sessionType,
   disabled = false,
+  phaseRirTarget = null,
 }: {
   sessionId: string;
   exercises: ExerciseBlockData[];
   catalog: CatalogExercise[];
   sessionType: "upper" | "lower";
   disabled?: boolean;
+  /** RIR target from the active mesocycle phase, e.g. "RIR 3" */
+  phaseRirTarget?: string | null;
 }) {
   const [rest, setRest] = useState<RestState | null>(null);
   const restTokenRef = useRef(0);
@@ -291,6 +294,7 @@ export function WorkoutSession({
             sessionId={sessionId}
             exercise={ex}
             disabled={disabled}
+            phaseRirTarget={phaseRirTarget}
             onSetLogged={() => startRest(ex.restSeconds, ex.exerciseName)}
             onRemoveBlock={
               ex.isAdhoc ? () => handleRemoveBlock(ex.templateExerciseId) : null
@@ -462,6 +466,7 @@ function ExerciseCard({
   sessionId,
   exercise,
   disabled,
+  phaseRirTarget,
   onSetLogged,
   onRemoveBlock,
 }: {
@@ -469,6 +474,7 @@ function ExerciseCard({
   sessionId: string;
   exercise: ExerciseBlockData;
   disabled: boolean;
+  phaseRirTarget?: string | null;
   onSetLogged: () => void;
   onRemoveBlock: (() => void) | null;
 }) {
@@ -785,6 +791,12 @@ function ExerciseCard({
                 </span>
               )}
             </p>
+
+            {phaseRirTarget && (
+              <p className="text-[10px] text-[var(--accent)] mt-1.5 uppercase tracking-wider tnum">
+                Fase: {phaseRirTarget}
+              </p>
+            )}
           </div>
         </div>
       </div>

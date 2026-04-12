@@ -9,6 +9,10 @@ import {
   type ProgressionStatus,
 } from "@/lib/progression";
 import { getUserSettings } from "@/lib/settings";
+import { muscleLabel } from "@/lib/muscles";
+import { PHASE_LABEL } from "@/lib/coach/mesocycle";
+import { getActiveMesocycle } from "@/lib/coach/mesocycle-server";
+import { userDayKey } from "@/lib/timezone";
 import { AbandonSessionButton } from "./AbandonSessionButton";
 import { FinishSessionButton } from "./FinishSessionButton";
 import { FitUploadButton } from "./FitUploadButton";
@@ -137,28 +141,82 @@ export default async function WorkoutSessionPage({
 
   // Pull user defaults + the full active exercise catalog (for the ad-hoc
   // picker) + every set logged for this session (including warmups and
-  // ad-hoc-exercise sets) in parallel.
-  const [settings, catalogResult, currentSetsResult] = await Promise.all([
-    getUserSettings(),
-    supabase
-      .from("exercises")
-      .select(
-        "id, name, primary_muscle, equipment, session_type, load_increment"
-      )
-      .eq("is_active", true)
-      .order("name"),
-    supabase
-      .from("workout_sets")
-      .select(
-        "id, exercise_id, set_number, weight_kg, reps, rir, is_warmup, performed_at"
-      )
-      .eq("session_id", session.id)
-      .order("set_number", { ascending: true }),
-  ]);
+  // ad-hoc-exercise sets) + active mesocycle in parallel.
+  const [settings, catalogResult, currentSetsResult, activeMeso] =
+    await Promise.all([
+      getUserSettings(),
+      supabase
+        .from("exercises")
+        .select(
+          "id, name, primary_muscle, equipment, session_type, load_increment"
+        )
+        .eq("is_active", true)
+        .order("name"),
+      supabase
+        .from("workout_sets")
+        .select(
+          "id, exercise_id, set_number, weight_kg, reps, rir, is_warmup, performed_at"
+        )
+        .eq("session_id", session.id)
+        .order("set_number", { ascending: true }),
+      getActiveMesocycle(),
+    ]);
 
   const catalog = (catalogResult.data ?? []) as CatalogExerciseRow[];
   const catalogById = new Map(catalog.map((e) => [e.id, e]));
   const currentSets = (currentSetsResult.data ?? []) as CurrentSetRow[];
+
+  // Weekly volume per muscle for the active block context strip.
+  // Only computed when there's an active mesocycle (otherwise empty).
+  type WeeklyMuscleVolume = { muscle: string; done: number; target: number };
+  const weeklyVolume: WeeklyMuscleVolume[] = [];
+  const currentPhase = activeMeso?.currentWeek ?? null;
+  const phaseRirTarget = currentPhase?.intensity_target ?? null;
+
+  if (activeMeso && currentPhase) {
+    const weekStart = currentPhase.week_starts_on;
+    const { data: weekSetsRaw } = await supabase
+      .from("workout_sets")
+      .select("exercise_id, exercises(primary_muscle)")
+      .eq("is_warmup", false)
+      .gte("performed_at", weekStart + "T00:00:00");
+
+    type WeekSetRow = {
+      exercise_id: string | null;
+      exercises:
+        | { primary_muscle: string }
+        | { primary_muscle: string }[]
+        | null;
+    };
+    const weekSets = (weekSetsRaw ?? []) as WeekSetRow[];
+    const weekTargets = currentPhase.volume_targets ?? {};
+
+    // Count done sets per muscle this week.
+    const doneByMuscle: Record<string, number> = {};
+    for (const s of weekSets) {
+      const ex = pickJoined(s.exercises);
+      if (!ex) continue;
+      doneByMuscle[ex.primary_muscle] =
+        (doneByMuscle[ex.primary_muscle] ?? 0) + 1;
+    }
+
+    // Build the list for muscles this template works (via the exercises in the session).
+    const sessionMuscles = new Set<string>();
+    for (const te of teList) {
+      const ex = pickJoined(te.exercises);
+      if (ex) sessionMuscles.add(ex.primary_muscle);
+    }
+    for (const muscle of sessionMuscles) {
+      const target = weekTargets[muscle] ?? 0;
+      if (target === 0) continue;
+      weeklyVolume.push({
+        muscle,
+        done: doneByMuscle[muscle] ?? 0,
+        target,
+      });
+    }
+    weeklyVolume.sort((a, b) => a.done / a.target - b.done / b.target);
+  }
 
   // Ad-hoc exercise ids = sets logged against exercises not in the template.
   const templateIdSet = new Set(templateExerciseIds);
@@ -504,12 +562,56 @@ export default async function WorkoutSessionPage({
         )}
       </header>
 
+      {/* Periodization context — connects /coach's plan to the actual training */}
+      {activeMeso && currentPhase && (
+        <div className="rounded-xl border border-[var(--accent)] bg-[var(--bg-card)] px-4 py-3 mb-4">
+          <div className="flex items-baseline justify-between gap-2 mb-1">
+            <span className="text-[10px] uppercase tracking-wider text-[var(--accent)] font-semibold">
+              {activeMeso.mesocycle.name}
+            </span>
+            <span className="text-[10px] text-[var(--text-muted)] tnum">
+              sem {activeMeso.currentWeekNumber}/{activeMeso.mesocycle.total_weeks}
+            </span>
+          </div>
+          <div className="flex items-baseline gap-2 text-xs text-[var(--text-soft)]">
+            <span className="font-medium">
+              {PHASE_LABEL[currentPhase.phase]}
+            </span>
+            {phaseRirTarget && (
+              <>
+                <span className="text-[var(--text-faint)]">·</span>
+                <span className="tnum">{phaseRirTarget}</span>
+              </>
+            )}
+          </div>
+          {weeklyVolume.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-[var(--border)] flex flex-wrap gap-x-3 gap-y-1 text-[10px] tnum">
+              {weeklyVolume.map((v) => {
+                const pct = v.target > 0 ? v.done / v.target : 0;
+                const color =
+                  pct >= 1
+                    ? "text-[var(--status-ready)]"
+                    : pct >= 0.5
+                      ? "text-[var(--text-soft)]"
+                      : "text-[var(--text-muted)]";
+                return (
+                  <span key={v.muscle} className={color}>
+                    {muscleLabel(v.muscle)} {v.done}/{v.target}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       <WorkoutSession
         sessionId={session.id}
         exercises={exercises}
         catalog={catalogForClient}
         sessionType={template?.session_type ?? "upper"}
         disabled={isFinished}
+        phaseRirTarget={phaseRirTarget}
       />
 
       {exercises.length === 0 && (
