@@ -29,57 +29,66 @@
   --danger: #f87171;
 }
 
-/* "Orchid" theme — pink-purple accent with warm undertone backgrounds.
-   Applied via .theme-orchid on <html>. */
-.theme-orchid {
-  --bg: #0a0a0c;
-  --bg-raised: #13111a;
-  --bg-card: #191620;
-  --bg-hover: #211e28;
+/* "Gohan" theme — inspired by Gohan Beast's transformation.
+   Silver hair (#EDF1F5/#9CB4CD), indigo gi (#49426B),
+   crimson eyes (#EE1111), soft-pink scratches (#E37881).
+   Applied via .theme-gohan on <html>. */
+.theme-gohan {
+  /* Backgrounds — deep indigo from the Gi, pushed dark */
+  --bg: #0c0a14;
+  --bg-raised: #12101e;
+  --bg-card: #191530;
+  --bg-hover: #201a35;
 
-  --border: #252030;
-  --border-strong: #322b40;
+  /* Borders — muted purple fabric edges */
+  --border: #28203a;
+  --border-strong: #352a4a;
 
-  --accent: #c084fc;
-  --accent-hover: #a855f7;
-  --accent-fg: #fafafa;
+  /* Text — silver/blue from the hair */
+  --text: #EDF1F5;
+  --text-soft: #9CB4CD;
+  --text-muted: #6E8AA8;
+  --text-dim: #4A6585;
+  --text-faint: #2E3F55;
 
-  --status-ready: #86efac;
-  --status-stalled: #f0abfc;
-  --danger: #f0abfc;
+  /* Accent — crimson red eye */
+  --accent: #EE1111;
+  --accent-hover: #CC0E0E;
+  --accent-fg: #EDF1F5;
+
+  /* Status colors tuned to the Beast palette */
+  --status-ready: #818cf8;       /* electric purple energy */
+  --status-building: #9CB4CD;    /* silver hair — neutral progress */
+  --status-progressed: #60a5fa;  /* blue — leveled up */
+  --status-stalled: #E37881;     /* soft pink-red — scratches/mouth */
+  --danger: #EE1111;
 }
 
-/* "Beast Mode" theme — inspired by Gohan Beast: silver-lavender hair,
-   crimson eyes, neon-pink energy aura, deep indigo clothing, electric
-   purple lightning. Applied via .theme-beast on <html>. */
+/* "Beast Mode" theme — OG Beast: deep indigo, crimson accent,
+   electric purple lightning. Applied via .theme-beast on <html>. */
 .theme-beast {
-  /* Deep indigo-black backgrounds — Gohan's dark gi */
   --bg: #0c0816;
   --bg-raised: #140f22;
   --bg-card: #1a1430;
   --bg-hover: #221a38;
 
-  /* Muted purple borders — like the dark fabric edges */
   --border: #2a2040;
   --border-strong: #382a50;
 
-  /* Silver-lavender text scale — the Beast hair color palette */
   --text: #e8e0f0;
   --text-soft: #b0a0c8;
   --text-muted: #8070a0;
   --text-dim: #5a4a78;
   --text-faint: #3a2a50;
 
-  /* Crimson accent — Gohan's eye in Beast form */
   --accent: #e11d48;
   --accent-hover: #be123c;
   --accent-fg: #fafafa;
 
-  /* Status colors tuned to the Beast palette */
-  --status-ready: #a855f7;       /* electric purple lightning */
-  --status-building: #c4b5d8;    /* silver hair */
-  --status-progressed: #818cf8;  /* blue-purple energy crackle */
-  --status-stalled: #ef4444;     /* crimson Gohan eyes */
+  --status-ready: #a855f7;
+  --status-building: #c4b5d8;
+  --status-progressed: #818cf8;
+  --status-stalled: #ef4444;
   --danger: #ef4444;
 }
 

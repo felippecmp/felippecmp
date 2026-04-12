@@ -7,14 +7,14 @@ import {
   useSyncExternalStore,
 } from "react";
 
-export type Theme = "default" | "orchid" | "beast";
+export type Theme = "default" | "gohan" | "beast";
 
 const STORAGE_KEY = "flog:theme";
-const VALID_THEMES = new Set<Theme>(["default", "orchid", "beast"]);
+const VALID_THEMES = new Set<Theme>(["default", "gohan", "beast"]);
 const THEMES: Array<{ value: Theme; label: string; desc: string }> = [
   { value: "default", label: "Default", desc: "Monocromático puro." },
-  { value: "orchid", label: "Orchid", desc: "Rosa-purpura suave." },
-  { value: "beast", label: "Beast Mode", desc: "Neon pink + deep purple." },
+  { value: "gohan", label: "Gohan", desc: "Prata, índigo, carmesim." },
+  { value: "beast", label: "Beast Mode", desc: "Neon purple + crimson." },
 ];
 
 type ThemeCtx = { theme: Theme; setTheme: (t: Theme) => void; themes: typeof THEMES };
@@ -28,13 +28,13 @@ export function useTheme() {
   return useContext(ThemeContext);
 }
 
-const THEME_CLASSES = ["theme-orchid", "theme-beast"] as const;
+const THEME_CLASSES = ["theme-gohan", "theme-beast"] as const;
 
 function applyClass(t: Theme) {
   if (typeof document === "undefined") return;
   const cl = document.documentElement.classList;
   for (const c of THEME_CLASSES) cl.remove(c);
-  if (t === "orchid") cl.add("theme-orchid");
+  if (t === "gohan") cl.add("theme-gohan");
   if (t === "beast") cl.add("theme-beast");
 }
 

@@ -52,7 +52,7 @@ export default function RootLayout({
             hydrates, preventing a flash of the wrong palette. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem("flog:theme");if(t==="orchid")document.documentElement.classList.add("theme-orchid");if(t==="beast")document.documentElement.classList.add("theme-beast")}catch{}`,
+            __html: `try{var t=localStorage.getItem("flog:theme");if(t==="gohan")document.documentElement.classList.add("theme-gohan");if(t==="beast")document.documentElement.classList.add("theme-beast")}catch{}`,
           }}
         />
       </head>
