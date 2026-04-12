@@ -147,7 +147,7 @@ export function TodayChecklist({
           : "border-[var(--border)] bg-[var(--bg-card)]"
       }`}
     >
-      <div className="flex items-center justify-between mb-2.5">
+      <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2">
           {isRestDay && (
             <Bed
@@ -168,8 +168,17 @@ export function TodayChecklist({
           }`}
         >
           {hit}/{max}
-          {allDone && " ✓"}
         </p>
+      </div>
+
+      {/* Progress bar */}
+      <div className="h-1 rounded-full bg-[var(--border)] overflow-hidden mb-3">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ease-out ${
+            allDone ? "bg-[var(--status-ready)]" : "bg-[var(--accent)]"
+          }`}
+          style={{ width: `${max > 0 ? (hit / max) * 100 : 0}%` }}
+        />
       </div>
 
       <div className="flex items-center gap-1.5 flex-wrap">

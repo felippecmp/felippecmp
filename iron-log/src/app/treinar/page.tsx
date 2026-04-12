@@ -168,29 +168,35 @@ export default async function TreinarPage() {
         </section>
       )}
 
-      {/* Suggestion card */}
+      {/* Suggestion card — hero style */}
       {!active && suggestion && (
         <section className="mb-8">
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-6">
-            <p className="label mb-2">
-              Sugerido · {sessionTypeLabel(suggestion.targetType)}
-            </p>
-            <h2 className="display-sm text-3xl leading-tight mb-1">
-              {suggestion.template.name}
-            </h2>
-            <p className="text-sm text-[var(--text-muted)] mb-6 tnum">
-              {suggestion.template.exercise_count} exercícios
-            </p>
-            <StartSessionButton
-              templateId={suggestion.template.id}
-              label={`Iniciar ${suggestion.template.name}`}
-              disabled={suggestion.template.exercise_count === 0}
-            />
-            {suggestion.template.exercise_count === 0 && (
-              <p className="text-xs text-[var(--text-muted)] mt-3">
-                Adicione exercícios ao template antes de iniciar.
-              </p>
-            )}
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
+            <div className="p-6 pb-4">
+              <div className="flex items-baseline justify-between mb-3">
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-[var(--accent)]">
+                  Sugerido
+                </p>
+                <span className="text-[10px] tnum text-[var(--text-dim)] uppercase tracking-wider">
+                  {sessionTypeLabel(suggestion.targetType)} · {suggestion.template.exercise_count} ex.
+                </span>
+              </div>
+              <h2 className="display text-4xl leading-none mb-2">
+                {suggestion.template.name}
+              </h2>
+              {suggestion.template.exercise_count === 0 && (
+                <p className="text-xs text-[var(--text-muted)] mt-2">
+                  Adicione exercícios ao template antes de iniciar.
+                </p>
+              )}
+            </div>
+            <div className="px-6 pb-6">
+              <StartSessionButton
+                templateId={suggestion.template.id}
+                label={`Iniciar ${suggestion.template.name}`}
+                disabled={suggestion.template.exercise_count === 0}
+              />
+            </div>
           </div>
         </section>
       )}

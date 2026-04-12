@@ -40,17 +40,17 @@ export function BottomNav() {
             <li key={href}>
               <Link
                 href={href}
-                className={`relative flex flex-col items-center justify-center gap-1 py-3 transition-all duration-200 ${
+                className={`relative flex flex-col items-center justify-center gap-1 py-3 transition-colors ${
                   active
-                    ? "text-[var(--text)]"
-                    : "text-[var(--text-dim)] hover:text-[var(--text-soft)] active:scale-95"
+                    ? "text-[var(--accent)]"
+                    : "text-[var(--text-dim)] hover:text-[var(--text-soft)]"
                 }`}
               >
                 {active && (
-                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-[2px] bg-[var(--accent)] rounded-full transition-all duration-200" />
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-[2px] bg-[var(--accent)] rounded-full" />
                 )}
-                <Icon size={20} strokeWidth={active ? 2.25 : 1.75} />
-                <span className={`text-[10px] tracking-wide ${active ? "font-semibold" : "font-medium"}`}>
+                <Icon size={20} strokeWidth={1.75} />
+                <span className="text-[10px] tracking-wide font-medium">
                   {label}
                 </span>
               </Link>

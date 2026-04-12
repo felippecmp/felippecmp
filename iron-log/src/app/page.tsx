@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   ArrowRight,
   Flame,
+  Play,
   Settings as SettingsIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -29,6 +30,13 @@ function formatHeaderDate(date: Date) {
   const day = date.getDate();
   const month = date.toLocaleDateString("pt-BR", { month: "long" });
   return { weekday, day, month };
+}
+
+function greeting(hour: number): string {
+  if (hour < 5) return "Boa madrugada";
+  if (hour < 12) return "Bom dia";
+  if (hour < 18) return "Boa tarde";
+  return "Boa noite";
 }
 
 // Always compute day buckets in the user's timezone (not the server's), so
@@ -88,6 +96,7 @@ export default async function HomePage() {
     { data: templatesData },
     { data: restDayRows },
     { data: dailyNoteRows },
+    { data: activeSessionData },
   ] = await Promise.all([
     supabase.from("exercises").select("*", { count: "exact", head: true }),
     supabase
@@ -131,9 +140,31 @@ export default async function HomePage() {
       .select("id, note_date, body, updated_at")
       .order("note_date", { ascending: false })
       .limit(60),
+    supabase
+      .from("workout_sessions")
+      .select("id, started_at, template_id, workout_templates(name, session_type)")
+      .is("finished_at", null)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const { weekday, day, month } = formatHeaderDate(now);
+  const greet = greeting(now.getHours());
+
+  // Active session (workout in progress)
+  const activeSession = activeSessionData
+    ? {
+        id: activeSessionData.id as string,
+        startedAt: activeSessionData.started_at as string,
+        templateName: (() => {
+          const t = activeSessionData.workout_templates;
+          if (!t) return "Sessão";
+          return Array.isArray(t) ? t[0]?.name ?? "Sessão" : (t as { name: string }).name;
+        })(),
+      }
+    : null;
+
   const strengthSessions = (strengthYear ?? []) as StrengthSessionRow[];
   const cardioSessions = (cardioYear ?? []) as CardioRow[];
   const weights = (weightRows ?? []) as WeightRow[];
@@ -338,6 +369,14 @@ export default async function HomePage() {
     };
   });
 
+  // Quick stats for the home header area
+  const sessions7d = strengthSessions.filter(
+    (s) => new Date(s.started_at) >= sevenDaysAgo
+  ).length;
+  const cardio7d = cardioSessions.filter(
+    (c) => new Date(c.started_at) >= sevenDaysAgo
+  ).length;
+
   const nextTemplate: TemplateLite | null = (() => {
     if (templates.length === 0) return null;
     // No history → first template
@@ -357,35 +396,26 @@ export default async function HomePage() {
 
   return (
     <div className="px-6 pt-10">
-      {/* Header — compact with integrated streak */}
-      <header className="mb-5 flex items-start justify-between">
+      {/* Header — greeting with personality */}
+      <header className="mb-6 flex items-start justify-between">
         <div>
-          <p className="label mb-1.5">{weekday}</p>
-          <h1 className="display text-[34px] leading-none tracking-tighter">
-            Felippe&apos;s Log
+          <h1 className="display text-[28px] leading-none tracking-tighter">
+            {greet}, Felippe
           </h1>
-          <div className="flex items-center gap-3 mt-2">
-            <span className="text-sm text-[var(--text-muted)] tnum">
-              {day} de {month}
-            </span>
+          <p className="text-sm text-[var(--text-muted)] mt-1.5 tnum">
+            {weekday}, {day} de {month}
             {streak.current > 0 && (
-              <span className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+              <>
+                {" "}·{" "}
                 <Flame
                   size={11}
                   strokeWidth={1.75}
-                  className="text-[var(--status-ready)]"
+                  className="inline text-[var(--status-ready)] -mt-0.5"
                 />
-                <span className="tnum">
-                  {streak.current}d
-                  {streak.best > streak.current && (
-                    <span className="text-[var(--text-dim)]">
-                      {" "}/ {streak.best}
-                    </span>
-                  )}
-                </span>
-              </span>
+                {" "}{streak.current}d streak
+              </>
             )}
-          </div>
+          </p>
         </div>
         <Link
           href="/settings"
@@ -396,11 +426,59 @@ export default async function HomePage() {
         </Link>
       </header>
 
-      {/* Hero CTA — the primary action, always visible first */}
-      <section className="mb-5">
-        <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-5 transition-colors">
+      {/* Quick stats strip — at-a-glance numbers */}
+      {!firstRun && (
+        <div className="mb-5 grid grid-cols-3 gap-2">
+          <Link href="/progresso" className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2.5 hover:border-[var(--border-strong)] transition-colors">
+            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Treinos 7d</p>
+            <p className="display-sm text-xl tnum mt-0.5">{sessions7d}</p>
+          </Link>
+          <Link href="/cardio" className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2.5 hover:border-[var(--border-strong)] transition-colors">
+            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Cardio 7d</p>
+            <p className="display-sm text-xl tnum mt-0.5">{cardio7d}</p>
+          </Link>
+          <Link href="/peso" className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2.5 hover:border-[var(--border-strong)] transition-colors">
+            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Peso</p>
+            <p className="display-sm text-xl tnum mt-0.5">
+              {latestWeight ? `${Number(latestWeight.weight_kg).toFixed(1)}` : "—"}
+            </p>
+          </Link>
+        </div>
+      )}
+
+      {/* Active session banner — impossible to miss */}
+      {activeSession && (
+        <Link
+          href={`/workout/${activeSession.id}`}
+          className="mb-5 flex items-center gap-4 rounded-2xl border-2 border-[var(--accent)] bg-[var(--bg-card)] p-4 hover:bg-[var(--bg-hover)] transition-colors"
+        >
+          <div className="shrink-0 w-11 h-11 rounded-xl bg-[var(--accent)] text-[var(--accent-fg)] flex items-center justify-center">
+            <Play size={18} strokeWidth={2.5} fill="currentColor" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] uppercase tracking-wider text-[var(--accent)] font-semibold">
+              Em andamento
+            </p>
+            <p className="font-semibold text-lg leading-tight truncate mt-0.5">
+              {activeSession.templateName}
+            </p>
+            <p className="text-xs text-[var(--text-muted)] tnum mt-0.5">
+              Iniciado{" "}
+              {new Date(activeSession.startedAt).toLocaleTimeString("pt-BR", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </p>
+          </div>
+          <ArrowRight size={18} strokeWidth={2} className="shrink-0 text-[var(--accent)]" />
+        </Link>
+      )}
+
+      {/* Hero CTA — next workout (only when no active session) */}
+      {!activeSession && (
+        <section className="mb-5">
           {firstRun ? (
-            <>
+            <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-5">
               <p className="label mb-2">Primeiro passo</p>
               <h2 className="display-sm text-2xl mb-1">Ainda vazio</h2>
               <p className="text-sm text-[var(--text-muted)] mb-5 leading-relaxed">
@@ -417,43 +495,46 @@ export default async function HomePage() {
                   className="transition-transform group-hover:translate-x-1"
                 />
               </Link>
-            </>
+            </div>
           ) : nextTemplate ? (
-            <>
-              <div className="flex items-baseline justify-between mb-3">
-                <p className="label">Próximo treino</p>
-                <span className="text-[10px] tnum text-[var(--text-dim)] uppercase tracking-wider">
-                  {nextTemplate.session_type === "upper" ? "Upper" : "Lower"} · {nextTemplate.exercise_count} ex.
-                </span>
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
+              <div className="p-5">
+                <div className="flex items-baseline justify-between mb-3">
+                  <p className="label">Próximo treino</p>
+                  <span className="text-[10px] tnum text-[var(--text-dim)] uppercase tracking-wider">
+                    {nextTemplate.session_type === "upper" ? "Upper" : "Lower"} · {nextTemplate.exercise_count} ex.
+                  </span>
+                </div>
+                <h2 className="display-sm text-3xl leading-none">
+                  {nextTemplate.name}
+                </h2>
               </div>
-              <h2 className="display-sm text-3xl mb-4 leading-none">
-                {nextTemplate.name}
-              </h2>
               <Link
                 href="/treinar"
-                className="block w-full text-center bg-accent text-accent-fg font-semibold py-3.5 rounded-xl hover:bg-accent-hover active:scale-[0.98] transition-all"
+                className="flex items-center justify-center gap-2 bg-[var(--accent)] text-[var(--accent-fg)] font-semibold py-3.5 hover:bg-[var(--accent-hover)] transition-colors"
               >
+                <Play size={16} strokeWidth={2.5} fill="currentColor" />
                 Iniciar treino
               </Link>
-            </>
+            </div>
           ) : (
-            <>
+            <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-5">
               <p className="label mb-2">Treinar</p>
               <p className="text-sm text-[var(--text-muted)] mb-4">
                 Crie seu primeiro template para começar.
               </p>
               <Link
                 href="/templates/novo"
-                className="block w-full text-center bg-accent text-accent-fg font-semibold py-3.5 rounded-xl hover:bg-accent-hover active:scale-[0.98] transition-all"
+                className="block w-full text-center bg-accent text-accent-fg font-semibold py-3.5 rounded-xl hover:bg-accent-hover transition-colors"
               >
                 Criar template
               </Link>
-            </>
+            </div>
           )}
-        </div>
-      </section>
+        </section>
+      )}
 
-      {/* Today's checklist — interactive quick-add surface */}
+      {/* Today's checklist */}
       {!firstRun && (
         <TodayChecklist
           hasWeight={hasWeightToday}
@@ -472,7 +553,7 @@ export default async function HomePage() {
         />
       )}
 
-      {/* Compact secondary row: nota + descanso */}
+      {/* Nota + descanso */}
       {!firstRun && (
         <NotaDescansoRow
           todayNote={
