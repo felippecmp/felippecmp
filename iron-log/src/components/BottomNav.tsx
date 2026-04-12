@@ -24,8 +24,11 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-50 border-t border-[var(--border)] bg-[var(--bg)]/90 backdrop-blur-xl"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      className="fixed bottom-0 inset-x-0 z-50 border-t border-[var(--border)]"
+      style={{
+        paddingBottom: "env(safe-area-inset-bottom)",
+        background: "var(--bg)",
+      }}
     >
       <ul className="max-w-xl mx-auto grid grid-cols-4">
         {tabs.map(({ href, label, Icon }) => {
@@ -40,21 +43,22 @@ export function BottomNav() {
             <li key={href}>
               <Link
                 href={href}
-                className={`relative flex flex-col items-center justify-center gap-0.5 py-2 transition-colors ${
-                  active
-                    ? "text-[var(--accent-fg)]"
-                    : "text-[var(--text-dim)] hover:text-[var(--text-soft)]"
-                }`}
+                className="relative flex flex-col items-center justify-center gap-0.5 py-2"
               >
                 <span
-                  className={`flex items-center justify-center w-14 h-8 rounded-full transition-all ${
-                    active ? "" : ""
-                  }`}
+                  className="flex items-center justify-center w-14 h-8 rounded-full"
                   style={active ? { background: "var(--accent)" } : undefined}
                 >
-                  <Icon size={18} strokeWidth={active ? 2.25 : 1.75} />
+                  <Icon
+                    size={18}
+                    strokeWidth={1.75}
+                    style={{ color: active ? "var(--accent-fg)" : "var(--text-dim)" }}
+                  />
                 </span>
-                <span className={`text-[10px] tracking-wide ${active ? "font-bold text-[var(--text)]" : "font-medium"}`}>
+                <span
+                  className="text-[10px] tracking-wide font-medium"
+                  style={{ color: active ? "var(--text)" : "var(--text-dim)" }}
+                >
                   {label}
                 </span>
               </Link>
