@@ -19,6 +19,7 @@ import { Heatmap } from "./components/Heatmap";
 import { StreakHero } from "./components/StreakHero";
 import { CardioStat, TopStat } from "./components/Stats";
 import { VolumeBar, type VolumeEntry } from "./components/VolumeBar";
+import { VolumeCalculator } from "./components/VolumeCalculator";
 import { WeeklyBars, type WeekData } from "./components/WeeklyBars";
 
 export const dynamic = "force-dynamic";
@@ -437,6 +438,24 @@ export default async function ProgressoPage() {
     return weeks;
   })();
 
+  // Volume calculator data — include ALL tracked muscles (even 0 sets)
+  const volumeCalcData = (() => {
+    const setsMap = new Map(volumeRows.map((r) => [r.muscle, r.sets]));
+    const targets = userTargets ?? {};
+    // Include muscles that either have sets or have a target
+    const allMuscles = new Set([
+      ...volumeRows.map((r) => r.muscle),
+      ...Object.keys(targets).filter((m) => (targets[m] ?? 0) > 0),
+    ]);
+    return Array.from(allMuscles)
+      .map((muscle) => ({
+        muscle,
+        sets: setsMap.get(muscle) ?? 0,
+        target: targets[muscle] ?? 0,
+      }))
+      .sort((a, b) => b.sets - a.sets);
+  })();
+
   // Donut data from volumeRows
   const donutData: DonutEntry[] = volumeRows.map((r) => ({
     muscle: r.muscle,
@@ -692,6 +711,21 @@ export default async function ProgressoPage() {
               <div className="rounded-2xl bg-[var(--bg-card)] p-5">
                 <p className="label mb-4">Distribuição · 7 dias</p>
                 <DonutChart data={donutData} />
+              </div>
+            </section>
+          )}
+
+          {/* Volume Calculator — RP landmarks scale per muscle */}
+          {volumeCalcData.length > 0 && (
+            <section className="mb-8">
+              <div className="flex items-baseline justify-between mb-3">
+                <p className="label">Volume por músculo · rolling 7d</p>
+                <span className="text-[10px] text-[var(--text-dim)] tracking-wider tnum">
+                  MV → MRV
+                </span>
+              </div>
+              <div className="rounded-2xl bg-[var(--bg-card)] p-4">
+                <VolumeCalculator data={volumeCalcData} />
               </div>
             </section>
           )}
