@@ -76,7 +76,7 @@ export async function buildTrainingContext(): Promise<TrainingContextSummary> {
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
-  const [setsRes, sessionsRes, progressionRes, weightRes] = await Promise.all([
+  const [setsRes, sessionsRes, progressionRes, weightRes, templatesRes] = await Promise.all([
     supabase
       .from("workout_sets")
       .select(
@@ -104,6 +104,13 @@ export async function buildTrainingContext(): Promise<TrainingContextSummary> {
       .select("weight_kg, recorded_at")
       .order("recorded_at", { ascending: false })
       .limit(10),
+    supabase
+      .from("workout_templates")
+      .select(
+        "id, name, session_type, sort_order, template_exercises(exercises(name, primary_muscle))"
+      )
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true }),
   ]);
 
   const sets = (setsRes.data ?? []) as SetRow[];
@@ -211,6 +218,35 @@ export async function buildTrainingContext(): Promise<TrainingContextSummary> {
     .map(([k, v]) => `${muscleLabel(k)}: ${v}`)
     .join(", ");
   lines.push(targetLines);
+
+  // Templates with exercises — so the coach can analyze muscle distribution
+  type TemplateRow = {
+    id: string;
+    name: string;
+    session_type: string;
+    sort_order: number;
+    template_exercises:
+      | Array<{
+          exercises:
+            | { name: string; primary_muscle: string }
+            | { name: string; primary_muscle: string }[]
+            | null;
+        }>
+      | null;
+  };
+  const tplRows = (templatesRes.data ?? []) as TemplateRow[];
+  if (tplRows.length > 0) {
+    lines.push(`\n## Templates ativos (${tplRows.length} templates = ~${tplRows.length}-${tplRows.length + 1} sessões/semana)`);
+    for (const tpl of tplRows) {
+      const exercises = (tpl.template_exercises ?? [])
+        .map((te) => {
+          const ex = pick(te.exercises);
+          return ex ? `${ex.name} (${muscleLabel(ex.primary_muscle)})` : null;
+        })
+        .filter(Boolean);
+      lines.push(`- ${tpl.name} (${tpl.session_type}): ${exercises.join(", ") || "vazio"}`);
+    }
+  }
 
   return { text: lines.join("\n"), hasEnoughData: true };
   // Note: we always return hasEnoughData = true. Even without sessions,
