@@ -174,12 +174,16 @@ export default async function WorkoutSessionPage({
   const phaseRirTarget = currentPhase?.intensity_target ?? null;
 
   if (activeMeso && currentPhase) {
-    const weekStart = currentPhase.week_starts_on;
+    // Always use rolling 7-day window for volume tracking, never calendar
+    // week boundaries. The user trains on varying schedules; a fixed Mon-Sun
+    // window would show misleading numbers. week_starts_on is only used to
+    // determine WHICH PHASE (and thus which targets) applies.
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const { data: weekSetsRaw } = await supabase
       .from("workout_sets")
       .select("exercise_id, exercises(primary_muscle)")
       .eq("is_warmup", false)
-      .gte("performed_at", weekStart + "T00:00:00");
+      .gte("performed_at", sevenDaysAgo.toISOString());
 
     type WeekSetRow = {
       exercise_id: string | null;
@@ -191,7 +195,7 @@ export default async function WorkoutSessionPage({
     const weekSets = (weekSetsRaw ?? []) as WeekSetRow[];
     const weekTargets = currentPhase.volume_targets ?? {};
 
-    // Count done sets per muscle this week.
+    // Count done sets per muscle in the rolling 7d window.
     const doneByMuscle: Record<string, number> = {};
     for (const s of weekSets) {
       const ex = pickJoined(s.exercises);
