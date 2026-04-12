@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { ViewTransition } from "react";
 import "./globals.css";
 import { BottomNav } from "@/components/BottomNav";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
@@ -63,7 +62,7 @@ export default function RootLayout({
               className="max-w-xl mx-auto pb-24"
               style={{ paddingTop: "env(safe-area-inset-top)" }}
             >
-              <ViewTransition>{children}</ViewTransition>
+              {children}
             </main>
             <BottomNav />
           </ToastProvider>

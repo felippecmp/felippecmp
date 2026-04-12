@@ -147,12 +147,6 @@
     overscroll-behavior-y: contain;
   }
 
-  /* View Transitions: fast crossfade on page content.
-     The BottomNav is outside the ViewTransition wrapper so it stays put. */
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
-    animation-duration: 0.15s;
-  }
 
   /* Standalone PWA: prevent text selection on non-input elements
      for a more native feel */

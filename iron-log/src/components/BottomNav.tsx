@@ -25,7 +25,7 @@ export function BottomNav() {
   return (
     <nav
       className="fixed bottom-0 inset-x-0 z-50 border-t border-[var(--border)] bg-[var(--bg)]/90 backdrop-blur-xl"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)", viewTransitionName: "none" }}
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <ul className="max-w-xl mx-auto grid grid-cols-4">
         {tabs.map(({ href, label, Icon }) => {
