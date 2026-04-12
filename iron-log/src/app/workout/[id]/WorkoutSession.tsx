@@ -103,14 +103,46 @@ function initialRows(exercise: ExerciseBlockData): RowState[] {
     pendingOffline: false,
   }));
 
-  // Pre-fill empty working rows with the suggested weight AND the reps from
-  // the last session, so the user just adjusts what changed instead of typing
-  // from scratch. warmup rows are not pre-filled (they're opt-in).
+  // Pre-fill empty working rows with the suggested weight AND smart reps
+  // based on the progression status. The user just adjusts what changed.
   const seedWeight =
     exercise.suggestion.suggestedWeight !== null
       ? String(exercise.suggestion.suggestedWeight)
       : "";
-  const previousReps = exercise.previousSets.map((s) => String(s.reps));
+
+  // Decide what reps to pre-fill based on whether the weight changed.
+  // - Weight went UP → reset reps to rep_range_low (start of new weight)
+  // - Same weight → use last session's reps (try to match or beat)
+  // - Deload (weight DOWN) → use rep_range_high (comfortable)
+  const prevTopWeight =
+    exercise.previousSets.length > 0
+      ? Math.max(...exercise.previousSets.map((s) => s.weightKg))
+      : null;
+  const suggestedWeight = exercise.suggestion.suggestedWeight;
+
+  let seedReps: string[];
+  if (
+    suggestedWeight !== null &&
+    prevTopWeight !== null &&
+    suggestedWeight > prevTopWeight
+  ) {
+    // Weight went up → reset to bottom of rep range
+    seedReps = Array(exercise.targetSets).fill(
+      String(exercise.repRangeLow)
+    );
+  } else if (
+    suggestedWeight !== null &&
+    prevTopWeight !== null &&
+    suggestedWeight < prevTopWeight
+  ) {
+    // Deload → start comfortable at top of range
+    seedReps = Array(exercise.targetSets).fill(
+      String(exercise.repRangeHigh)
+    );
+  } else {
+    // Same weight → carry over last session's reps
+    seedReps = exercise.previousSets.map((s) => String(s.reps));
+  }
 
   const workingCount = rows.filter((r) => !r.isWarmup).length;
   const missing = Math.max(0, exercise.targetSets - workingCount);
@@ -119,7 +151,7 @@ function initialRows(exercise: ExerciseBlockData): RowState[] {
       key: `empty-${i}`,
       id: null,
       weight: seedWeight,
-      reps: previousReps[i] ?? "",
+      reps: seedReps[i] ?? "",
       rir: null,
       isWarmup: false,
       saving: false,
