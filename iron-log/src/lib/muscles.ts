@@ -12,6 +12,8 @@ export const MUSCLES = [
   { value: "quads", label: "Quadríceps" },
   { value: "hamstrings", label: "Posterior de coxa" },
   { value: "glutes", label: "Glúteo" },
+  { value: "adductors", label: "Adutor" },
+  { value: "abductors", label: "Abdutor" },
   { value: "calves", label: "Panturrilha" },
   { value: "lower_back", label: "Lombar" },
 ] as const;

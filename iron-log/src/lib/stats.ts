@@ -20,6 +20,8 @@ export const WEEKLY_VOLUME_TARGET: Record<string, number> = {
   quads: 6,
   hamstrings: 5,
   glutes: 4,
+  adductors: 3,
+  abductors: 3,
   calves: 5,
   lower_back: 0,
 };

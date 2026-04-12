@@ -41,6 +41,8 @@ export const VOLUME_LANDMARKS: Record<string, VolumeLandmark> = {
   quads: { mv: 6, mev: 8, mav: [10, 18], mrv: 20 },
   hamstrings: { mv: 4, mev: 6, mav: [8, 16], mrv: 20 },
   glutes: { mv: 0, mev: 4, mav: [6, 12], mrv: 16 },
+  adductors: { mv: 0, mev: 4, mav: [4, 10], mrv: 14 },
+  abductors: { mv: 0, mev: 4, mav: [4, 10], mrv: 14 },
   calves: { mv: 6, mev: 8, mav: [8, 16], mrv: 20 },
   lower_back: { mv: 0, mev: 0, mav: [0, 12], mrv: 12 },
 };

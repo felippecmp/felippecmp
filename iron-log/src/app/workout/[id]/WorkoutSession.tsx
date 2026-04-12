@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  ArrowLeftRight,
   Check,
   CloudOff,
   Flame,
@@ -243,12 +244,17 @@ export function WorkoutSession({
   /** RIR target from the active mesocycle phase, e.g. "RIR 3" */
   phaseRirTarget?: string | null;
 }) {
+  const [editMode, setEditMode] = useState(false);
+  const effectiveDisabled = disabled && !editMode;
   const [rest, setRest] = useState<RestState | null>(null);
   const restTokenRef = useRef(0);
   const online = useOnlineStatus();
   const [exercises, setExercises] =
     useState<ExerciseBlockData[]>(initialExercises);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // When swapping, store the templateExerciseId being replaced.
+  // The picker opens and on selection, the exercise is replaced in-place.
+  const [swappingId, setSwappingId] = useState<string | null>(null);
 
   // If the server-side list changes (e.g., router refresh after finish),
   // re-sync local state. We intentionally don't merge — whatever the server
@@ -278,9 +284,37 @@ export function WorkoutSession({
     setRest(null);
   }
 
-  function handlePickAdhoc(ex: CatalogExercise) {
+  function handlePickExercise(ex: CatalogExercise) {
     setPickerOpen(false);
-    // De-dup: if the exercise already exists as a block, don't add again.
+
+    // Swap mode: replace the exercise block in-place
+    if (swappingId) {
+      setExercises((prev) =>
+        prev.map((e) =>
+          e.templateExerciseId === swappingId
+            ? {
+                ...e,
+                exerciseId: ex.id,
+                exerciseName: ex.name,
+                primaryMuscle: ex.primaryMuscle,
+                previousSets: [],
+                previousSetsAt: null,
+                existingSets: [],
+                suggestion: {
+                  suggestedWeight: null,
+                  status: "building" as const,
+                  message: `Trocado pra ${ex.name}. Escolha um peso e anote.`,
+                  confidence: "low" as const,
+                },
+              }
+            : e
+        )
+      );
+      setSwappingId(null);
+      return;
+    }
+
+    // Add mode: de-dup, if the exercise already exists don't add again.
     if (exercises.some((e) => e.exerciseId === ex.id)) return;
 
     const newBlock: ExerciseBlockData = {
@@ -320,6 +354,23 @@ export function WorkoutSession({
   return (
     <>
       {!online && <OfflineBanner />}
+
+      {disabled && (
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={() => setEditMode(!editMode)}
+            className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+              editMode
+                ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/10"
+                : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"
+            }`}
+          >
+            {editMode ? "Sair da edição" : "Editar sessão"}
+          </button>
+        </div>
+      )}
+
       <ul className="space-y-3 mb-4">
         {exercises.map((ex, idx) => (
           <ExerciseCard
@@ -327,17 +378,25 @@ export function WorkoutSession({
             number={idx + 1}
             sessionId={sessionId}
             exercise={ex}
-            disabled={disabled}
+            disabled={effectiveDisabled}
             phaseRirTarget={phaseRirTarget}
             onSetLogged={() => startRest(ex.restSeconds, ex.exerciseName)}
             onRemoveBlock={
               ex.isAdhoc ? () => handleRemoveBlock(ex.templateExerciseId) : null
             }
+            onSwapExercise={
+              !effectiveDisabled
+                ? () => {
+                    setSwappingId(ex.templateExerciseId);
+                    setPickerOpen(true);
+                  }
+                : null
+            }
           />
         ))}
       </ul>
 
-      {!disabled && (
+      {!effectiveDisabled && (
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
@@ -357,7 +416,7 @@ export function WorkoutSession({
         <AdhocExercisePicker
           exercises={pickerOptions}
           sessionType={sessionType}
-          onPick={handlePickAdhoc}
+          onPick={handlePickExercise}
           onClose={() => setPickerOpen(false)}
         />
       )}
@@ -503,6 +562,7 @@ function ExerciseCard({
   phaseRirTarget,
   onSetLogged,
   onRemoveBlock,
+  onSwapExercise,
 }: {
   number: number;
   sessionId: string;
@@ -511,6 +571,7 @@ function ExerciseCard({
   phaseRirTarget?: string | null;
   onSetLogged: () => void;
   onRemoveBlock: (() => void) | null;
+  onSwapExercise?: ((newExercise: CatalogExercise) => void) | null;
 }) {
   const DRAFT_KEY = draftKey(sessionId, exercise.exerciseId);
   const [rows, setRows] = useState<RowState[]>(() => initialRows(exercise));
@@ -735,9 +796,10 @@ function ExerciseCard({
   const reference = exercise.previousSets;
   const suggestion = exercise.suggestion;
 
-  // Allow removing an ad-hoc block only while no sets have been logged.
+  // Allow removing/swapping only while no sets have been logged.
   const hasAnySet = rows.some((r) => r.id !== null);
   const canRemove = !!onRemoveBlock && !hasAnySet && !disabled;
+  const canSwap = !!onSwapExercise && !hasAnySet && !disabled;
 
   return (
     <li className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
@@ -755,6 +817,17 @@ function ExerciseCard({
                 <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border border-[var(--border-strong)] text-[var(--text-muted)]">
                   ad-hoc
                 </span>
+              )}
+              {canSwap && (
+                <button
+                  type="button"
+                  onClick={() => onSwapExercise?.({} as CatalogExercise)}
+                  aria-label="Trocar exercício"
+                  title="Trocar exercício"
+                  className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--text-muted)] transition-colors"
+                >
+                  <ArrowLeftRight size={12} strokeWidth={1.75} />
+                </button>
               )}
               {canRemove && (
                 <button
