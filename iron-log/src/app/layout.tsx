@@ -61,10 +61,7 @@ export default function RootLayout({
           <ToastProvider>
             <main
               className="max-w-xl mx-auto pb-24"
-              style={{
-                paddingTop: "env(safe-area-inset-top)",
-                viewTransitionName: "page-content",
-              }}
+              style={{ paddingTop: "env(safe-area-inset-top)" }}
             >
               <ViewTransition>{children}</ViewTransition>
             </main>
