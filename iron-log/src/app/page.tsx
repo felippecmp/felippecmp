@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { computeStreak } from "@/lib/streak";
+import { userDayKey } from "@/lib/timezone";
 import { DiaryRow, type DiaryEntry } from "./DiaryRow";
 import { TodayChecklist } from "./TodayChecklist";
 import { NotaDescansoRow } from "./NotaDescansoRow";
@@ -30,12 +31,10 @@ function formatHeaderDate(date: Date) {
   return { weekday, day, month };
 }
 
-function localDayKey(d: Date): string {
-  const y = d.getFullYear();
-  const m = (d.getMonth() + 1).toString().padStart(2, "0");
-  const dd = d.getDate().toString().padStart(2, "0");
-  return `${y}-${m}-${dd}`;
-}
+// Always compute day buckets in the user's timezone (not the server's), so
+// "today" doesn't roll over at midnight UTC while the user is still on
+// their local previous day. See src/lib/timezone.ts.
+const localDayKey = userDayKey;
 
 type WeightRow = {
   id: string;
@@ -542,17 +541,34 @@ export default async function HomePage() {
 }
 
 function formatDayLabel(key: string): string {
+  // The key is YYYY-MM-DD in user TZ. Compare against today (also in user TZ)
+  // by string comparison; for the relative label fall back to date math.
+  const todayKey = userDayKey(new Date());
+  if (key === todayKey) return "Hoje";
+
+  // Parse the YYYY-MM-DD into a Date by anchoring at noon UTC, which keeps
+  // the day-of-month stable regardless of which TZ formats it later.
   const [y, m, d] = key.split("-").map((n) => parseInt(n, 10));
-  const date = new Date(y, m - 1, d);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const diff = Math.round((today.getTime() - date.getTime()) / 86400000);
-  if (diff === 0) return "Hoje";
+  const date = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  const today = new Date(
+    Date.UTC(
+      parseInt(todayKey.slice(0, 4), 10),
+      parseInt(todayKey.slice(5, 7), 10) - 1,
+      parseInt(todayKey.slice(8, 10), 10),
+      12,
+      0,
+      0
+    )
+  );
+  const diff = Math.round(
+    (today.getTime() - date.getTime()) / 86400000
+  );
   if (diff === 1) return "Ontem";
   return date.toLocaleDateString("pt-BR", {
     weekday: "short",
     day: "2-digit",
     month: "short",
+    timeZone: "UTC",
   });
 }
 

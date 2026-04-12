@@ -31,16 +31,20 @@ export type StreakResult = {
   lastActiveDay: string | null;
 };
 
+// User-timezone day key — "today" must reflect the user's local clock,
+// not the server's, so the streak doesn't reset at midnight UTC.
 function dayKey(d: Date): string {
-  const y = d.getFullYear();
-  const m = (d.getMonth() + 1).toString().padStart(2, "0");
-  const dd = d.getDate().toString().padStart(2, "0");
-  return `${y}-${m}-${dd}`;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
 }
 
 function addDays(d: Date, n: number): Date {
   const out = new Date(d);
-  out.setDate(out.getDate() + n);
+  out.setUTCDate(out.getUTCDate() + n);
   return out;
 }
 
@@ -56,12 +60,11 @@ export function computeStreak(input: StreakInput): StreakResult {
     return { current: 0, best: 0, todayActive: false, lastActiveDay: null };
   }
 
-  const todayStart = new Date(
-    input.today.getFullYear(),
-    input.today.getMonth(),
-    input.today.getDate()
-  );
-  const todayKey = dayKey(todayStart);
+  // Anchor "today" in the user's TZ via dayKey, then walk back day-by-day
+  // using a UTC noon date so DST doesn't shift us.
+  const todayKey = dayKey(input.today);
+  const [ty, tm, td] = todayKey.split("-").map((v) => parseInt(v, 10));
+  const todayStart = new Date(Date.UTC(ty, tm - 1, td, 12, 0, 0));
   const todayActive = activeDaySet.has(todayKey);
 
   // Current streak: count back from today (or yesterday if today not active)

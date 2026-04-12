@@ -81,29 +81,36 @@ export function epley1RM(weightKg: number, reps: number): number {
 }
 
 /**
- * Normalize a Date into a "YYYY-MM-DD" key for day-indexing, using the local
- * calendar. Used by the heatmap grid and the session-per-day map.
+ * Normalize a Date into a "YYYY-MM-DD" key for day-indexing in the user's
+ * timezone. Used by the heatmap grid and the session-per-day map. Always
+ * call this — never inline getFullYear/getMonth/getDate, or you'll roll over
+ * a day too early when the server is in UTC and the user is in another TZ.
  */
 export function dateKey(d: Date): string {
-  const y = d.getFullYear();
-  const m = (d.getMonth() + 1).toString().padStart(2, "0");
-  const dd = d.getDate().toString().padStart(2, "0");
-  return `${y}-${m}-${dd}`;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
 }
 
 /**
  * Build an array of the last N days as ["YYYY-MM-DD", Date] tuples, oldest
- * first. Used to lay out the heatmap grid with stable gaps.
+ * first. Used to lay out the heatmap grid with stable gaps. Days are anchored
+ * at noon UTC so the formatted key resolves to the same calendar day in the
+ * user's timezone regardless of DST.
  */
 export function lastNDays(n: number, from: Date = new Date()): Array<{
   key: string;
   date: Date;
 }> {
   const out: Array<{ key: string; date: Date }> = [];
-  const base = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  // Start from today's user-TZ key, then walk back N days using UTC math.
+  const todayKey = dateKey(from);
+  const [y, m, day] = todayKey.split("-").map((v) => parseInt(v, 10));
   for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(base);
-    d.setDate(base.getDate() - i);
+    const d = new Date(Date.UTC(y, m - 1, day - i, 12, 0, 0));
     out.push({ key: dateKey(d), date: d });
   }
   return out;
