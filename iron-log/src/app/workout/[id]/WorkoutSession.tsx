@@ -381,9 +381,7 @@ export function WorkoutSession({
             disabled={effectiveDisabled}
             phaseRirTarget={phaseRirTarget}
             onSetLogged={() => startRest(ex.restSeconds, ex.exerciseName)}
-            onRemoveBlock={
-              ex.isAdhoc ? () => handleRemoveBlock(ex.templateExerciseId) : null
-            }
+            onRemoveBlock={() => handleRemoveBlock(ex.templateExerciseId)}
             onSwapExercise={
               !effectiveDisabled
                 ? () => {
@@ -796,10 +794,12 @@ function ExerciseCard({
   const reference = exercise.previousSets;
   const suggestion = exercise.suggestion;
 
-  // Allow removing/swapping only while no sets have been logged.
+  // Allow removing/swapping while no sets have been logged.
   const hasAnySet = rows.some((r) => r.id !== null);
   const canRemove = !!onRemoveBlock && !hasAnySet && !disabled;
   const canSwap = !!onSwapExercise && !hasAnySet && !disabled;
+  // Allow deleting an exercise entirely (even template ones) when no sets saved.
+  const canDelete = !hasAnySet && !disabled;
 
   return (
     <li className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
@@ -829,11 +829,12 @@ function ExerciseCard({
                   <ArrowLeftRight size={12} strokeWidth={1.75} />
                 </button>
               )}
-              {canRemove && (
+              {canDelete && (
                 <button
                   type="button"
                   onClick={() => onRemoveBlock?.()}
                   aria-label="Remover exercício da sessão"
+                  title="Remover exercício"
                   className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--danger)] transition-colors"
                 >
                   <X size={12} strokeWidth={1.75} />
