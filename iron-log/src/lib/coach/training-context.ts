@@ -111,14 +111,17 @@ export async function buildTrainingContext(): Promise<TrainingContextSummary> {
   const progression = (progressionRes.data ?? []) as ProgressionRow[];
   const weights = (weightRes.data ?? []) as WeightRow[];
 
-  if (sessions.length < 3) {
-    return {
-      text: "Dados insuficientes — menos de 3 sessões registradas.",
-      hasEnoughData: false,
-    };
-  }
-
   const lines: string[] = [];
+
+  if (sessions.length === 0) {
+    lines.push(
+      "## Nota: usuário começou recentemente, sem sessões finalizadas ainda. Planeje baseado nos targets globais abaixo."
+    );
+  } else if (sessions.length < 3) {
+    lines.push(
+      `## Nota: apenas ${sessions.length} sessão(ões) registrada(s). Dados limitados — planeje conservadoramente, começando perto do MEV.`
+    );
+  }
 
   // Volume per muscle: 7d and prior 7d
   const vol7d: Record<string, number> = {};
@@ -210,4 +213,7 @@ export async function buildTrainingContext(): Promise<TrainingContextSummary> {
   lines.push(targetLines);
 
   return { text: lines.join("\n"), hasEnoughData: true };
+  // Note: we always return hasEnoughData = true. Even without sessions,
+  // Claude can plan from the user's baseline targets. The context text
+  // includes a note about limited data so the coach adjusts accordingly.
 }
