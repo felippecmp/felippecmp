@@ -62,6 +62,11 @@ export default async function CoachPage() {
     ? pickJoined(lastSession.workout_templates)?.name ?? null
     : null;
 
+  // Find the template ID of the last session for rotation positioning.
+  const lastTemplateId = lastTemplateName
+    ? templates.find((t) => t.name === lastTemplateName)?.id ?? null
+    : null;
+
   return (
     <div className="px-6 pt-10 pb-24">
       <Link
@@ -95,7 +100,7 @@ export default async function CoachPage() {
           <RotationPreview
             templates={templates}
             savedPattern={settings.rotation_pattern}
-            lastTemplateName={lastTemplateName}
+            lastTemplateId={lastTemplateId}
           />
         )}
 

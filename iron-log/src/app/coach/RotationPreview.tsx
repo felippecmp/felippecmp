@@ -26,7 +26,8 @@ export type RotationSlot = { t: string }; // template_id or "rest"
 type Props = {
   templates: TemplateLite[];
   savedPattern: RotationSlot[] | null;
-  lastTemplateName: string | null;
+  /** Template ID of the most recent finished session */
+  lastTemplateId: string | null;
 };
 
 /**
@@ -36,7 +37,7 @@ type Props = {
 export function RotationPreview({
   templates,
   savedPattern,
-  lastTemplateName,
+  lastTemplateId,
 }: Props) {
   const templateMap = new Map(templates.map((t) => [t.id, t]));
   const autoPattern = buildAutoPattern(templates);
@@ -94,8 +95,8 @@ export function RotationPreview({
     setEditSlots((prev) => [...prev, slot]);
   }
 
-  // Projection
-  const currentIdx = findCurrentIndex(currentPattern, lastTemplateName);
+  // Projection — find where we are based on the last completed session.
+  const currentIdx = findCurrentIndex(currentPattern, lastTemplateId);
   const projection = projectDays(currentPattern, currentIdx, 14);
   const todayKey = userDayKey(new Date());
 
@@ -313,15 +314,21 @@ function buildAutoPattern(templates: TemplateLite[]): RotationSlot[] {
   return pattern;
 }
 
+/**
+ * Find the next slot in the rotation after the last completed template.
+ * Finds the template ID in the pattern, returns the slot AFTER it.
+ * So if you just did Lower A, the projection starts from the rest day
+ * (or next template) that follows Lower A in the cycle.
+ */
 function findCurrentIndex(
   pattern: RotationSlot[],
-  lastTemplateName: string | null
+  lastTemplateId: string | null
 ): number {
-  if (!lastTemplateName || pattern.length === 0) return 0;
-  for (let i = pattern.length - 1; i >= 0; i--) {
-    // Can't match by name here since we only have IDs in the pattern.
-    // For now, return 0 — the projection starts from the beginning.
-    // TODO: pass lastTemplateId for accurate positioning
+  if (!lastTemplateId || pattern.length === 0) return 0;
+  for (let i = 0; i < pattern.length; i++) {
+    if (pattern[i].t === lastTemplateId) {
+      return (i + 1) % pattern.length;
+    }
   }
   return 0;
 }
