@@ -192,6 +192,38 @@ export async function archiveTemplate(id: string): Promise<ActionResult> {
   redirect("/templates");
 }
 
+export async function restoreTemplate(id: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("workout_templates")
+    .update({ is_active: true })
+    .eq("id", id);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/templates");
+  revalidatePath("/treinar");
+  return { ok: true };
+}
+
+export async function deleteTemplatePermanently(id: string): Promise<ActionResult> {
+  const supabase = await createClient();
+
+  // Delete template exercises first (FK constraint)
+  await supabase
+    .from("template_exercises")
+    .delete()
+    .eq("template_id", id);
+
+  const { error } = await supabase
+    .from("workout_templates")
+    .delete()
+    .eq("id", id);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/templates");
+  return { ok: true };
+}
+
 export type CreateExerciseInput = {
   name: string;
   sessionType: "upper" | "lower";

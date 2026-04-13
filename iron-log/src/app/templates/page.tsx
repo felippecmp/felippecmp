@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Plus, ChevronRight, Layers } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getUserSettings } from "@/lib/settings";
+import { ArchivedTemplates } from "./ArchivedTemplates";
 import { DuplicateButton } from "./DuplicateButton";
 import { ReorderButton } from "./ReorderButton";
 
@@ -19,12 +20,21 @@ export default async function TemplatesPage() {
   const settings = await getUserSettings();
   const isLinear = settings.rotation_mode === "linear";
 
-  const { data: templates, error } = await supabase
-    .from("workout_templates")
-    .select("id, name, session_type, sort_order, template_exercises(count)")
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true })
-    .order("name", { ascending: true });
+  const [{ data: templates, error }, { data: archivedRaw }] = await Promise.all([
+    supabase
+      .from("workout_templates")
+      .select("id, name, session_type, sort_order, template_exercises(count)")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true }),
+    supabase
+      .from("workout_templates")
+      .select("id, name, session_type")
+      .eq("is_active", false)
+      .order("name", { ascending: true }),
+  ]);
+
+  const archived = (archivedRaw ?? []) as Array<{ id: string; name: string; session_type: string }>;
 
   const rows: TemplateRow[] = (templates ?? []).map((t) => {
     const count = Array.isArray(t.template_exercises)
@@ -129,6 +139,8 @@ export default async function TemplatesPage() {
           <TemplateGroup title="Lower" items={lower} allRows={rows} />
         </>
       )}
+
+      <ArchivedTemplates templates={archived} />
     </div>
   );
 }

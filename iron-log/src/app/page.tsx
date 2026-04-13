@@ -55,11 +55,12 @@ type WeightRow = {
 type StrengthSessionRow = {
   id: string;
   started_at: string;
+  template_id: string | null;
   duration_minutes: number | null;
   avg_heart_rate: number | null;
   overall_feeling: number | null;
   notes: string | null;
-  workout_templates: { name: string } | { name: string }[] | null;
+  workout_templates: { name: string; session_type: string } | { name: string; session_type: string }[] | null;
 };
 
 type CardioRow = {
@@ -104,7 +105,7 @@ export default async function HomePage() {
     supabase
       .from("workout_sessions")
       .select(
-        "id, started_at, duration_minutes, avg_heart_rate, overall_feeling, notes, workout_templates(name)"
+        "id, started_at, template_id, duration_minutes, avg_heart_rate, overall_feeling, notes, workout_templates(name, session_type)"
       )
       .not("finished_at", "is", null)
       .order("started_at", { ascending: false })
@@ -379,21 +380,40 @@ export default async function HomePage() {
     (c) => new Date(c.started_at) >= sevenDaysAgo
   ).length;
 
+  // Use the same rotation logic as /treinar (auto mode: alternate
+  // upper↔lower, rotate within type by sort_order).
   const nextTemplate: TemplateLite | null = (() => {
     if (templates.length === 0) return null;
-    // No history → first template
     if (strengthSessions.length === 0) return templates[0];
-    // Last finished session's template name → look it up to get type
-    const lastTplName = (() => {
-      const t = strengthSessions[0]?.workout_templates;
-      if (!t) return null;
-      return Array.isArray(t) ? t[0]?.name ?? null : t.name;
-    })();
-    const lastTpl = templates.find((t) => t.name === lastTplName);
-    const targetType: "upper" | "lower" =
-      lastTpl?.session_type === "upper" ? "lower" : "upper";
+
+    // Build recent sessions list with template_id + session_type
+    const recent = strengthSessions.slice(0, 10).map((s) => {
+      const joined = Array.isArray(s.workout_templates)
+        ? s.workout_templates[0]
+        : s.workout_templates;
+      return {
+        template_id: s.template_id,
+        session_type: (joined as { session_type: string } | null)?.session_type ?? null,
+      };
+    });
+
+    const lastType = recent[0]?.session_type ?? null;
+    const targetType: "upper" | "lower" = lastType === "upper" ? "lower" : "upper";
+
     const ofType = templates.filter((t) => t.session_type === targetType);
-    return ofType[0] ?? templates[0];
+    const pool = ofType.length > 0 ? ofType : templates;
+
+    // Find the last session that used a template in this pool
+    const lastSameType = recent.find(
+      (s) => s.session_type === pool[0].session_type
+    );
+    if (!lastSameType?.template_id) return pool[0];
+
+    const idx = pool.findIndex((t) => t.id === lastSameType.template_id);
+    if (idx === -1) return pool[0];
+
+    // Rotate to next in pool
+    return pool[(idx + 1) % pool.length];
   })();
 
   // Sparkline data: daily counts for last 7 days
