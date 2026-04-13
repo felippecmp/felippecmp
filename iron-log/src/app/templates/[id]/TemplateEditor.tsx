@@ -435,7 +435,7 @@ function ExercisePicker({
 
         {mode === "pick" ? (
           <>
-            <div className="px-6 py-3 shrink-0">
+            <div className="px-6 py-3 shrink-0 space-y-3">
               <input
                 type="search"
                 placeholder="Buscar…"
@@ -443,6 +443,15 @@ function ExercisePicker({
                 onChange={(e) => setQuery(e.target.value)}
                 className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--text-muted)]"
               />
+              <button
+                type="button"
+                onClick={() => setMode("create")}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+                style={{ background: "var(--accent)", color: "var(--accent-fg)" }}
+              >
+                <Plus size={14} strokeWidth={2} />
+                Criar exercício novo
+              </button>
             </div>
             <div
               className="flex-1 overflow-y-auto px-6 pb-4"
@@ -471,16 +480,6 @@ function ExercisePicker({
                   ))}
                 </ul>
               )}
-            </div>
-            <div className="px-6 pb-6 pt-2 border-t border-[var(--border)] shrink-0">
-              <button
-                type="button"
-                onClick={() => setMode("create")}
-                className="w-full flex items-center justify-center gap-2 border border-dashed border-[var(--border-strong)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--text-muted)] py-3 rounded-xl text-sm font-medium transition-colors"
-              >
-                <Plus size={14} strokeWidth={1.75} />
-                Criar exercício novo
-              </button>
             </div>
           </>
         ) : (
