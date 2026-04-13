@@ -275,28 +275,28 @@ export function TodayChecklist({
       {expanded === "steps" && (
         <form
           action={handleStepsSubmit}
-          className="mt-3 pt-3 border-t border-[var(--border)] flex items-center gap-2"
+          className="mt-3 pt-3 border-t border-[var(--border)] space-y-2"
         >
-          <div className="flex-1 min-w-0">
-            <input
-              name="steps"
-              type="number"
-              min="0"
-              required
-              autoFocus
-              defaultValue={todayStepsCount ?? ""}
-              placeholder="8500"
-              className="w-full bg-transparent border-0 border-b border-[var(--border)] focus:border-[var(--text-muted)] focus:outline-none display-sm text-xl tnum py-1"
-            />
-            <input type="hidden" name="step_date" value={todayKey} />
-          </div>
-          <button
-            type="button"
-            onClick={() => setExpanded(null)}
-            disabled={isPending}
-            className="shrink-0 w-9 h-9 rounded-lg border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-60"
-            aria-label="Cancelar"
-          >
+          <div className="flex items-center gap-2">
+            <div className="flex-1 min-w-0">
+              <input
+                name="steps"
+                type="number"
+                min="0"
+                required
+                autoFocus
+                defaultValue={todayStepsCount ?? ""}
+                placeholder="8500"
+                className="w-full bg-transparent border-0 border-b border-[var(--border)] focus:border-[var(--text-muted)] focus:outline-none display-sm text-xl tnum py-1"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setExpanded(null)}
+              disabled={isPending}
+              className="shrink-0 w-9 h-9 rounded-lg border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-60"
+              aria-label="Cancelar"
+            >
             <X size={14} strokeWidth={1.75} />
           </button>
           <button
@@ -307,6 +307,13 @@ export function TodayChecklist({
           >
             <Check size={14} strokeWidth={2.5} />
           </button>
+          </div>
+          <input
+            name="step_date"
+            type="date"
+            defaultValue={todayKey}
+            className="w-full bg-[var(--bg-raised)] border border-[var(--border)] rounded-lg px-3 py-2 text-xs tnum text-[var(--text-soft)] focus:outline-none"
+          />
         </form>
       )}
 
