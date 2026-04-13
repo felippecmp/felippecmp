@@ -125,8 +125,8 @@ export default async function TemplatesPage() {
         </section>
       ) : (
         <>
-          <TemplateGroup title="Upper" items={upper} />
-          <TemplateGroup title="Lower" items={lower} />
+          <TemplateGroup title="Upper" items={upper} allRows={rows} />
+          <TemplateGroup title="Lower" items={lower} allRows={rows} />
         </>
       )}
     </div>
@@ -158,9 +158,11 @@ function EmptyState() {
 function TemplateGroup({
   title,
   items,
+  allRows,
 }: {
   title: string;
   items: TemplateRow[];
+  allRows: TemplateRow[];
 }) {
   if (items.length === 0) return null;
   return (
@@ -172,29 +174,44 @@ function TemplateGroup({
         </span>
       </div>
       <ul className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border)]">
-        {items.map((t) => (
-          <li key={t.id} className="flex items-center pr-2">
-            <Link
-              href={`/templates/${t.id}`}
-              className="flex items-center gap-3 px-4 py-3.5 hover:bg-[var(--bg-hover)] transition-colors flex-1 min-w-0"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="font-medium text-[15px] leading-tight">
-                  {t.name}
-                </div>
-                <div className="text-xs text-[var(--text-muted)] mt-1 tnum">
-                  {t.exercise_count} exercícios
-                </div>
+        {items.map((t, idx) => {
+          const globalIdx = allRows.findIndex((r) => r.id === t.id);
+          return (
+            <li key={t.id} className="flex items-center pr-2">
+              <div className="flex flex-col gap-1 px-2 shrink-0">
+                <ReorderButton
+                  templateId={t.id}
+                  direction="up"
+                  disabled={globalIdx === 0}
+                />
+                <ReorderButton
+                  templateId={t.id}
+                  direction="down"
+                  disabled={globalIdx === allRows.length - 1}
+                />
               </div>
-              <ChevronRight
-                size={16}
-                className="shrink-0 text-[var(--text-dim)]"
-                strokeWidth={1.75}
-              />
-            </Link>
-            <DuplicateButton templateId={t.id} />
-          </li>
-        ))}
+              <Link
+                href={`/templates/${t.id}`}
+                className="flex items-center gap-3 px-2 py-3.5 hover:bg-[var(--bg-hover)] transition-colors flex-1 min-w-0"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-[15px] leading-tight">
+                    {t.name}
+                  </div>
+                  <div className="text-xs text-[var(--text-muted)] mt-1 tnum">
+                    {t.exercise_count} exercícios
+                  </div>
+                </div>
+                <ChevronRight
+                  size={16}
+                  className="shrink-0 text-[var(--text-dim)]"
+                  strokeWidth={1.75}
+                />
+              </Link>
+              <DuplicateButton templateId={t.id} />
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
