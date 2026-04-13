@@ -4,8 +4,8 @@ import {
   Footprints,
   NotebookPen,
   Scale,
-  TrendingUp,
 } from "lucide-react";
+import { EditableStepsRow } from "./EditableStepsRow";
 
 /**
  * Discriminated union of every entry kind that can appear in the home
@@ -74,7 +74,12 @@ export function DiaryRow({ entry }: { entry: DiaryEntry }) {
     case "weight":
       return <WeightRow entry={entry} />;
     case "steps":
-      return <StepsRow entry={entry} />;
+      return (
+        <EditableStepsRow
+          steps={entry.steps}
+          stepDate={entry.at.slice(0, 10)}
+        />
+      );
     case "note":
       return <NoteRow entry={entry} />;
   }
@@ -208,36 +213,6 @@ function WeightRow({
   );
 }
 
-function StepsRow({
-  entry,
-}: {
-  entry: Extract<DiaryEntry, { kind: "steps" }>;
-}) {
-  return (
-    <li className="flex items-center gap-3 px-4 py-3.5">
-      <div className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in oklab, var(--status-building) 15%, transparent)" }}>
-        <TrendingUp
-          size={12}
-          strokeWidth={1.75}
-          className="text-[var(--status-building)]"
-        />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium">
-          <span className="tnum tabular-nums">
-            {entry.steps.toLocaleString("pt-BR")}
-          </span>{" "}
-          passos
-          {entry.steps >= 8000 && (
-            <span className="text-[10px] ml-1.5 text-[var(--status-ready)] font-semibold">
-              meta ✓
-            </span>
-          )}
-        </div>
-      </div>
-    </li>
-  );
-}
 
 function NoteRow({
   entry,
