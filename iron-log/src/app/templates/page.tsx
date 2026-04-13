@@ -20,10 +20,10 @@ export default async function TemplatesPage() {
   const settings = await getUserSettings();
   const isLinear = settings.rotation_mode === "linear";
 
-  const [{ data: templates, error }, { data: archivedRaw }] = await Promise.all([
+  const [{ data: templates, error }, { data: archivedRaw }, { data: teCountRaw }] = await Promise.all([
     supabase
       .from("workout_templates")
-      .select("id, name, session_type, sort_order, template_exercises(count)")
+      .select("id, name, session_type, sort_order")
       .eq("is_active", true)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
@@ -32,14 +32,20 @@ export default async function TemplatesPage() {
       .select("id, name, session_type")
       .eq("is_active", false)
       .order("name", { ascending: true }),
+    supabase
+      .from("template_exercises")
+      .select("template_id"),
   ]);
 
   const archived = (archivedRaw ?? []) as Array<{ id: string; name: string; session_type: string }>;
 
+  const teCounts = new Map<string, number>();
+  for (const row of (teCountRaw ?? []) as Array<{ template_id: string }>) {
+    teCounts.set(row.template_id, (teCounts.get(row.template_id) ?? 0) + 1);
+  }
+
   const rows: TemplateRow[] = (templates ?? []).map((t) => {
-    const count = Array.isArray(t.template_exercises)
-      ? (t.template_exercises[0] as { count: number } | undefined)?.count ?? 0
-      : 0;
+    const count = teCounts.get(t.id) ?? 0;
     return {
       id: t.id,
       name: t.name,

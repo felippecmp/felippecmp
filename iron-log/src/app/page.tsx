@@ -100,6 +100,7 @@ export default async function HomePage() {
     { data: restDayRows },
     { data: dailyNoteRows },
     { data: activeSessionData },
+    { data: teCountRaw },
   ] = await Promise.all([
     supabase.from("exercises").select("*", { count: "exact", head: true }),
     supabase
@@ -129,7 +130,7 @@ export default async function HomePage() {
       .limit(60),
     supabase
       .from("workout_templates")
-      .select("id, name, session_type, sort_order, template_exercises(count)")
+      .select("id, name, session_type, sort_order")
       .eq("is_active", true)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
@@ -150,6 +151,9 @@ export default async function HomePage() {
       .order("started_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("template_exercises")
+      .select("template_id"),
   ]);
 
   const { weekday, day, month } = formatHeaderDate(now);
@@ -360,17 +364,17 @@ export default async function HomePage() {
     session_type: "upper" | "lower";
     exercise_count: number;
   };
-  const templates: TemplateLite[] = (templatesData ?? []).map((t) => {
-    const count = Array.isArray(t.template_exercises)
-      ? (t.template_exercises[0] as { count: number } | undefined)?.count ?? 0
-      : 0;
-    return {
-      id: t.id,
-      name: t.name,
-      session_type: t.session_type,
-      exercise_count: count,
-    };
-  });
+  // Count exercises per template from raw rows
+  const teCounts = new Map<string, number>();
+  for (const row of (teCountRaw ?? []) as Array<{ template_id: string }>) {
+    teCounts.set(row.template_id, (teCounts.get(row.template_id) ?? 0) + 1);
+  }
+  const templates: TemplateLite[] = (templatesData ?? []).map((t) => ({
+    id: t.id,
+    name: t.name,
+    session_type: t.session_type,
+    exercise_count: teCounts.get(t.id) ?? 0,
+  }));
 
   // Quick stats for the home header area
   const sessions7d = strengthSessions.filter(

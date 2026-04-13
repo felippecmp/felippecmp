@@ -77,10 +77,10 @@ export default async function TreinarPage() {
   const supabase = await createClient();
   const settings = await getUserSettings();
 
-  const [templatesRes, activeRes, recentRes] = await Promise.all([
+  const [templatesRes, activeRes, recentRes, teCountRes] = await Promise.all([
     supabase
       .from("workout_templates")
-      .select("id, name, session_type, sort_order, template_exercises(count)")
+      .select("id, name, session_type, sort_order")
       .eq("is_active", true)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
@@ -97,18 +97,24 @@ export default async function TreinarPage() {
       .not("finished_at", "is", null)
       .order("started_at", { ascending: false })
       .limit(10),
+    supabase
+      .from("template_exercises")
+      .select("template_id"),
   ]);
 
+  // Count exercises per template from the raw rows
+  const teCounts = new Map<string, number>();
+  for (const row of (teCountRes.data ?? []) as Array<{ template_id: string }>) {
+    teCounts.set(row.template_id, (teCounts.get(row.template_id) ?? 0) + 1);
+  }
+
   const templates: TemplateRow[] = (templatesRes.data ?? []).map((t) => {
-    const count = Array.isArray(t.template_exercises)
-      ? (t.template_exercises[0] as { count: number } | undefined)?.count ?? 0
-      : 0;
     return {
       id: t.id,
       name: t.name,
       session_type: t.session_type as SessionType,
       sort_order: t.sort_order ?? 0,
-      exercise_count: count,
+      exercise_count: teCounts.get(t.id) ?? 0,
     };
   });
 
