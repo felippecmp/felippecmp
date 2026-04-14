@@ -33,7 +33,7 @@ export function useToast() {
 
 let nextId = 0;
 
-const DURATION_MS = 2500;
+const DURATION_MS = 5000;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);

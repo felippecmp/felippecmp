@@ -115,12 +115,17 @@ export function ChatInterface() {
       {/* Input */}
       <div className="shrink-0 pt-3 pb-2 border-t border-[var(--border)]">
         <div className="flex items-end gap-2">
+          <label htmlFor="coach-chat-input" className="sr-only">
+            Pergunta para o coach
+          </label>
           <textarea
+            id="coach-chat-input"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Pergunte ao coach..."
             rows={1}
+            maxLength={2000}
             className="flex-1 min-h-[44px] max-h-32 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm placeholder:text-[var(--text-dim)] focus:outline-none resize-none"
           />
           <button
