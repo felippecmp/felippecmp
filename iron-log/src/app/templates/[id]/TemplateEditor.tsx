@@ -544,6 +544,30 @@ function CreateExerciseMiniForm({
   const [loadIncrement, setLoadIncrement] = useState("2.5");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [autofilling, setAutofilling] = useState(false);
+
+  async function handleAutofill() {
+    if (!name.trim()) {
+      setError("Digite o nome primeiro.");
+      return;
+    }
+    setError(null);
+    setAutofilling(true);
+    try {
+      const { autofillExerciseFromName } = await import("./autofill-action");
+      const result = await autofillExerciseFromName(name, sessionType);
+      if (result.ok) {
+        setMovementPattern(result.movementPattern);
+        setPrimaryMuscle(result.primaryMuscle);
+        setEquipment(result.equipment ?? "");
+        setLoadIncrement(String(result.loadIncrement));
+      } else {
+        setError(result.error);
+      }
+    } finally {
+      setAutofilling(false);
+    }
+  }
 
   const filteredPatterns = MOVEMENT_PATTERNS.filter(
     (p) => p.session === sessionType
@@ -592,6 +616,15 @@ function CreateExerciseMiniForm({
           className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--text-muted)]"
         />
       </label>
+
+      <button
+        type="button"
+        onClick={handleAutofill}
+        disabled={autofilling || !name.trim()}
+        className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--border-strong)] py-2.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--text-muted)] transition-colors disabled:opacity-50"
+      >
+        {autofilling ? "Analisando..." : "Preencher com AI"}
+      </button>
 
       <label className="block">
         <span className="label block mb-1.5">Padrão de movimento</span>
