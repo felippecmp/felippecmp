@@ -184,6 +184,7 @@ export function CardioForm({
         <textarea
           name="notes"
           rows={2}
+          maxLength={500}
           defaultValue={defaults?.notes ?? ""}
           placeholder="Parque da cidade, sol forte…"
           className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--text-muted)] transition-colors resize-none"

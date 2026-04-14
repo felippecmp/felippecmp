@@ -8,6 +8,7 @@ import {
   Dumbbell,
   Footprints,
   Heart,
+  Loader2,
   Scale,
   X,
 } from "lucide-react";
@@ -235,9 +236,14 @@ export function TodayChecklist({
         <form
           action={handleWeightSubmit}
           className="mt-3 pt-3 border-t border-[var(--border)] flex items-center gap-2"
+          aria-busy={isPending}
         >
           <div className="flex-1 flex items-baseline gap-1 min-w-0">
+            <label htmlFor="checklist-weight" className="sr-only">
+              Peso em quilos
+            </label>
             <input
+              id="checklist-weight"
               name="weight_kg"
               type="number"
               step="0.1"
@@ -248,7 +254,13 @@ export function TodayChecklist({
               placeholder={
                 latestWeightKg ? latestWeightKg.toFixed(1) : "74.2"
               }
-              className="flex-1 min-w-0 bg-transparent border-0 border-b border-[var(--border)] focus:border-[var(--text-muted)] focus:outline-none display-sm text-xl tnum py-1"
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? "checklist-weight-error" : undefined}
+              className={`flex-1 min-w-0 bg-transparent border-0 border-b focus:outline-none display-sm text-xl tnum py-1 ${
+                error
+                  ? "border-[var(--danger)]"
+                  : "border-[var(--border)] focus:border-[var(--text-muted)]"
+              }`}
             />
             <span className="text-xs text-[var(--text-dim)]">kg</span>
           </div>
@@ -256,7 +268,7 @@ export function TodayChecklist({
             type="button"
             onClick={() => setExpanded(null)}
             disabled={isPending}
-            className="shrink-0 w-9 h-9 rounded-lg border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-60"
+            className="shrink-0 w-11 h-11 rounded-lg border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)] active:scale-95 transition-transform disabled:opacity-60"
             aria-label="Cancelar"
           >
             <X size={14} strokeWidth={1.75} />
@@ -264,10 +276,14 @@ export function TodayChecklist({
           <button
             type="submit"
             disabled={isPending}
-            className="shrink-0 w-9 h-9 rounded-lg bg-accent text-accent-fg flex items-center justify-center disabled:opacity-60"
-            aria-label="Salvar"
+            className="shrink-0 w-11 h-11 rounded-lg bg-accent text-accent-fg flex items-center justify-center active:scale-95 transition-transform disabled:opacity-60"
+            aria-label={isPending ? "Salvando peso" : "Salvar peso"}
           >
-            <Check size={14} strokeWidth={2.5} />
+            {isPending ? (
+              <Loader2 size={14} strokeWidth={2.5} className="animate-spin" />
+            ) : (
+              <Check size={14} strokeWidth={2.5} />
+            )}
           </button>
         </form>
       )}
@@ -276,10 +292,15 @@ export function TodayChecklist({
         <form
           action={handleStepsSubmit}
           className="mt-3 pt-3 border-t border-[var(--border)] space-y-2"
+          aria-busy={isPending}
         >
           <div className="flex items-center gap-2">
             <div className="flex-1 min-w-0">
+              <label htmlFor="checklist-steps" className="sr-only">
+                Passos do dia
+              </label>
               <input
+                id="checklist-steps"
                 name="steps"
                 type="number"
                 min="0"
@@ -287,28 +308,42 @@ export function TodayChecklist({
                 autoFocus
                 defaultValue={todayStepsCount ?? ""}
                 placeholder="8500"
-                className="w-full bg-transparent border-0 border-b border-[var(--border)] focus:border-[var(--text-muted)] focus:outline-none display-sm text-xl tnum py-1"
+                aria-invalid={error ? true : undefined}
+                aria-describedby={error ? "checklist-steps-error" : undefined}
+                className={`w-full bg-transparent border-0 border-b focus:outline-none display-sm text-xl tnum py-1 ${
+                  error
+                    ? "border-[var(--danger)]"
+                    : "border-[var(--border)] focus:border-[var(--text-muted)]"
+                }`}
               />
             </div>
             <button
               type="button"
               onClick={() => setExpanded(null)}
               disabled={isPending}
-              className="shrink-0 w-9 h-9 rounded-lg border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-60"
+              className="shrink-0 w-11 h-11 rounded-lg border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)] active:scale-95 transition-transform disabled:opacity-60"
               aria-label="Cancelar"
             >
-            <X size={14} strokeWidth={1.75} />
-          </button>
-          <button
-            type="submit"
-            disabled={isPending}
-            className="shrink-0 w-9 h-9 rounded-lg bg-accent text-accent-fg flex items-center justify-center disabled:opacity-60"
-            aria-label="Salvar"
-          >
-            <Check size={14} strokeWidth={2.5} />
-          </button>
+              <X size={14} strokeWidth={1.75} />
+            </button>
+            <button
+              type="submit"
+              disabled={isPending}
+              className="shrink-0 w-11 h-11 rounded-lg bg-accent text-accent-fg flex items-center justify-center active:scale-95 transition-transform disabled:opacity-60"
+              aria-label={isPending ? "Salvando passos" : "Salvar passos"}
+            >
+              {isPending ? (
+                <Loader2 size={14} strokeWidth={2.5} className="animate-spin" />
+              ) : (
+                <Check size={14} strokeWidth={2.5} />
+              )}
+            </button>
           </div>
+          <label htmlFor="checklist-step-date" className="sr-only">
+            Data dos passos
+          </label>
           <input
+            id="checklist-step-date"
             name="step_date"
             type="date"
             defaultValue={todayKey}
@@ -318,7 +353,17 @@ export function TodayChecklist({
       )}
 
       {error && (
-        <p className="text-[10px] text-[var(--danger)] mt-2">{error}</p>
+        <p
+          id={
+            expanded === "weight"
+              ? "checklist-weight-error"
+              : "checklist-steps-error"
+          }
+          className="text-[10px] text-[var(--danger)] mt-2"
+          role="alert"
+        >
+          {error}
+        </p>
       )}
 
       {!allDone && !expanded && remaining.length > 0 && (

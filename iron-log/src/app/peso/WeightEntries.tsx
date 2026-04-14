@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Calendar, Check, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Calendar, Check, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import {
   deleteBodyWeight,
   logBodyWeight,
@@ -139,9 +139,13 @@ function EntryRow({ entry }: { entry: WeightEntry }) {
             type="button"
             onClick={handleDelete}
             disabled={isPending}
-            className="text-[10px] uppercase tracking-wider px-2 py-1.5 rounded-md bg-[var(--danger)] text-white font-semibold disabled:opacity-50"
+            aria-label={isPending ? "Apagando registro" : "Confirmar apagar registro"}
+            className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-1.5 rounded-md bg-[var(--danger)] text-white font-semibold active:scale-95 transition-transform disabled:opacity-50"
           >
-            {isPending ? "…" : "Apagar"}
+            {isPending && (
+              <Loader2 size={10} strokeWidth={2.5} className="animate-spin" />
+            )}
+            {isPending ? "Apagando" : "Apagar"}
           </button>
         </div>
       ) : (
@@ -205,11 +209,15 @@ function EntryForm({
     });
   }
 
+  const errorId = "weight-form-error";
+
   return (
-    <form action={handleSubmit} className="space-y-3">
+    <form action={handleSubmit} className="space-y-3" aria-busy={isPending}>
       <div className="grid grid-cols-2 gap-3">
         <label className="block">
-          <span className="label block mb-1.5">Peso (kg)</span>
+          <span className="label block mb-1.5">
+            Peso (kg)<span className="text-[var(--danger)] ml-0.5">*</span>
+          </span>
           <input
             name="weight_kg"
             type="number"
@@ -219,11 +227,19 @@ function EntryForm({
             defaultValue={defaultWeight}
             placeholder="74.2"
             autoFocus
-            className="w-full bg-[var(--bg-raised)] border border-[var(--border)] rounded-xl px-4 py-3 text-base tnum focus:outline-none focus:border-[var(--text-muted)] transition-colors"
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? errorId : undefined}
+            className={`w-full bg-[var(--bg-raised)] border rounded-xl px-4 py-3 text-base tnum focus:outline-none transition-colors ${
+              error
+                ? "border-[var(--danger)]"
+                : "border-[var(--border)] focus:border-[var(--text-muted)]"
+            }`}
           />
         </label>
         <label className="block">
-          <span className="label block mb-1.5">Data</span>
+          <span className="label block mb-1.5">
+            Data<span className="text-[var(--danger)] ml-0.5">*</span>
+          </span>
           <input
             name="recorded_at"
             type="date"
@@ -239,19 +255,24 @@ function EntryForm({
           name="notes"
           type="text"
           defaultValue={defaultNotes}
+          maxLength={200}
           placeholder="Manhã, em jejum, etc."
           className="w-full bg-[var(--bg-raised)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--text-muted)] transition-colors"
         />
       </label>
 
-      {error && <p className="text-xs text-[var(--danger)]">{error}</p>}
+      {error && (
+        <p id={errorId} className="text-xs text-[var(--danger)]" role="alert">
+          {error}
+        </p>
+      )}
 
       <div className="flex gap-2">
         <button
           type="button"
           onClick={onCancel}
           disabled={isPending}
-          className="flex-1 border border-[var(--border)] py-2.5 rounded-lg text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-60"
+          className="flex-1 border border-[var(--border)] py-2.5 rounded-lg text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text)] active:scale-[0.98] transition-transform disabled:opacity-60"
         >
           <X size={14} className="inline mr-1" strokeWidth={1.75} />
           Cancelar
@@ -259,9 +280,18 @@ function EntryForm({
         <button
           type="submit"
           disabled={isPending}
-          className="flex-1 bg-accent text-accent-fg py-2.5 rounded-lg text-sm font-semibold disabled:opacity-60"
+          aria-label={isPending ? "Salvando peso" : "Salvar peso"}
+          className="flex-1 bg-accent text-accent-fg py-2.5 rounded-lg text-sm font-semibold active:scale-[0.98] transition-transform disabled:opacity-60"
         >
-          <Check size={14} className="inline mr-1" strokeWidth={2.5} />
+          {isPending ? (
+            <Loader2
+              size={14}
+              className="inline mr-1 animate-spin"
+              strokeWidth={2.5}
+            />
+          ) : (
+            <Check size={14} className="inline mr-1" strokeWidth={2.5} />
+          )}
           {isPending ? "Salvando…" : "Salvar"}
         </button>
       </div>

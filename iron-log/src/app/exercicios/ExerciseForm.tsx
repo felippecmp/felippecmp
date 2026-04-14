@@ -172,6 +172,7 @@ export function ExerciseForm({
         <textarea
           name="notes"
           rows={3}
+          maxLength={1000}
           defaultValue={exercise?.notes ?? ""}
           placeholder="Execução, cuidados, dicas..."
           className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-4 py-3.5 text-sm placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--text-muted)] transition-colors resize-none"

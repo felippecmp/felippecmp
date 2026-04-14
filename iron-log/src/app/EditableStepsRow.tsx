@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, TrendingUp, X } from "lucide-react";
+import { Check, Loader2, TrendingUp, X } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { logDailySteps } from "./passos/actions";
 
@@ -31,21 +31,37 @@ export function EditableStepsRow({
   }
 
   if (editing) {
+    const inputId = `steps-edit-${stepDate}`;
+    const errorId = `${inputId}-error`;
     return (
       <li className="px-4 py-3.5">
-        <form action={handleSubmit} className="flex items-center gap-2">
+        <form
+          action={handleSubmit}
+          className="flex items-center gap-2"
+          aria-busy={isPending}
+        >
           <div className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in oklab, var(--status-building) 15%, transparent)" }}>
             <TrendingUp size={12} strokeWidth={1.75} className="text-[var(--status-building)]" />
           </div>
           <div className="flex-1 min-w-0">
+            <label htmlFor={inputId} className="sr-only">
+              Passos do dia
+            </label>
             <input
+              id={inputId}
               name="steps"
               type="number"
               min="0"
               required
               autoFocus
               defaultValue={steps}
-              className="w-full bg-transparent border-0 border-b border-[var(--border)] focus:border-[var(--accent)] focus:outline-none text-sm tnum py-1"
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? errorId : undefined}
+              className={`w-full bg-transparent border-0 border-b focus:outline-none text-sm tnum py-1 ${
+                error
+                  ? "border-[var(--danger)]"
+                  : "border-[var(--border)] focus:border-[var(--accent)]"
+              }`}
             />
             <input type="hidden" name="step_date" value={stepDate} />
           </div>
@@ -53,20 +69,34 @@ export function EditableStepsRow({
             type="button"
             onClick={() => { setEditing(false); setError(null); }}
             disabled={isPending}
-            className="shrink-0 w-8 h-8 rounded-lg border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-60"
+            aria-label="Cancelar edição"
+            className="shrink-0 w-11 h-11 rounded-lg border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)] active:scale-95 transition-transform disabled:opacity-60"
           >
             <X size={14} strokeWidth={1.75} />
           </button>
           <button
             type="submit"
             disabled={isPending}
-            className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center disabled:opacity-60"
+            aria-label={isPending ? "Salvando" : "Salvar passos"}
+            className="shrink-0 w-11 h-11 rounded-lg flex items-center justify-center active:scale-95 transition-transform disabled:opacity-60"
             style={{ background: "var(--accent)", color: "var(--accent-fg)" }}
           >
-            <Check size={14} strokeWidth={2.5} />
+            {isPending ? (
+              <Loader2 size={14} strokeWidth={2.5} className="animate-spin" />
+            ) : (
+              <Check size={14} strokeWidth={2.5} />
+            )}
           </button>
         </form>
-        {error && <p className="text-[10px] text-[var(--danger)] mt-1 ml-10">{error}</p>}
+        {error && (
+          <p
+            id={errorId}
+            className="text-[10px] text-[var(--danger)] mt-1 ml-10"
+            role="alert"
+          >
+            {error}
+          </p>
+        )}
       </li>
     );
   }

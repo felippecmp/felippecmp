@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Bed, Check, NotebookPen, X } from "lucide-react";
+import { Bed, Check, Loader2, NotebookPen, X } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { saveDailyNote } from "./notas/actions";
 import { markRestDay, unmarkRestDay } from "./descanso/actions";
@@ -33,6 +33,7 @@ function NotaSlot({ todayNote }: { todayNote: Props["todayNote"] }) {
   const { toast } = useToast();
 
   if (editing) {
+    const errorId = "nota-descanso-error";
     return (
       <form
         action={(formData) => {
@@ -48,6 +49,7 @@ function NotaSlot({ todayNote }: { todayNote: Props["todayNote"] }) {
           });
         }}
         className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2.5"
+        aria-busy={isPending}
       >
         <div className="flex items-start gap-2">
           <NotebookPen
@@ -56,7 +58,11 @@ function NotaSlot({ todayNote }: { todayNote: Props["todayNote"] }) {
             className="text-[var(--text-soft)] mt-1 shrink-0"
           />
           <div className="flex-1 min-w-0">
+            <label htmlFor="daily-note-body" className="sr-only">
+              Nota do dia
+            </label>
             <textarea
+              id="daily-note-body"
               name="body"
               required
               autoFocus
@@ -64,7 +70,11 @@ function NotaSlot({ todayNote }: { todayNote: Props["todayNote"] }) {
               maxLength={500}
               defaultValue={todayNote?.body ?? ""}
               placeholder="Sono, dor, humor, energia…"
-              className="w-full bg-transparent border-0 focus:outline-none text-sm py-0 resize-none placeholder:text-[var(--text-dim)] leading-snug"
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? errorId : undefined}
+              className={`w-full bg-transparent border-0 focus:outline-none text-sm py-0 resize-none placeholder:text-[var(--text-dim)] leading-snug ${
+                error ? "text-[var(--danger)]" : ""
+              }`}
             />
             <input
               type="hidden"
@@ -78,10 +88,14 @@ function NotaSlot({ todayNote }: { todayNote: Props["todayNote"] }) {
             <button
               type="submit"
               disabled={isPending}
-              className="w-7 h-7 rounded-md bg-accent text-accent-fg flex items-center justify-center disabled:opacity-60"
-              aria-label="Salvar"
+              className="w-9 h-9 rounded-md bg-accent text-accent-fg flex items-center justify-center active:scale-95 transition-transform disabled:opacity-60"
+              aria-label={isPending ? "Salvando nota" : "Salvar nota"}
             >
-              <Check size={12} strokeWidth={2.5} />
+              {isPending ? (
+                <Loader2 size={12} strokeWidth={2.5} className="animate-spin" />
+              ) : (
+                <Check size={12} strokeWidth={2.5} />
+              )}
             </button>
             <button
               type="button"
@@ -90,7 +104,7 @@ function NotaSlot({ todayNote }: { todayNote: Props["todayNote"] }) {
                 setError(null);
               }}
               disabled={isPending}
-              className="w-7 h-7 rounded-md border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-60"
+              className="w-9 h-9 rounded-md border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)] active:scale-95 transition-transform disabled:opacity-60"
               aria-label="Cancelar"
             >
               <X size={12} strokeWidth={1.75} />
@@ -98,7 +112,13 @@ function NotaSlot({ todayNote }: { todayNote: Props["todayNote"] }) {
           </div>
         </div>
         {error && (
-          <p className="text-[10px] text-[var(--danger)] mt-1.5">{error}</p>
+          <p
+            id={errorId}
+            className="text-[10px] text-[var(--danger)] mt-1.5"
+            role="alert"
+          >
+            {error}
+          </p>
         )}
       </form>
     );

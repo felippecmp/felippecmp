@@ -43,21 +43,23 @@ export function BottomNav() {
             <li key={href}>
               <Link
                 href={href}
-                className="relative flex flex-col items-center justify-center gap-0.5 py-2"
+                aria-label={label}
+                aria-current={active ? "page" : undefined}
+                className="relative flex flex-col items-center justify-center gap-0.5 py-2 active:scale-95 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)] rounded-md"
               >
                 <span
-                  className="flex items-center justify-center w-14 h-8 rounded-full"
+                  className="flex items-center justify-center w-14 h-8 rounded-full transition-colors"
                   style={active ? { background: "var(--accent)" } : undefined}
                 >
                   <Icon
                     size={18}
-                    strokeWidth={1.75}
-                    style={{ color: active ? "var(--accent-fg)" : "var(--text-dim)" }}
+                    strokeWidth={active ? 2.25 : 1.75}
+                    style={{ color: active ? "var(--accent-fg)" : "var(--text-muted)" }}
                   />
                 </span>
                 <span
                   className="text-[10px] tracking-wide font-medium"
-                  style={{ color: active ? "var(--text)" : "var(--text-dim)" }}
+                  style={{ color: active ? "var(--text)" : "var(--text-muted)" }}
                 >
                   {label}
                 </span>
