@@ -378,6 +378,24 @@ export async function removeTemplateExercise(
   return { ok: true };
 }
 
+export async function swapTemplateExercise(
+  templateExerciseId: string,
+  newExerciseId: string,
+  templateId: string
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("template_exercises")
+    .update({ exercise_id: newExerciseId })
+    .eq("id", templateExerciseId);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/templates/${templateId}`);
+  revalidatePath("/treinar");
+  return { ok: true };
+}
+
 export async function reorderTemplateExercise(
   id: string,
   templateId: string,

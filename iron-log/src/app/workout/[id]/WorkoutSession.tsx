@@ -287,29 +287,49 @@ export function WorkoutSession({
   function handlePickExercise(ex: CatalogExercise) {
     setPickerOpen(false);
 
-    // Swap mode: replace the exercise block in-place
+    // Swap mode: if the exercise being swapped has logged sets, keep it
+    // and insert the new one right after (preserving history). If no sets
+    // logged yet, replace it in-place.
     if (swappingId) {
-      setExercises((prev) =>
-        prev.map((e) =>
-          e.templateExerciseId === swappingId
-            ? {
-                ...e,
-                exerciseId: ex.id,
-                exerciseName: ex.name,
-                primaryMuscle: ex.primaryMuscle,
-                previousSets: [],
-                previousSetsAt: null,
-                existingSets: [],
-                suggestion: {
-                  suggestedWeight: null,
-                  status: "building" as const,
-                  message: `Trocado pra ${ex.name}. Escolha um peso e anote.`,
-                  confidence: "low" as const,
-                },
-              }
-            : e
-        )
-      );
+      const swapping = exercises.find((e) => e.templateExerciseId === swappingId);
+      const hasSets = swapping?.existingSets.some((s) => s.id) ?? false;
+      const newBlock: ExerciseBlockData = {
+        templateExerciseId: `adhoc-${ex.id}`,
+        exerciseId: ex.id,
+        exerciseName: ex.name,
+        primaryMuscle: ex.primaryMuscle,
+        targetSets: swapping?.targetSets ?? 2,
+        repRangeLow: swapping?.repRangeLow ?? 4,
+        repRangeHigh: swapping?.repRangeHigh ?? 8,
+        restSeconds: swapping?.restSeconds ?? 180,
+        previousSets: [],
+        previousSetsAt: null,
+        existingSets: [],
+        suggestion: {
+          suggestedWeight: null,
+          status: "building",
+          message: `Trocado pra ${ex.name}. Escolha um peso e anote.`,
+          confidence: "low",
+        },
+        isAdhoc: true,
+      };
+      if (hasSets) {
+        // Insert new block after the swapped one, keep old block too
+        setExercises((prev) => {
+          const idx = prev.findIndex((e) => e.templateExerciseId === swappingId);
+          if (idx === -1) return [...prev, newBlock];
+          return [...prev.slice(0, idx + 1), newBlock, ...prev.slice(idx + 1)];
+        });
+      } else {
+        // In-place replace (no sets logged)
+        setExercises((prev) =>
+          prev.map((e) =>
+            e.templateExerciseId === swappingId
+              ? { ...newBlock, templateExerciseId: e.templateExerciseId, isAdhoc: e.isAdhoc }
+              : e
+          )
+        );
+      }
       setSwappingId(null);
       return;
     }
@@ -814,9 +834,10 @@ function ExerciseCard({
   const suggestion = exercise.suggestion;
   const [detailOpen, setDetailOpen] = useState(false);
 
-  // Allow removing/swapping while no sets have been logged.
+  // Allow swap always (new exercise is added, old stays with logged sets).
+  // Delete only if no sets logged yet.
   const hasAnySet = rows.some((r) => r.id !== null);
-  const canSwap = !!onSwapExercise && !hasAnySet && !disabled;
+  const canSwap = !!onSwapExercise && !disabled;
   const canDelete = !hasAnySet && !disabled;
 
   return (

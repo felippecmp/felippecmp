@@ -6,6 +6,7 @@ import {
   Trash2,
   ArrowUp,
   ArrowDown,
+  ArrowLeftRight,
   Archive,
   Check,
   X,
@@ -25,6 +26,7 @@ import {
   createExerciseFromTemplate,
   removeTemplateExercise,
   reorderTemplateExercise,
+  swapTemplateExercise,
   updateTemplate,
   updateTemplateExercise,
 } from "../actions";
@@ -65,13 +67,25 @@ export function TemplateEditor({
   availableExercises: Exercise[];
 }) {
   const [picking, setPicking] = useState(false);
+  const [swappingTeId, setSwappingTeId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(template.name);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const usedIds = new Set(templateExercises.map((te) => te.exercise_id));
-  const pickable = availableExercises.filter((e) => !usedIds.has(e.id));
+  // When swapping, show all exercises (except ones already used by OTHER
+  // template exercises). When adding, exclude all currently-used.
+  const pickable = (() => {
+    if (swappingTeId) {
+      const swappingTe = templateExercises.find((te) => te.id === swappingTeId);
+      const currentExId = swappingTe?.exercise_id;
+      return availableExercises.filter(
+        (e) => e.id === currentExId || !usedIds.has(e.id)
+      );
+    }
+    return availableExercises.filter((e) => !usedIds.has(e.id));
+  })();
 
   async function handleRename(formData: FormData) {
     startTransition(async () => {
@@ -82,7 +96,12 @@ export function TemplateEditor({
 
   function handleAdd(exerciseId: string) {
     startTransition(async () => {
-      await addExerciseToTemplate(template.id, exerciseId);
+      if (swappingTeId) {
+        await swapTemplateExercise(swappingTeId, exerciseId, template.id);
+        setSwappingTeId(null);
+      } else {
+        await addExerciseToTemplate(template.id, exerciseId);
+      }
       setPicking(false);
     });
   }
@@ -91,6 +110,11 @@ export function TemplateEditor({
     startTransition(async () => {
       await removeTemplateExercise(id, template.id);
     });
+  }
+
+  function handleSwap(teId: string) {
+    setSwappingTeId(teId);
+    setPicking(true);
   }
 
   function handleReorder(id: string, direction: "up" | "down") {
@@ -182,6 +206,7 @@ export function TemplateEditor({
                 templateId={template.id}
                 onRemove={handleRemove}
                 onReorder={handleReorder}
+                onSwap={handleSwap}
               />
             ))}
           </ul>
@@ -244,7 +269,7 @@ export function TemplateEditor({
           templateId={template.id}
           sessionType={template.session_type}
           onPick={handleAdd}
-          onClose={() => setPicking(false)}
+          onClose={() => { setPicking(false); setSwappingTeId(null); }}
         />
       )}
     </>
@@ -258,6 +283,7 @@ function TemplateExerciseCard({
   templateId,
   onRemove,
   onReorder,
+  onSwap,
 }: {
   te: TemplateExercise;
   isFirst: boolean;
@@ -265,6 +291,7 @@ function TemplateExerciseCard({
   templateId: string;
   onRemove: (id: string) => void;
   onReorder: (id: string, direction: "up" | "down") => void;
+  onSwap: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -316,6 +343,13 @@ function TemplateExerciseCard({
           </div>
         </button>
 
+        <button
+          onClick={() => onSwap(te.id)}
+          aria-label="Trocar exercício"
+          className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--text)] transition-colors"
+        >
+          <ArrowLeftRight size={14} strokeWidth={1.75} />
+        </button>
         <button
           onClick={() => onRemove(te.id)}
           aria-label="Remover"
