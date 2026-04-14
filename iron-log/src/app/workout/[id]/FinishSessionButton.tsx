@@ -79,8 +79,7 @@ export function FinishSessionButton({
 
       {open && (
         <div
-          className="fixed inset-x-0 top-0 z-[60] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center"
-          style={{ height: "100dvh" }}
+          className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-stretch sm:items-center justify-center"
           onClick={() => {
             if (isPending) return;
             if (prs) return; // celebration view requires explicit Continuar
@@ -89,7 +88,8 @@ export function FinishSessionButton({
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full sm:max-w-md bg-[var(--bg-raised)] border-t sm:border border-[var(--border)] rounded-t-3xl sm:rounded-3xl max-h-[85dvh] flex flex-col"
+            className="w-full sm:max-w-md bg-[var(--bg-raised)] sm:border sm:border-[var(--border)] sm:rounded-3xl sm:max-h-[85dvh] flex flex-col h-full sm:h-auto"
+            style={{ paddingTop: "env(safe-area-inset-top)" }}
           >
             <div className="px-6 pt-5 pb-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
               <h2 className="display-sm text-xl">
