@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Calendar, Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import {
   deleteBodyWeight,
   logBodyWeight,
@@ -16,27 +16,49 @@ export type WeightEntry = {
 };
 
 export function WeightEntries({ entries }: { entries: WeightEntry[] }) {
-  const [adding, setAdding] = useState(false);
+  const [mode, setMode] = useState<"none" | "today" | "historical">("none");
 
   return (
     <>
-      {!adding && (
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          className="w-full mb-6 flex items-center justify-center gap-2 bg-accent text-accent-fg font-semibold py-3 rounded-xl hover:bg-accent-hover transition-colors"
-        >
-          <Plus size={16} strokeWidth={2.5} />
-          Registrar peso
-        </button>
+      {mode === "none" && (
+        <div className="mb-6 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setMode("today")}
+            className="flex items-center justify-center gap-2 font-semibold py-3 rounded-xl transition-colors"
+            style={{ background: "var(--accent)", color: "var(--accent-fg)" }}
+          >
+            <Plus size={16} strokeWidth={2.5} />
+            Registrar peso
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("historical")}
+            className="flex items-center justify-center gap-2 border border-[var(--border)] text-[var(--text)] font-semibold py-3 rounded-xl hover:border-[var(--border-strong)] transition-colors"
+          >
+            <Calendar size={16} strokeWidth={1.75} />
+            Peso histórico
+          </button>
+        </div>
       )}
 
-      {adding && (
+      {mode !== "none" && (
         <div className="mb-6 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+          {mode === "historical" && (
+            <p className="text-xs text-[var(--text-muted)] mb-3 leading-relaxed">
+              Registre pesos antigos pra construir seu histórico. Escolha a data
+              real do registro (ex: quando você começou o processo).
+            </p>
+          )}
           <EntryForm
             mode="create"
-            onDone={() => setAdding(false)}
-            onCancel={() => setAdding(false)}
+            initialDate={
+              mode === "historical"
+                ? ""
+                : new Date().toISOString().slice(0, 10)
+            }
+            onDone={() => setMode("none")}
+            onCancel={() => setMode("none")}
           />
         </div>
       )}
@@ -149,11 +171,13 @@ function EntryRow({ entry }: { entry: WeightEntry }) {
 function EntryForm({
   mode,
   entry,
+  initialDate,
   onDone,
   onCancel,
 }: {
   mode: "create" | "edit";
   entry?: WeightEntry;
+  initialDate?: string;
   onDone: () => void;
   onCancel: () => void;
 }) {
@@ -162,7 +186,7 @@ function EntryForm({
 
   const defaultDate = entry
     ? entry.recordedAt.slice(0, 10)
-    : new Date().toISOString().slice(0, 10);
+    : initialDate ?? new Date().toISOString().slice(0, 10);
   const defaultWeight = entry ? entry.weightKg.toString() : "";
   const defaultNotes = entry?.notes ?? "";
 
