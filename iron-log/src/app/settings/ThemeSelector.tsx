@@ -7,6 +7,7 @@ const SWATCHES: Record<Theme, string[]> = {
   default: ["#0a0a0a", "#171717", "#ffffff", "#a3e635"],
   gohan: ["#0c0a14", "#EDF1F5", "#EE1111", "#49426B"],
   beast: ["#0c0816", "#e8e0f0", "#e11d48", "#a855f7"],
+  openclaw: ["#050911", "#F0F4FF", "#FF4D4D", "#1a2540"],
 };
 
 export function ThemeSelector() {
@@ -22,7 +23,7 @@ export function ThemeSelector() {
         />
         <p className="label">Tema</p>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         {themes.map((t) => {
           const active = theme === t.value;
           const colors = SWATCHES[t.value];
