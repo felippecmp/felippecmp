@@ -25,12 +25,14 @@ export default async function TemplatesPage() {
       .from("workout_templates")
       .select("id, name, session_type, sort_order")
       .eq("is_active", true)
+      .eq("is_ai_generated", false)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
     supabase
       .from("workout_templates")
       .select("id, name, session_type")
       .eq("is_active", false)
+      .eq("is_ai_generated", false)
       .order("name", { ascending: true }),
     supabase
       .from("template_exercises")

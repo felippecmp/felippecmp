@@ -110,6 +110,7 @@ export async function buildTrainingContext(): Promise<TrainingContextSummary> {
         "id, name, session_type, sort_order, template_exercises(exercises(name, primary_muscle))"
       )
       .eq("is_active", true)
+      .eq("is_ai_generated", false)
       .order("sort_order", { ascending: true }),
   ]);
 
