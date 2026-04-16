@@ -2,6 +2,9 @@ import Link from "next/link";
 import { BarChart3, ChevronRight, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { muscleLabel, equipmentLabel } from "@/lib/muscles";
+import { isAIAvailable } from "@/lib/coach/ai-client";
+import { CatalogGapAnalyzer } from "./CatalogGapAnalyzer";
+import { listOrphanExercises } from "./ai-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +32,9 @@ type UsageEntry = {
 export default async function ExerciciosPage() {
   const supabase = await createClient();
 
-  const [catalogRes, setsRes] = await Promise.all([
+  const aiEnabled = isAIAvailable();
+
+  const [catalogRes, setsRes, orphans] = await Promise.all([
     supabase
       .from("exercises")
       .select("id, name, session_type, primary_muscle, equipment")
@@ -42,6 +47,7 @@ export default async function ExerciciosPage() {
       .eq("is_warmup", false)
       .order("performed_at", { ascending: false })
       .limit(5000),
+    aiEnabled ? listOrphanExercises() : Promise.resolve([]),
   ]);
 
   const exercises = (catalogRes.data ?? []) as Exercise[];
@@ -129,6 +135,8 @@ export default async function ExerciciosPage() {
         <EmptyState />
       ) : (
         <>
+          {aiEnabled && <CatalogGapAnalyzer orphans={orphans} />}
+
           {usedRows.length > 0 && (
             <section className="mb-10">
               <div className="flex items-baseline justify-between mb-3">
