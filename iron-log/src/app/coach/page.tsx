@@ -40,6 +40,7 @@ export default async function CoachPage() {
       .from("workout_templates")
       .select("id, name, session_type")
       .eq("is_active", true)
+      .eq("is_ai_generated", false)
       .order("sort_order", { ascending: true }),
     supabase
       .from("workout_sessions")

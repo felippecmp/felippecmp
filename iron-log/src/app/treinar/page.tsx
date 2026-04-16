@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { ArrowRight, ChevronRight, Layers } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { isAIAvailable } from "@/lib/coach/ai-client";
 import { getUserSettings, type RotationMode } from "@/lib/settings";
+import { AIWorkoutGenerator } from "./AIWorkoutGenerator";
 import { PreWorkoutBriefing } from "./PreWorkoutBriefing";
 import { StartSessionButton } from "./StartSessionButton";
 
@@ -82,6 +84,7 @@ export default async function TreinarPage() {
       .from("workout_templates")
       .select("id, name, session_type, sort_order")
       .eq("is_active", true)
+      .eq("is_ai_generated", false)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
     supabase
@@ -234,6 +237,15 @@ export default async function TreinarPage() {
               />
             </div>
           )}
+        </section>
+      )}
+
+      {/* AI Workout Generator — compose the day from the user's own catalog */}
+      {!active && isAIAvailable() && templates.length > 0 && (
+        <section className="mb-8">
+          <AIWorkoutGenerator
+            defaultSessionType={suggestion?.targetType ?? "upper"}
+          />
         </section>
       )}
 
