@@ -1,6 +1,12 @@
 @import "tailwindcss";
+@import url("https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&f[]=satoshi@300,400,500,700&display=swap");
 
 :root {
+  /* Font stacks — themes override these */
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter",
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-body);
+
   /* Grayscale (zinc-inspired) — "Default" theme */
   --bg: #0a0a0a;
   --bg-raised: #121212;
@@ -92,6 +98,41 @@
   --danger: #ef4444;
 }
 
+/* "Open Claw" theme — deep navy + ice-white + crimson.
+   Primary: Clash Display (titles/CTAs), Secondary: Satoshi (body).
+   Applied via .theme-openclaw on <html>. */
+.theme-openclaw {
+  --bg: #050911;
+  --bg-raised: #0a1220;
+  --bg-card: #0f1829;
+  --bg-hover: #141f35;
+
+  --border: #1a2540;
+  --border-strong: #253055;
+
+  --text: #F0F4FF;
+  --text-soft: #B8C2E0;
+  --text-muted: #7A85A8;
+  --text-dim: #4D5676;
+  --text-faint: #2D3651;
+
+  /* Crimson accent — titles, buttons, focus */
+  --accent: #FF4D4D;
+  --accent-hover: #E83838;
+  --accent-fg: #050911;
+
+  --status-ready: #6EE7B7;
+  --status-building: #B8C2E0;
+  --status-progressed: #7FC5FF;
+  --status-stalled: #FF9E7F;
+  --danger: #FF4D4D;
+
+  --font-body: "Satoshi", -apple-system, BlinkMacSystemFont, "SF Pro Display",
+    "Inter", sans-serif;
+  --font-display: "Clash Display", -apple-system, BlinkMacSystemFont,
+    "SF Pro Display", sans-serif;
+}
+
 @theme inline {
   --color-background: var(--bg);
   --color-foreground: var(--text);
@@ -136,8 +177,7 @@
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter",
-      "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: var(--font-body);
     font-feature-settings: "ss01", "cv11";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -208,13 +248,23 @@
 
   /* Tight display tracking */
   .display {
+    font-family: var(--font-display);
     letter-spacing: -0.035em;
     font-weight: 800;
   }
 
   .display-sm {
+    font-family: var(--font-display);
     letter-spacing: -0.025em;
     font-weight: 700;
+  }
+
+  /* Open Claw: titles paint crimson (the "contrastante" per the palette).
+     Applies to any element using .display or .display-sm (page h1/h2s,
+     big stat numbers, section titles). */
+  .theme-openclaw .display,
+  .theme-openclaw .display-sm {
+    color: var(--accent);
   }
 
   /* Caps label */
