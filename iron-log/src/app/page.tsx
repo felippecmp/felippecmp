@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
   ChevronRight,
-  Flame,
   Play,
   Settings as SettingsIcon,
   TrendingUp,
@@ -10,9 +9,10 @@ import { createClient } from "@/lib/supabase/server";
 import { computeStreak } from "@/lib/streak";
 import { muscleLabel } from "@/lib/muscles";
 import { userDayKey } from "@/lib/timezone";
+import type { DayPeekData } from "@/components/DayPeek";
 import { Ring } from "@/components/Ring";
-import { WeekStrip } from "@/components/WeekStrip";
 import { DiaryRow, type DiaryEntry } from "./DiaryRow";
+import { HomeStreakAndWeek } from "./HomeStreakAndWeek";
 import { TodayChecklist } from "./TodayChecklist";
 import { NotaDescansoRow } from "./NotaDescansoRow";
 import { WeeklyRecap } from "./WeeklyRecap";
@@ -461,6 +461,127 @@ export default async function HomePage() {
     activeDayKeys.add(localDayKey(new Date(c.started_at)));
   }
 
+  // Per-visible-day metadata for the DayPeek sheets (PR 3 of v2). Builds
+  // [dayKey → DayPeekData] for the 7 days in the current week (Sun..Sat).
+  // Past with strength → templateName + duration; past with cardio →
+  // distance/time; today with no activity yet → next planned template;
+  // future → "Planejado". Only the visible week is materialized so the
+  // payload stays small.
+  const weekDayInfo: Array<[string, DayPeekData]> = (() => {
+    const [ty, tm, td] = todayKey.split("-").map((v) => parseInt(v, 10));
+    const todayUtc = new Date(Date.UTC(ty, tm - 1, td, 12, 0, 0));
+    const sundayUtc = new Date(todayUtc);
+    sundayUtc.setUTCDate(sundayUtc.getUTCDate() - todayUtc.getUTCDay());
+    const restDayKeys = new Set(restDays.map((r) => r.rest_date));
+
+    const out: Array<[string, DayPeekData]> = [];
+    for (let i = 0; i < 7; i++) {
+      const probe = new Date(sundayUtc);
+      probe.setUTCDate(sundayUtc.getUTCDate() + i);
+      const k = localDayKey(probe);
+      const dayLabel = probe
+        .toLocaleDateString("pt-BR", {
+          weekday: "short",
+          day: "2-digit",
+          month: "short",
+          timeZone: "UTC",
+        })
+        .toUpperCase()
+        .replace(".", "");
+
+      // Find the most recent strength/cardio session on this day.
+      const strengthOnDay = strengthSessions.find(
+        (s) => localDayKey(new Date(s.started_at)) === k
+      );
+      const cardioOnDay = cardioSessions.find(
+        (c) => localDayKey(new Date(c.started_at)) === k
+      );
+
+      if (strengthOnDay) {
+        const tpl = Array.isArray(strengthOnDay.workout_templates)
+          ? strengthOnDay.workout_templates[0]
+          : strengthOnDay.workout_templates;
+        const tplName = (tpl as { name: string } | null)?.name ?? "Sessão";
+        const subtitleParts: string[] = [];
+        if (strengthOnDay.duration_minutes != null) {
+          subtitleParts.push(`${strengthOnDay.duration_minutes}min`);
+        }
+        if (strengthOnDay.avg_heart_rate != null) {
+          subtitleParts.push(`HR ${strengthOnDay.avg_heart_rate}`);
+        }
+        out.push([
+          k,
+          {
+            label: dayLabel,
+            title: tplName,
+            subtitle: subtitleParts.join(" · ") || undefined,
+            sessionHref: `/workout/${strengthOnDay.id}`,
+            kind: "strength",
+          },
+        ]);
+        continue;
+      }
+
+      if (cardioOnDay) {
+        const km = cardioOnDay.distance_km
+          ? Number(cardioOnDay.distance_km)
+          : null;
+        const min = Math.round(cardioOnDay.duration_seconds / 60);
+        const subtitleParts: string[] = [];
+        if (km !== null && km > 0) subtitleParts.push(`${km.toFixed(1)}km`);
+        if (min > 0) subtitleParts.push(`${min}min`);
+        out.push([
+          k,
+          {
+            label: dayLabel,
+            title: cardioOnDay.activity_type ?? "Cardio",
+            subtitle: subtitleParts.join(" · ") || undefined,
+            kind: "cardio",
+          },
+        ]);
+        continue;
+      }
+
+      if (restDayKeys.has(k)) {
+        out.push([
+          k,
+          {
+            label: dayLabel,
+            title: "Descanso",
+            subtitle: "Recuperação",
+            kind: "rest",
+          },
+        ]);
+        continue;
+      }
+
+      // Today with nothing logged → show the next planned template.
+      if (k === todayKey && nextTemplate) {
+        out.push([
+          k,
+          {
+            label: `${dayLabel} · HOJE`,
+            title: nextTemplate.name,
+            subtitle: `${nextTemplate.exercise_count} exercícios planejados`,
+            kind: "strength",
+          },
+        ]);
+        continue;
+      }
+
+      // Future or empty past.
+      out.push([
+        k,
+        {
+          label: dayLabel,
+          title: k > todayKey ? "Planejado" : "Vazio",
+          kind: "empty",
+        },
+      ]);
+    }
+    return out;
+  })();
+
   // Volume · 30d — total kg lifted (sum of weight × reps across working sets
   // in the last 30 days). Displayed as tonnes with 1 decimal in the hero.
   const vol30Sets = (volume30dRows ?? []) as Array<{
@@ -504,12 +625,16 @@ export default async function HomePage() {
         </Link>
       </header>
 
-      {/* Weekstrip — current week at a glance (Sun..Sat). Fills past dots
-          with a cream check for days that had any strength/cardio activity,
-          highlights today in coral. */}
-      {!firstRun && (
-        <WeekStrip activeDayKeys={activeDayKeys} today={now} />
-      )}
+      {/* Streak pill + weekstrip — handed off to a client wrapper so the
+          calendar + day-peek sheets can own their open state. */}
+      <HomeStreakAndWeek
+        todayKey={todayKey}
+        activeDayKeys={Array.from(activeDayKeys)}
+        current={streak.current}
+        best={streak.best}
+        weekDayInfo={weekDayInfo}
+        hasFirstRunData={!firstRun}
+      />
 
       {/* Hero — unified ring + próximo treino card. When there's an active
           session, swaps to an "Em andamento" state so the ring icon flips to
@@ -630,67 +755,40 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* Dual focus row — Streak (cream) + Volume · 30d (coral). Replaces
-          the old three-stat sparkline grid; bottom nav covers /peso,
-          /cardio, /progresso shortcuts. */}
+      {/* Volume · 30d — single full-width card. Streak migrated to the pill
+          in the header (clickable → opens StreakCalendar) per v2 layout. */}
       {!firstRun && (
-        <div className="mb-4 grid grid-cols-2 gap-2.5">
-          <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-3.5">
-            <div className="mb-2 flex items-center gap-2">
-              <Flame
-                size={14}
-                strokeWidth={2}
-                className="text-[var(--status-ready)]"
-              />
-              <span className="tlog-eyebrow text-[var(--text-muted)]">Streak</span>
-            </div>
-            <div className="flex items-baseline gap-1.5">
-              <span
-                className="tlog-hero tnum"
-                style={{ color: "var(--status-ready)" }}
-              >
-                {streak.current}
-              </span>
-              <span className="text-xs font-semibold text-[var(--text-muted)]">
-                {streak.current === 1 ? "dia" : "dias"}
-              </span>
-            </div>
-            <p className="mt-1 text-[11px] text-[var(--text-muted)] tnum">
-              Melhor: {streak.best} {streak.best === 1 ? "dia" : "dias"}
-            </p>
+        <Link
+          href="/progresso"
+          className="mb-4 block rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-4 hover:bg-[var(--bg-hover)] transition-colors"
+        >
+          <div className="mb-2 flex items-center gap-2">
+            <TrendingUp
+              size={14}
+              strokeWidth={2}
+              className="text-[var(--accent)]"
+            />
+            <span className="tlog-eyebrow text-[var(--text-muted)]">
+              Volume · 30d
+            </span>
           </div>
-          <Link
-            href="/progresso"
-            className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-3.5 hover:bg-[var(--bg-hover)] transition-colors"
-          >
-            <div className="mb-2 flex items-center gap-2">
-              <TrendingUp
-                size={14}
-                strokeWidth={2}
-                className="text-[var(--accent)]"
-              />
-              <span className="tlog-eyebrow text-[var(--text-muted)]">
-                Volume · 30d
-              </span>
-            </div>
-            <div className="flex items-baseline gap-1.5">
-              <span
-                className="tlog-hero tnum"
-                style={{ color: "var(--accent)" }}
-              >
-                {volume30dTonnes >= 10
-                  ? volume30dTonnes.toFixed(1)
-                  : volume30dTonnes.toFixed(2)}
-              </span>
-              <span className="text-xs font-semibold text-[var(--text-muted)]">
-                t
-              </span>
-            </div>
-            <p className="mt-1 text-[11px] text-[var(--text-muted)] tnum">
+          <div className="flex items-baseline gap-2">
+            <span
+              className="tlog-hero tnum"
+              style={{ color: "var(--accent)" }}
+            >
+              {volume30dTonnes >= 10
+                ? volume30dTonnes.toFixed(1)
+                : volume30dTonnes.toFixed(2)}
+            </span>
+            <span className="text-sm font-semibold text-[var(--text-muted)]">
+              toneladas
+            </span>
+            <span className="ml-auto text-[11px] font-bold text-[var(--text-muted)] tnum">
               {sessions7d} {sessions7d === 1 ? "treino" : "treinos"} · 7d
-            </p>
-          </Link>
-        </div>
+            </span>
+          </div>
+        </Link>
       )}
 
       {/* Today's checklist */}

@@ -1,3 +1,5 @@
+"use client";
+
 import { Check } from "lucide-react";
 import { userDayKey } from "@/lib/timezone";
 
@@ -9,6 +11,9 @@ import { userDayKey } from "@/lib/timezone";
  *   - past & empty  → hollow dot (surf3 bg, subtle border)
  *   - future        → hollow dot, dim letter
  *
+ * When `onDayClick` is provided, each cell becomes a button — used by the
+ * v2 DayPeek sheet flow to open a day's detail.
+ *
  * Ported from the Claude Design "Training Log" handoff
  * (docs/design-handoff/components/home-variants.jsx → HomeHub).
  */
@@ -17,9 +22,12 @@ const DOW_PT = ["D", "S", "T", "Q", "Q", "S", "S"] as const;
 export function WeekStrip({
   activeDayKeys,
   today = new Date(),
+  onDayClick,
 }: {
   activeDayKeys: Set<string>;
   today?: Date;
+  /** When set, each day cell becomes a button; the handler receives the YYYY-MM-DD key. */
+  onDayClick?: (dayKey: string) => void;
 }) {
   const todayKey = userDayKey(today);
 
@@ -54,12 +62,8 @@ export function WeekStrip({
           : d.isActive
             ? "bg-[var(--status-ready)] border-transparent"
             : "bg-[var(--bg-hover)] border border-[var(--border-strong)]";
-        return (
-          <div
-            key={d.key}
-            className={`flex flex-1 flex-col items-center gap-1.5 rounded-xl py-1.5 ${wrapperBg}`}
-            aria-label={d.isToday ? "Hoje" : undefined}
-          >
+        const cellInner = (
+          <>
             <span
               className={`text-[10px] font-bold tracking-[0.05em] tnum ${letterColor}`}
             >
@@ -76,6 +80,29 @@ export function WeekStrip({
                 />
               )}
             </div>
+          </>
+        );
+        const wrapperClass = `flex flex-1 flex-col items-center gap-1.5 rounded-xl py-1.5 ${wrapperBg}`;
+        if (onDayClick) {
+          return (
+            <button
+              key={d.key}
+              type="button"
+              onClick={() => onDayClick(d.key)}
+              aria-label={d.isToday ? "Hoje — abrir detalhe" : "Abrir detalhe do dia"}
+              className={`${wrapperClass} active:scale-95 transition-transform`}
+            >
+              {cellInner}
+            </button>
+          );
+        }
+        return (
+          <div
+            key={d.key}
+            className={wrapperClass}
+            aria-label={d.isToday ? "Hoje" : undefined}
+          >
+            {cellInner}
           </div>
         );
       })}
