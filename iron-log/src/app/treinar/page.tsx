@@ -362,13 +362,14 @@ export default async function TreinarPage() {
           </div>
           <TemplateFilter
             templates={templates}
-            renderRow={(t) => (
+            rows={templates.map((t) => (
               <TemplateRowItem
+                key={t.id}
                 template={t}
                 isSuggested={t.id === suggestedId}
                 disabled={t.exercise_count === 0 || Boolean(active)}
               />
-            )}
+            ))}
           />
         </section>
       )}

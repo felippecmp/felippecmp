@@ -1,41 +1,46 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { Search } from "lucide-react";
 
 type TemplateLite = {
   id: string;
   name: string;
   session_type: "upper" | "lower";
-  exercise_count: number;
 };
 
 /**
  * Search bar + filter chips ("Todos / Upper / Lower") for the Treinar
- * template list. Wraps any render of a per-template row.
+ * template list.
+ *
+ * Server / client split: the server pre-renders each row as a ReactNode
+ * and passes them in `rows` (1:1 with `templates`). The client filters
+ * the templates by query + segment and renders the matching pre-built
+ * row. Going via pre-rendered nodes (instead of a function) keeps the
+ * RSC boundary clean — functions can't cross from a server component
+ * into a client component.
  *
  * Ported from the v2 handoff (train-screen.jsx → search bar + chips).
- * Generic over the template shape so consumers can pass richer types
- * (with sort_order, etc.) without losing the field on the renderRow
- * callback.
  */
-export function TemplateFilter<T extends TemplateLite>({
+export function TemplateFilter({
   templates,
-  renderRow,
+  rows,
 }: {
-  templates: T[];
-  renderRow: (template: T) => React.ReactNode;
+  templates: TemplateLite[];
+  rows: ReactNode[];
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "upper" | "lower">("all");
 
-  const filtered = useMemo(() => {
+  const filteredIndices = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return templates.filter((t) => {
-      if (filter !== "all" && t.session_type !== filter) return false;
-      if (q && !t.name.toLowerCase().includes(q)) return false;
-      return true;
+    const out: number[] = [];
+    templates.forEach((t, i) => {
+      if (filter !== "all" && t.session_type !== filter) return;
+      if (q && !t.name.toLowerCase().includes(q)) return;
+      out.push(i);
     });
+    return out;
   }, [templates, query, filter]);
 
   return (
@@ -72,10 +77,12 @@ export function TemplateFilter<T extends TemplateLite>({
         })}
       </div>
       <ul className="flex flex-col gap-2">
-        {filtered.map((t) => (
-          <li key={t.id}>{renderRow(t)}</li>
+        {filteredIndices.map((i) => (
+          <li key={templates[i].id}>
+            <Fragment>{rows[i]}</Fragment>
+          </li>
         ))}
-        {filtered.length === 0 && (
+        {filteredIndices.length === 0 && (
           <li className="text-center text-[12px] text-[var(--text-muted)] py-8">
             Nenhum template encontrado.
           </li>
