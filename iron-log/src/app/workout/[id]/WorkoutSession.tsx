@@ -528,7 +528,9 @@ function RestTimerInner({
   // Ring winds DOWN — stroke shrinks as time passes. That way the ring visually
   // empties into the background, not the other way around.
   const ringValue = total > 0 ? Math.max(0, remaining) / total : 0;
-  const ringColor = "var(--status-ready)";
+  // Active timer = rosa (matches v2). When the countdown hits 0 it flips to
+  // cyan so "done / pronto" reads as a clean OK signal.
+  const ringColor = done ? "var(--status-ready)" : "var(--accent)";
 
   return (
     <div
@@ -545,7 +547,7 @@ function RestTimerInner({
         style={{
           borderColor: done
             ? "color-mix(in oklab, var(--status-ready) 60%, transparent)"
-            : "color-mix(in oklab, var(--status-ready) 40%, transparent)",
+            : "color-mix(in oklab, var(--accent) 40%, transparent)",
         }}
       >
         <Ring
@@ -555,11 +557,7 @@ function RestTimerInner({
           color={ringColor}
           track="var(--border-strong)"
         >
-          <Timer
-            size={15}
-            strokeWidth={2}
-            className="text-[var(--status-ready)]"
-          />
+          <Timer size={15} strokeWidth={2} style={{ color: ringColor }} />
         </Ring>
         <div className="min-w-0 flex-1">
           <p className="tlog-eyebrow text-[var(--text-muted)]">
@@ -570,7 +568,7 @@ function RestTimerInner({
             style={{
               fontSize: 22,
               letterSpacing: "-0.02em",
-              color: "var(--status-ready)",
+              color: ringColor,
             }}
           >
             {formatMMSS(Math.max(0, remaining))}
