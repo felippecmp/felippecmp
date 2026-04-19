@@ -502,4 +502,24 @@
       transform: translateY(-8px) scale(0.96);
     }
   }
+
+  /* Sheet primitives — fade backdrop + slide-up panel. Used by
+     <BottomSheet> and any consumer that wants the same entry feel. */
+  @keyframes tlog-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes tlog-sheet-up {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
 }
