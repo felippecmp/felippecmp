@@ -7,15 +7,22 @@ import {
   useSyncExternalStore,
 } from "react";
 
-export type Theme = "default" | "gohan" | "beast" | "openclaw";
+export type Theme = "default" | "gohan" | "beast" | "openclaw" | "tlog";
 
 const STORAGE_KEY = "flog:theme";
-const VALID_THEMES = new Set<Theme>(["default", "gohan", "beast", "openclaw"]);
+const VALID_THEMES = new Set<Theme>([
+  "default",
+  "gohan",
+  "beast",
+  "openclaw",
+  "tlog",
+]);
 const THEMES: Array<{ value: Theme; label: string; desc: string }> = [
   { value: "default", label: "Default", desc: "Monocromático puro." },
   { value: "gohan", label: "Gohan", desc: "Prata, índigo, carmesim." },
   { value: "beast", label: "Beast Mode", desc: "Neon purple + crimson." },
   { value: "openclaw", label: "Open Claw", desc: "Navy profundo + crimson + Clash Display." },
+  { value: "tlog", label: "Training Log", desc: "Coral + cream + amber (handoff Claude Design)." },
 ];
 
 type ThemeCtx = { theme: Theme; setTheme: (t: Theme) => void; themes: typeof THEMES };
@@ -29,7 +36,12 @@ export function useTheme() {
   return useContext(ThemeContext);
 }
 
-const THEME_CLASSES = ["theme-gohan", "theme-beast", "theme-openclaw"] as const;
+const THEME_CLASSES = [
+  "theme-gohan",
+  "theme-beast",
+  "theme-openclaw",
+  "theme-tlog",
+] as const;
 
 function applyClass(t: Theme) {
   if (typeof document === "undefined") return;
@@ -38,6 +50,7 @@ function applyClass(t: Theme) {
   if (t === "gohan") cl.add("theme-gohan");
   if (t === "beast") cl.add("theme-beast");
   if (t === "openclaw") cl.add("theme-openclaw");
+  if (t === "tlog") cl.add("theme-tlog");
 }
 
 /**
