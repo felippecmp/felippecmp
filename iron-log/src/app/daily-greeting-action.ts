@@ -48,10 +48,17 @@ Tom deste exemplar: ${flavor}.
 Princípios:
 - Confrontacional. Ácida. Sem papas na língua.
 - Pode (e deve) usar o medo de voltar a ficar gordo / fora de forma / flácido como alavanca — ele PEDIU por isso.
-- Pode ser pergunta retórica: "Vai…?", "Quer…?", "Sabe quem volta gordo?"
-- Pode ter duas cláusulas separadas por "." ou "?" — uma provoca, outra manda fazer.
+- Pode ser pergunta retórica: "Vai…?", "Quer…?", "Sabe quem volta gordo?", "Ou vai resolver isso?"
+- Pode ter duas cláusulas separadas — a primeira provoca, a segunda manda fazer.
 - Fala com ele direto: "faz", "levanta", "para de", "acaba com", "não inventa", "mexe essa bunda"
 - Ou constatação fria sobre padrão perdedor que ele precisa ouvir.
+
+PONTUAÇÃO — regra crítica:
+- TODA cláusula que for pergunta retórica TERMINA com "?". Sem exceção.
+- Palavras de abertura típicas de pergunta: "Vai", "Quer", "Sabe", "Cadê", "Como", "Por que", "Quanto", "Quando", "Ou vai", "Até quando" → SE a cláusula começa com uma dessas, ela TERMINA com "?".
+- NUNCA substitua "?" por ".". Se é pergunta, escreve "?".
+- Cláusula imperativa ou declarativa pode terminar com "." ou sem pontuação — tanto faz.
+- Em uma frase de duas cláusulas, cada cláusula segue sua própria regra: pergunta → "?", ordem → "." ou nada.
 
 PROIBIDO:
 - Frases clichê motivacional ("vamos nessa", "você consegue", "acredite", "melhor versão")
@@ -66,7 +73,7 @@ PROIBIDO:
 Forma:
 - 8 a 18 palavras
 - PRIMEIRA LETRA MAIÚSCULA
-- Pode terminar sem ponto, com ponto final, ou ser 2 frases separadas
+- Pode ser 1 frase ou 2 cláusulas separadas por "?" / "."
 - Nada de "!" em lugar nenhum
 
 Responde APENAS a frase. Sem aspas, sem explicação, sem "Aqui está:".`;
@@ -97,7 +104,29 @@ Responde APENAS a frase. Sem aspas, sem explicação, sem "Aqui está:".`;
     // rule in case the model slips.
     const capitalized =
       cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-    return { ok: true, message: capitalized };
+    // Fix rhetorical questions that the model wrote with "." instead of "?".
+    // Splits on "." / "?", detects clauses that OPEN with an interrogative
+    // word, swaps their trailing "." for "?". Preserves imperative
+    // clauses as-is.
+    const questionStarters =
+      /^(vai|quer|sabe|cadê|como|por\s*que|porque|quanto|quantos|quantas|quando|ou\s+vai|até\s+quando|será)\b/i;
+    const fixed = capitalized
+      .split(/([.?])/)
+      .reduce<string[]>((acc, chunk, i, arr) => {
+        if (chunk === "." || chunk === "?") {
+          const prev = arr[i - 1]?.trim() ?? "";
+          if (chunk === "." && questionStarters.test(prev)) {
+            acc.push("?");
+          } else {
+            acc.push(chunk);
+          }
+        } else {
+          acc.push(chunk);
+        }
+        return acc;
+      }, [])
+      .join("");
+    return { ok: true, message: fixed };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erro desconhecido";
     return { ok: false, error: `Falha: ${msg}` };

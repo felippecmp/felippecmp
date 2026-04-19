@@ -7,7 +7,7 @@ import { generateDailyGreeting } from "./daily-greeting-action";
 // Cache version bump invalidates previously-cached greetings when the
 // prompt/tone changes. Increment on prompt rewrites so old cached lines
 // from a different tone don't linger.
-const CACHE_VERSION = "v4";
+const CACHE_VERSION = "v5";
 const CACHE_PREFIX = `flog:greeting:${CACHE_VERSION}:`;
 const LEGACY_PREFIX = "flog:greeting:";
 const USER_NAME = "Felippe";
