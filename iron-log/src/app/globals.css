@@ -522,4 +522,31 @@
       transform: translateY(0);
     }
   }
+
+  /* PR celebration — confetti pieces fall from the top with a slight
+     horizontal drift; center card pops in with an overshoot. */
+  @keyframes tlog-confetti-fall {
+    0% {
+      opacity: 0;
+      transform: translate3d(0, -20px, 0) rotate(0deg);
+    }
+    10% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translate3d(var(--x, 30px), 520px, 0) rotate(720deg);
+    }
+  }
+
+  @keyframes tlog-pop-in {
+    0% {
+      opacity: 0;
+      transform: scale(0.6);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
 }

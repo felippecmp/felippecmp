@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Brain, Flag, Loader2, Trophy, X } from "lucide-react";
+import { PRCelebration } from "@/components/PRCelebration";
 import { useToast } from "@/components/Toast";
 import { finishSession, type PRDetection } from "./actions";
 import { generatePostWorkoutInsight } from "./ai-actions";
@@ -40,6 +41,9 @@ export function FinishSessionButton({
   const [prs, setPrs] = useState<PRDetection[] | null>(null);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [celebration, setCelebration] = useState<
+    { name: string; diff: string } | null
+  >(null);
   const { toast } = useToast();
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
 
@@ -92,6 +96,19 @@ export function FinishSessionButton({
 
       if (result.prs.length > 0) {
         setPrs(result.prs);
+        // Pop the confetti for the headline PR — biggest weight delta wins.
+        const headline = [...result.prs].sort((a, b) => {
+          const dA = a.kind === "weight" ? a.newWeight - a.priorWeight : a.newReps - a.priorReps;
+          const dB = b.kind === "weight" ? b.newWeight - b.priorWeight : b.newReps - b.priorReps;
+          return dB - dA;
+        })[0];
+        if (headline) {
+          const diff =
+            headline.kind === "weight"
+              ? `+${formatKgDelta(headline.newWeight - headline.priorWeight)}kg`
+              : `+${headline.newReps - headline.priorReps} reps`;
+          setCelebration({ name: headline.exerciseName, diff });
+        }
       } else {
         // No PRs — show a simple "done" view with AI insight
         setPrs([]);
@@ -335,6 +352,15 @@ export function FinishSessionButton({
           </div>
         </div>
       )}
+
+      {/* Confetti overlay — fires once when the headline PR lands. Sits on
+          top of the finish sheet (z-index 300 vs sheet's 60). */}
+      <PRCelebration
+        show={celebration !== null}
+        exerciseName={celebration?.name ?? ""}
+        diffLabel={celebration?.diff ?? ""}
+        onClose={() => setCelebration(null)}
+      />
     </>
   );
 }
@@ -343,6 +369,11 @@ function formatKg(v: number): string {
   const rounded = Math.round(v * 10) / 10;
   if (Number.isInteger(rounded)) return `${rounded}kg`;
   return `${rounded.toFixed(1)}kg`;
+}
+
+function formatKgDelta(v: number): string {
+  const rounded = Math.round(v * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }
 
 function FinishStat({
