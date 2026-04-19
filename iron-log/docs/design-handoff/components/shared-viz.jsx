@@ -21,7 +21,7 @@ const Spark = ({ data, color, width = 64, height = 28, strokeWidth = 1.75, fill 
 };
 
 // Weekly frequency — 4 weeks of bars (força + cardio stacked)
-const FrequencyChart = ({ weeks, height = 110 }) => {
+const FrequencyChart = ({ weeks, height = 110, onWeekTap }) => {
   // weeks: [{label, forca, cardio}]
   const max = Math.max(...weeks.map(w => w.forca + w.cardio), 6);
   const barW = 48;
@@ -34,7 +34,9 @@ const FrequencyChart = ({ weeks, height = 110 }) => {
         const hCardio = (w.cardio / max) * height;
         const hForca = (w.forca / max) * height;
         return (
-          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+          <div key={i}
+            onClick={onWeekTap ? () => onWeekTap(w, i) : undefined}
+            style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: onWeekTap ? 'pointer' : 'default' }}>
             <div style={{
               fontSize: 14, fontWeight: 700, color: total ? (isCurrent ? TOKENS.tPrim : TOKENS.tSec) : 'transparent',
               fontVariantNumeric: 'tabular-nums',

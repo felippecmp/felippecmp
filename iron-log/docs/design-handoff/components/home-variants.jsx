@@ -324,13 +324,47 @@ const HomeBold = ({ onStart, onTab }) => {
 // ─────────────────────────────────────────────────────────────
 // DIRECTION C — EXPERIMENTAL: "Hub" — unified command surface
 // ─────────────────────────────────────────────────────────────
-const HomeHub = ({ onStart, onTab }) => {
+const HomeHub = ({ onStart, onTab, streakPalette = 'gold' }) => {
   const S = SAMPLE;
-  // days-of-week strip
   const dow = ['D','S','T','Q','Q','S','S'];
-  const dayState = [1, 1, 0, 1, 1, 3, 0]; // 0 off, 1 done, 3 today
+  const dayState = [1, 1, 0, 1, 1, 3, 0];
+  const dayData = [
+    { label: 'DOM · 12 ABR', title: 'Upper A', subtitle: '6 exerc · 52min · 3.8t · +3 PRs',
+      exercises: [
+        { name: 'Supino reto', sets: 3, reps: 8 }, { name: 'Remada curvada', sets: 3, reps: 10 },
+        { name: 'Desenvolvimento', sets: 3, reps: 8 }, { name: 'Puxada alta', sets: 3, reps: 12 },
+        { name: 'Elevação lateral', sets: 3, reps: 15 }, { name: 'Face pull', sets: 3, reps: 15 },
+      ]},
+    { label: 'SEG · 13 ABR', title: 'Lower A', subtitle: '6 exerc · 58min · 4.1t',
+      exercises: [
+        { name: 'Agachamento', sets: 4, reps: 6 }, { name: 'RDL', sets: 3, reps: 8 },
+        { name: 'Leg press', sets: 3, reps: 12 }, { name: 'Cadeira flexora', sets: 3, reps: 12 },
+        { name: 'Panturrilha em pé', sets: 4, reps: 15 }, { name: 'Abdominal', sets: 3, reps: 15 },
+      ]},
+    { label: 'TER · 14 ABR', title: 'Descanso', subtitle: 'Recuperação ativa · 20min caminhada' },
+    { label: 'QUA · 15 ABR', title: 'Upper B', subtitle: '6 exerc · 54min · 3.9t · +1 PR',
+      exercises: [
+        { name: 'Supino inclinado', sets: 3, reps: 8 }, { name: 'Remada unilateral', sets: 3, reps: 10 },
+        { name: 'Crucifixo', sets: 3, reps: 12 }, { name: 'Rosca direta', sets: 3, reps: 10 },
+        { name: 'Tríceps testa', sets: 3, reps: 12 }, { name: 'Abdominal oblíquo', sets: 3, reps: 20 },
+      ]},
+    { label: 'QUI · 16 ABR', title: 'Cardio + Core', subtitle: '30min Z2 + core · 4.2km' },
+    { label: 'SEX · 17 ABR', title: 'Lower A · Hoje', subtitle: '6 exerc · ~55min planejados' },
+    { label: 'SÁB · 18 ABR', title: 'Planejado', subtitle: 'Upper A' },
+  ];
+
+  const [showExercise, setShowExercise] = React.useState(null);
+  const [showCalendar, setShowCalendar] = React.useState(false);
+  const [showRecap, setShowRecap] = React.useState(false);
+  const [peekDay, setPeekDay] = React.useState(null);
+  const [volTooltip, setVolTooltip] = React.useState(null);
+
+  const onRefresh = async () => { await new Promise(r => setTimeout(r, 700)); };
+
   return (
-    <div style={{ height: '100%', overflowY: 'auto', paddingBottom: 100 }}>
+    <>
+    <PullToRefresh onRefresh={onRefresh}>
+      <div style={{ paddingBottom: 100 }}>
       <div style={{ padding: '8px 16px 24px' }}>
         {/* Top bar */}
         <div style={{
@@ -342,12 +376,13 @@ const HomeHub = ({ onStart, onTab }) => {
             <div style={{ fontSize: 20, fontWeight: 700, color: TOKENS.tPrim, letterSpacing: -0.4 }}>Olá, Lucas</div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: 999, background: TOKENS.surf2,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            <button onClick={() => setShowCalendar(true)} style={{
+              display: 'flex', alignItems: 'center', gap: 5, padding: '0 12px', height: 36, borderRadius: 999,
+              background: `${TOKENS.coral}15`, border: `1px solid ${TOKENS.coral}35`, cursor: 'pointer',
             }}>
-              <Icon name="search" size={17} color={TOKENS.tSec} />
-            </div>
+              <Icon name="flame" size={14} color={TOKENS.coral} />
+              <span style={{ fontSize: 13, fontWeight: 800, color: TOKENS.coral, fontVariantNumeric: 'tabular-nums' }}>{S.streak.days}</span>
+            </button>
             <div style={{
               width: 36, height: 36, borderRadius: 999, background: TOKENS.surf2,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -367,22 +402,8 @@ const HomeHub = ({ onStart, onTab }) => {
             const isToday = st === 3;
             const isDone = st === 1;
             return (
-              <div key={i} style={{
-                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-                padding: '6px 0',
-                background: isToday ? `${TOKENS.coral}15` : 'transparent',
-                borderRadius: 10,
-              }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: isToday ? TOKENS.coral : TOKENS.tTer, letterSpacing: 0.5 }}>{d}</span>
-                <div style={{
-                  width: 20, height: 20, borderRadius: 999,
-                  background: isToday ? TOKENS.coral : isDone ? TOKENS.mint : TOKENS.surf3,
-                  border: isToday ? 'none' : `1px solid ${TOKENS.borderStrong}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  {isDone && !isToday && <Icon name="check" size={12} color={TOKENS.ink} />}
-                </div>
-              </div>
+              <DayCell key={i} label={d} isToday={isToday} isDone={isDone}
+                onPeek={() => setPeekDay(dayData[i])} />
             );
           })}
         </div>
@@ -419,31 +440,54 @@ const HomeHub = ({ onStart, onTab }) => {
           </div>
         </div>
 
-        {/* DUAL focus row — streak + volume mini-card */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
-          <Card padding={14}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <Icon name="flame" size={14} color={TOKENS.mint} />
-              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 1, color: TOKENS.tTer }}>STREAK</span>
+        {/* STREAK HERO — full-width, motivational */}
+        <StreakHero
+          days={S.streak.days}
+          best={S.streak.best}
+          history={S.streak.history}
+          milestones={S.milestones}
+          palette={streakPalette}
+          onTap={() => setShowCalendar(true)}
+        />
+
+        {/* Volume mini — now stands alone next to Hero flow */}
+        <Card padding={14} style={{ marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <Icon name="trend" size={14} color={TOKENS.coral} />
+                <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 1, color: TOKENS.tTer }}>VOLUME · 30D</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                <span style={{ fontSize: 32, fontWeight: 800, color: TOKENS.coral, lineHeight: 1, letterSpacing: -1, fontVariantNumeric: 'tabular-nums' }}>27.8</span>
+                <span style={{ fontSize: 12, color: TOKENS.tTer, fontWeight: 600 }}>t</span>
+                <span style={{ fontSize: 11, color: TOKENS.mint, fontWeight: 700, marginLeft: 6 }}>↗ +241%</span>
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{ fontSize: 32, fontWeight: 800, color: TOKENS.mint, lineHeight: 1, letterSpacing: -1, fontVariantNumeric: 'tabular-nums' }}>{S.streak.days}</span>
-              <span style={{ fontSize: 12, color: TOKENS.tTer, fontWeight: 600 }}>dia</span>
+            <Spark data={[8,10,12,14,16,20,24,27]} color={TOKENS.coral} width={80} height={36} />
+          </div>
+        </Card>
+
+        {/* Last workout recap trigger */}
+        <Card onClick={() => setShowRecap(true)} style={{ marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: 10, background: `${TOKENS.coral}15`,
+              border: `1px solid ${TOKENS.coral}30`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Icon name="check" size={18} color={TOKENS.coral} />
             </div>
-            <div style={{ fontSize: 11, color: TOKENS.tTer, marginTop: 4 }}>Melhor: {S.streak.best} dias</div>
-          </Card>
-          <Card padding={14}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <Icon name="trend" size={14} color={TOKENS.coral} />
-              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 1, color: TOKENS.tTer }}>VOLUME · 30D</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 1, color: TOKENS.tTer }}>QUA · ÚLTIMO TREINO</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: TOKENS.tPrim, marginTop: 2, letterSpacing: -0.2 }}>
+                Upper A · <span style={{ color: TOKENS.coral }}>+3 PRs</span>
+              </div>
+              <div style={{ fontSize: 11, color: TOKENS.tTer, marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>52min · 14 séries · 3.8t</div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{ fontSize: 32, fontWeight: 800, color: TOKENS.coral, lineHeight: 1, letterSpacing: -1, fontVariantNumeric: 'tabular-nums' }}>27.8</span>
-              <span style={{ fontSize: 12, color: TOKENS.tTer, fontWeight: 600 }}>t</span>
-            </div>
-            <div style={{ fontSize: 11, color: TOKENS.mint, marginTop: 4, fontWeight: 600 }}>↗ +241%</div>
-          </Card>
-        </div>
+            <Icon name="chevR" size={18} color={TOKENS.tTer} />
+          </div>
+        </Card>
 
         {/* Frequency chart */}
         <Card style={{ marginBottom: 14 }}>
@@ -458,7 +502,13 @@ const HomeHub = ({ onStart, onTab }) => {
               </span>
             </div>
           </div>
-          <FrequencyChart weeks={S.frequency} height={80} />
+          <FrequencyChart weeks={S.frequency} height={80}
+            onWeekTap={(w, i) => setPeekDay({
+              label: w.label,
+              title: `Semana ${w.label}`,
+              subtitle: `${w.forca} força · ${w.cardio} cardio`,
+              exercises: [],
+            })} />
         </Card>
 
         {/* Today's Goals — compact row with progress */}
@@ -509,8 +559,262 @@ const HomeHub = ({ onStart, onTab }) => {
           </div>
         </div>
       </div>
+      </div>
+    </PullToRefresh>
+
+      {/* Sheets & modals — outside PullToRefresh to escape transform clipping */}
+      <ExerciseSheet exercise={showExercise} onClose={() => setShowExercise(null)} />
+      <StreakCalendar open={showCalendar} onClose={() => setShowCalendar(false)} />
+      <WorkoutRecap open={showRecap} onClose={() => setShowRecap(false)} />
+      <DayPeek day={peekDay} onClose={() => setPeekDay(null)} />
+    </>
+  );
+};
+
+// DayCell with long-press
+const DayCell = ({ label, isToday, isDone, onPeek }) => {
+  const [pressed, setPressed] = React.useState(false);
+  const handlers = useLongPress(onPeek, null, 380);
+  return (
+    <div {...handlers}
+      onMouseDown={(e) => { setPressed(true); handlers.onMouseDown(e); }}
+      onMouseUp={(e) => { setPressed(false); handlers.onMouseUp(e); }}
+      onMouseLeave={(e) => { setPressed(false); handlers.onMouseLeave(e); }}
+      onTouchStart={(e) => { setPressed(true); handlers.onTouchStart(e); }}
+      onTouchEnd={(e) => { setPressed(false); handlers.onTouchEnd(e); }}
+      style={{
+        flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+        padding: '6px 0',
+        background: isToday ? `${TOKENS.coral}15` : pressed ? TOKENS.surf2 : 'transparent',
+        borderRadius: 10, cursor: 'pointer',
+        transform: pressed ? 'scale(0.95)' : 'scale(1)',
+        transition: 'transform .15s',
+        userSelect: 'none',
+      }}>
+      <span style={{ fontSize: 10, fontWeight: 700, color: isToday ? TOKENS.coral : TOKENS.tTer, letterSpacing: 0.5 }}>{label}</span>
+      <div style={{
+        width: 20, height: 20, borderRadius: 999,
+        background: isToday ? TOKENS.coral : isDone ? TOKENS.mint : TOKENS.surf3,
+        border: isToday ? 'none' : `1px solid ${TOKENS.borderStrong}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {isDone && !isToday && <Icon name="check" size={12} color={TOKENS.ink} />}
+      </div>
     </div>
   );
 };
 
 Object.assign(window, { HomeSafe, HomeBold, HomeHub, Card, StatCard });
+
+// ═══════════════════════════════════════════════════════════════
+// STREAK HERO — motivational full-width streak showcase
+// ═══════════════════════════════════════════════════════════════
+// Palette definitions for streak hero — 3 options
+const STREAK_PALETTES = {
+  gold: {
+    name: 'Ouro',
+    primary: '#F5C542',   // warm gold
+    primaryDim: '#B89122',
+    glow: '#F5C542',
+    number: '#F5C542',
+  },
+  lime: {
+    name: 'Verde elétrico',
+    primary: '#9BE80A',   // electric lime
+    primaryDim: '#5FA000',
+    glow: '#9BE80A',
+    number: '#9BE80A',
+  },
+  cyan: {
+    name: 'Azul elétrico',
+    primary: '#4DD4E8',   // electric cyan-blue
+    primaryDim: '#2A8FA0',
+    glow: '#4DD4E8',
+    number: '#4DD4E8',
+  },
+};
+
+const StreakHero = ({ days, best, history, milestones, onTap, palette = 'gold' }) => {
+  const P = STREAK_PALETTES[palette] || STREAK_PALETTES.gold;
+  // history: 84 days, 0-4 intensity. Laid out as 12 cols × 7 rows (weeks × days of week)
+  const cols = 12;
+  const rows = 7;
+  const totalCells = cols * rows; // 84
+  const grid = history.slice(-totalCells);
+  const cell = 13;
+  const gap = 4;
+  const todayIdx = grid.length - 1;
+
+  // Find next milestone
+  const next = milestones.find(m => !m.achieved) || milestones[milestones.length - 1];
+  const prev = [...milestones].reverse().find(m => m.achieved);
+  const prevDays = prev ? prev.days : 0;
+  const progressPct = next ? Math.min(100, ((days - prevDays) / (next.days - prevDays)) * 100) : 100;
+  const daysToNext = next ? next.days - days : 0;
+
+  // Intensity colors — palette tones
+  const intensityColor = (v) => {
+    if (v === 0) return TOKENS.surf2;
+    if (v === 1) return `${P.primary}26`;
+    if (v === 2) return `${P.primary}66`;
+    if (v === 3) return P.primary;
+    if (v === 4) return TOKENS.coral; // PR day
+    return TOKENS.surf2;
+  };
+
+  return (
+    <div
+      onClick={onTap}
+      style={{
+        position: 'relative',
+        marginBottom: 14,
+        padding: 18,
+        borderRadius: 20,
+        background: `radial-gradient(ellipse at 85% 0%, ${P.primary}22 0%, transparent 55%), linear-gradient(180deg, ${TOKENS.surf1} 0%, ${TOKENS.surf0 || TOKENS.surf1} 100%)`,
+        border: `1px solid ${P.primary}30`,
+        overflow: 'hidden',
+        cursor: 'pointer',
+      }}
+    >
+      {/* Top: big number + flame */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, marginBottom: 16 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 1.4, color: TOKENS.tTer, marginBottom: 4 }}>
+            SEQUÊNCIA ATUAL
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, lineHeight: 1 }}>
+            <span style={{
+              fontSize: 64, fontWeight: 800, color: P.number,
+              letterSpacing: -2.5, fontVariantNumeric: 'tabular-nums',
+              lineHeight: 0.9,
+              textShadow: `0 0 28px ${P.glow}55`,
+            }}>{days}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: TOKENS.tPrim, letterSpacing: -0.2 }}>dias</span>
+              <span style={{ fontSize: 11, color: TOKENS.tTer, fontWeight: 600 }}>
+                melhor: <span style={{ color: TOKENS.tSec, fontWeight: 700 }}>{best}</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Flame badge with pulsing ring */}
+        <div style={{ position: 'relative', width: 56, height: 56, flexShrink: 0 }}>
+          <div style={{
+            position: 'absolute', inset: 0, borderRadius: 999,
+            background: `radial-gradient(circle, ${TOKENS.coral}44 0%, transparent 70%)`,
+            animation: 'pulse 2.4s ease-in-out infinite',
+          }}/>
+          <div style={{
+            position: 'relative', width: 56, height: 56, borderRadius: 999,
+            background: `linear-gradient(135deg, ${TOKENS.coral}, ${TOKENS.coralDim || '#C43745'})`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: `0 6px 20px ${TOKENS.coral}50`,
+          }}>
+            <Icon name="flame" size={26} color="#fff" />
+          </div>
+        </div>
+      </div>
+
+      {/* Heatmap grid — 12 weeks × 7 days */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${cols}, 1fr)`,
+        gridAutoFlow: 'column',
+        gridTemplateRows: `repeat(${rows}, ${cell}px)`,
+        gap,
+        marginBottom: 14,
+      }}>
+        {grid.map((v, i) => {
+          const isToday = i === todayIdx;
+          const inStreak = i > todayIdx - days;
+          return (
+            <div key={i} style={{
+              height: cell, borderRadius: 3,
+              background: intensityColor(v),
+              border: isToday ? `1.5px solid ${TOKENS.tPrim}` : inStreak && v > 0 ? `1px solid ${P.primary}88` : 'none',
+              boxShadow: isToday ? `0 0 10px ${P.primary}88` : 'none',
+            }}/>
+          );
+        })}
+      </div>
+
+      {/* Legend row */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        fontSize: 10, color: TOKENS.tTer, fontWeight: 600, letterSpacing: 0.3,
+        marginBottom: 16,
+      }}>
+        <span>12 semanas</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span>menos</span>
+          {[0,1,2,3].map(v => (
+            <div key={v} style={{ width: 9, height: 9, borderRadius: 2, background: intensityColor(v) }}/>
+          ))}
+          <div style={{ width: 9, height: 9, borderRadius: 2, background: TOKENS.coral, marginLeft: 2 }}/>
+          <span>PR</span>
+        </div>
+      </div>
+
+      {/* Next milestone progress */}
+      {next && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.8, color: TOKENS.tSec }}>
+              PRÓXIMA CONQUISTA · <span style={{ color: TOKENS.tPrim }}>{next.label}</span>
+            </div>
+            <div style={{ fontSize: 11, color: TOKENS.tTer, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+              +{daysToNext} {daysToNext === 1 ? 'dia' : 'dias'}
+            </div>
+          </div>
+          <div style={{
+            position: 'relative', height: 6, borderRadius: 4,
+            background: TOKENS.surf3, overflow: 'hidden',
+          }}>
+            <div style={{
+              position: 'absolute', inset: 0,
+              width: `${progressPct}%`,
+              background: `linear-gradient(90deg, ${P.primary}, ${TOKENS.coral})`,
+              borderRadius: 4,
+              transition: 'width .4s cubic-bezier(.2,.8,.3,1)',
+            }}/>
+          </div>
+          {/* Milestone markers */}
+          <div style={{
+            display: 'flex', justifyContent: 'space-between',
+            marginTop: 10, paddingTop: 2,
+          }}>
+            {milestones.map(m => {
+              const reached = m.achieved;
+              const isCurrent = m.current;
+              return (
+                <div key={m.days} style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                  opacity: reached ? 1 : 0.55,
+                }}>
+                  <div style={{
+                    width: 22, height: 22, borderRadius: 999,
+                    background: reached ? P.primary : isCurrent ? `${TOKENS.coral}22` : TOKENS.surf2,
+                    border: isCurrent ? `1.5px dashed ${TOKENS.coral}` : `1px solid ${TOKENS.border}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 9.5, fontWeight: 800, color: reached ? TOKENS.ink : TOKENS.tSec,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}>
+                    {reached ? <Icon name="check" size={12} color={TOKENS.ink} /> : m.days}
+                  </div>
+                  <span style={{
+                    fontSize: 9, fontWeight: 700, letterSpacing: 0.3,
+                    color: reached ? P.primary : isCurrent ? TOKENS.coral : TOKENS.tTer,
+                    whiteSpace: 'nowrap',
+                  }}>{m.days}d</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+Object.assign(window, { StreakHero });

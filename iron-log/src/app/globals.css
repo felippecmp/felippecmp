@@ -98,10 +98,10 @@
   --danger: #ef4444;
 }
 
-/* "Training Log" theme — coral + cream + amber on deep ink.
-   High-fidelity handoff from Claude Design. Includes structural layout
-   changes in subsequent PRs (see /docs/design-handoff/).
-   Applied via .theme-tlog on <html>. */
+/* "Training Log" theme — rosa + cyan on deep ink. v2 of the handoff
+   pivots from coral+cream to a strict two-accent palette: pink/magenta
+   primary + cyan success. No greens, yellows, creams, or oranges.
+   See /docs/design-handoff/README.md (paleta final). */
 .theme-tlog {
   /* Surfaces — ink → bg → surf1/2/3 */
   --bg: #0E1218;
@@ -119,28 +119,33 @@
   --text-dim: rgba(244, 245, 247, 0.22);
   --text-faint: rgba(244, 245, 247, 0.12);
 
-  /* Coral — primary CTA, today indicator, key numbers */
-  --accent: #FF4D5E;
-  --accent-hover: #C43745;
+  /* Rosa/magenta — primary CTA, today indicator, PRs, key numbers */
+  --accent: #FF3D7F;
+  --accent-hover: #C42863;
   --accent-fg: #0B0B10;
 
-  /* Status semantics mapped to handoff palette */
-  --status-ready: #F2E6C9;       /* cream — "feito/OK" */
-  --status-building: #B8A882;    /* cream-dim */
-  --status-progressed: #FFB86B;  /* amber — energy/streak */
-  --status-stalled: #FF8FA3;     /* rose — rare accent */
-  --danger: #FF5B5B;
+  /* Status semantics mapped to v2 palette. Cream/amber both collapse to
+     cyan, since the handoff explicitly bans yellows and creams. */
+  --status-ready: #4DD4E8;       /* cyan — "feito/OK" */
+  --status-building: #2A8FA3;    /* cyan-dim */
+  --status-progressed: #4DD4E8;  /* cyan (was amber) — energy/streak */
+  --status-stalled: #FF8FA3;     /* rose — kept as rare accent in viz only */
+  --danger: #FF3D7F;             /* unified with primary per handoff */
 
   /* Training Log extras — surfaces and palette used by Hub layout */
   --tlog-ink: #0A0D13;
   --tlog-surf1: #141924;
   --tlog-surf2: #1A2030;
   --tlog-surf3: #212838;
-  --tlog-coral: #FF4D5E;
-  --tlog-coral-dim: #C43745;
-  --tlog-cream: #F2E6C9;
-  --tlog-cream-dim: #B8A882;
-  --tlog-amber: #FFB86B;
+  --tlog-coral: #FF3D7F;          /* alias kept for back-compat with v1 refs */
+  --tlog-coral-dim: #C42863;
+  --tlog-pink: #FF3D7F;
+  --tlog-pink-dim: #C42863;
+  --tlog-cyan: #4DD4E8;
+  --tlog-cyan-dim: #2A8FA3;
+  --tlog-cream: #4DD4E8;          /* cream removed — alias to cyan */
+  --tlog-cream-dim: #2A8FA3;
+  --tlog-amber: #4DD4E8;          /* amber removed — alias to cyan */
   --tlog-violet: #B48CFF;
   --tlog-violet-dim: #8C66D4;
   --tlog-rose: #FF8FA3;

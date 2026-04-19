@@ -13,22 +13,22 @@ const TOKENS = {
   tSec:   'rgba(244,245,247,0.62)',
   tTer:   'rgba(244,245,247,0.38)',
   tQuat:  'rgba(244,245,247,0.22)',
-  // accents
-  coral:  '#FF4D5E',       // primária — "brilho do rolê"
-  coralDim: '#C43745',
-  mint:   '#F2E6C9',       // cream off-white — "feito/OK" (substitui mint/verde)
-  mintDim: '#B8A882',
-  teal:   '#F2E6C9',       // alias — mesma cream
-  tealDim: '#B8A882',
-  amber:  '#FFB86B',       // energia/streak
-  gold:   '#F2E6C9',       // alias pro cream (remove o dourado bege)
-  goldDim: '#B8A882',
+  // accents — paleta final: rosa + azul
+  coral:  '#FF3D7F',       // rosa/magenta — primária "brilho"
+  coralDim: '#C42863',
+  mint:   '#4DD4E8',       // cyan/azul — "feito/OK" (streak, sucesso)
+  mintDim: '#2A8FA3',
+  teal:   '#4DD4E8',       // alias
+  tealDim: '#2A8FA3',
+  amber:  '#4DD4E8',       // energia/streak → agora azul
+  gold:   '#4DD4E8',       // alias
+  goldDim: '#2A8FA3',
   violet: '#B48CFF',
   violetDim: '#8C66D4',
   rose:   '#FF8FA3',
   // states
-  red:    '#FF5B5B',
-  green:  '#F2E6C9',
+  red:    '#FF3D7F',
+  green:  '#4DD4E8',
   gray:   'rgba(244,245,247,0.3)',
 };
 

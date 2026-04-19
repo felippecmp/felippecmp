@@ -3,7 +3,38 @@
 const SAMPLE = {
   user: { name: 'Lucas', greeting: 'Boa noite' },
   date: { label: 'sexta, 17 de abril', iso: '2026-04-17' },
-  streak: { days: 1, best: 5 },
+  streak: { days: 12, best: 21, history: (() => {
+    // 84 days of training intensity: 0=rest, 1=light, 2=medium, 3=heavy, 4=PR day
+    // pattern: 4-5 days training per week, with rests, building up current streak of 12
+    const h = [];
+    for (let i = 0; i < 84; i++) {
+      const daysAgo = 83 - i;
+      const dow = (daysAgo + 3) % 7; // Sun=0..Sat=6, tweak so sundays are often off
+      // current streak: last 12 days consecutive
+      if (daysAgo < 12) {
+        const intensities = [2,3,2,0,3,2,2,4,3,2,3,2]; // day -12..-1 but built with offset
+        h.push(intensities[11 - daysAgo]);
+        continue;
+      }
+      // before current streak: one rest gap at day -13
+      if (daysAgo === 12) { h.push(0); continue; }
+      // best streak was 21 days ago
+      // most weeks: train Mon/Tue/Thu/Fri/Sat
+      const trainDow = [1,2,4,5,6];
+      if (!trainDow.includes(dow)) { h.push(0); continue; }
+      // random intensity
+      const r = (i * 37 + 11) % 20;
+      h.push(r < 4 ? 1 : r < 12 ? 2 : r < 18 ? 3 : 4);
+    }
+    return h;
+  })() },
+  milestones: [
+    { days: 7,   label: 'Semana', achieved: true },
+    { days: 14,  label: '2 semanas', achieved: false, current: true },
+    { days: 30,  label: 'Mês', achieved: false },
+    { days: 60,  label: 'Bimestre', achieved: false },
+    { days: 100, label: 'Centena', achieved: false },
+  ],
   next: { template: 'Lower A', group: 'LOWER', exercises: 6, estMin: 55 },
 
   // week-in-review

@@ -22,7 +22,7 @@ const THEMES: Array<{ value: Theme; label: string; desc: string }> = [
   { value: "gohan", label: "Gohan", desc: "Prata, índigo, carmesim." },
   { value: "beast", label: "Beast Mode", desc: "Neon purple + crimson." },
   { value: "openclaw", label: "Open Claw", desc: "Navy profundo + crimson + Clash Display." },
-  { value: "tlog", label: "Training Log", desc: "Coral + cream + amber (handoff Claude Design)." },
+  { value: "tlog", label: "Training Log", desc: "Rosa + cyan (handoff Claude Design v2)." },
 ];
 
 type ThemeCtx = { theme: Theme; setTheme: (t: Theme) => void; themes: typeof THEMES };

@@ -8,6 +8,10 @@ const ActiveWorkout = ({ onClose, onFinish }) => {
   const [restTimer, setRestTimer] = React.useState(0); // 0 = off
   const [restDuration, setRestDuration] = React.useState(90);
   const [showFinish, setShowFinish] = React.useState(false);
+  const [pulseSet, setPulseSet] = React.useState(null);
+  const [showPlateCalc, setShowPlateCalc] = React.useState(null); // weight or null
+  const [showExerciseSheet, setShowExerciseSheet] = React.useState(null);
+  const [pr, setPr] = React.useState(null); // { name, diff } or null
 
   // elapsed timer
   React.useEffect(() => {
@@ -44,6 +48,13 @@ const ActiveWorkout = ({ onClose, onFinish }) => {
     // trigger rest if completing (not uncompleting)
     if (!ex.sets[setIdx].done) {
       setRestTimer(restDuration);
+      setPulseSet(`${currentEx}-${setIdx}`);
+      setTimeout(() => setPulseSet(null), 500);
+      // simulate PR on 2nd exercise, last set (RDL)
+      const allDoneAfter = ex.sets.every((s, i) => i === setIdx ? true : s.done);
+      if (currentEx === 1 && setIdx === ex.sets.length - 1 && allDoneAfter) {
+        setTimeout(() => setPr({ name: ex.name, diff: '+5kg' }), 450);
+      }
     }
   };
 
@@ -143,7 +154,7 @@ const ActiveWorkout = ({ onClose, onFinish }) => {
                 width: 34, height: 34, borderRadius: 9, background: TOKENS.surf2, border: 'none', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}><Icon name="swap" size={16} color={TOKENS.tSec} /></button>
-              <button style={{
+              <button onClick={() => setShowExerciseSheet(ex)} style={{
                 width: 34, height: 34, borderRadius: 9, background: TOKENS.surf2, border: 'none', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}><Icon name="info" size={16} color={TOKENS.tSec} /></button>
@@ -184,7 +195,7 @@ const ActiveWorkout = ({ onClose, onFinish }) => {
         {/* Set rows */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {ex.sets.map((s, i) => (
-            <div key={i} style={{
+            <div key={i} className={pulseSet === `${currentEx}-${i}` ? 'set-pulse' : ''} style={{
               display: 'grid', gridTemplateColumns: '32px 1fr 1fr 1fr 44px', gap: 8,
               alignItems: 'center',
               padding: '10px 8px', borderRadius: 12,
@@ -197,7 +208,8 @@ const ActiveWorkout = ({ onClose, onFinish }) => {
                 display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 4,
                 fontSize: 11, fontWeight: 800, color: s.done ? TOKENS.ink : TOKENS.tSec,
               }}>{i + 1}</div>
-              <SetInput val={s.weight} suffix="kg" onDelta={(d) => updateSet(i, 'weight', d)} dis={s.done} step={2.5} />
+              <SetInput val={s.weight} suffix="kg" onDelta={(d) => updateSet(i, 'weight', d)} dis={s.done} step={2.5}
+                onDoubleClick={() => setShowPlateCalc(s.weight)} />
               <SetInput val={s.reps} onDelta={(d) => updateSet(i, 'reps', d)} dis={s.done} />
               <SetInput val={s.rir} onDelta={(d) => updateSet(i, 'rir', d)} dis={s.done} />
               <button onClick={() => completeSet(i)} style={{
@@ -231,37 +243,10 @@ const ActiveWorkout = ({ onClose, onFinish }) => {
         </button>
       </div>
 
-      {/* Rest timer bar (floating) */}
-      {restTimer > 0 && (
-        <div style={{
-          position: 'absolute', left: 12, right: 12, bottom: 94, zIndex: 30,
-          background: TOKENS.surf2, borderRadius: 16,
-          border: `1px solid ${TOKENS.mint}40`,
-          padding: '12px 14px',
-          display: 'flex', alignItems: 'center', gap: 12,
-          boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-        }}>
-          <Ring value={restTimer / restDuration} size={44} stroke={4} color={TOKENS.mint}>
-            <Icon name="timer" size={15} color={TOKENS.mint} />
-          </Ring>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.8, color: TOKENS.tTer }}>DESCANSO</div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: TOKENS.mint, letterSpacing: -0.5, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
-              {fmt(restTimer)}
-            </div>
-          </div>
-          <button onClick={() => setRestTimer(r => r + 15)} style={{
-            padding: '8px 10px', borderRadius: 8, background: TOKENS.surf3, border: 'none', cursor: 'pointer',
-            color: TOKENS.tPrim, fontSize: 12, fontWeight: 700,
-          }}>+15s</button>
-          <button onClick={() => setRestTimer(0)} style={{
-            width: 32, height: 32, borderRadius: 8, background: 'transparent', border: 'none', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Icon name="x" size={16} color={TOKENS.tSec} />
-          </button>
-        </div>
-      )}
+      {/* Rest timer floating pill */}
+      <RestTimerPill seconds={restTimer} total={restDuration}
+        onDismiss={() => setRestTimer(0)}
+        onAdd={() => setRestTimer(r => r + 15)} />
 
       {/* Bottom nav between exercises */}
       <div style={{
@@ -295,12 +280,30 @@ const ActiveWorkout = ({ onClose, onFinish }) => {
         <FinishSheet onClose={() => setShowFinish(false)} onConfirm={onFinish} elapsed={fmt(elapsed)}
           totalSets={totalSets} doneSets={doneSets} />
       )}
+
+      {/* Plate calculator */}
+      <PlateCalculator open={showPlateCalc !== null} weight={showPlateCalc}
+        onClose={() => setShowPlateCalc(null)} />
+
+      {/* Exercise detail sheet */}
+      <ExerciseSheet exercise={showExerciseSheet} onClose={() => setShowExerciseSheet(null)} />
+
+      {/* PR celebration */}
+      <PRCelebration show={!!pr} exercise={pr?.name} diff={pr?.diff} onClose={() => setPr(null)} />
     </div>
   );
 };
 
 // Stepper input
-const SetInput = ({ val, onDelta, dis, step = 1, suffix }) => (
+const SetInput = ({ val, onDelta, dis, step = 1, suffix, onDoubleClick }) => {
+  const lastTap = React.useRef(0);
+  const handleValueTap = () => {
+    if (!onDoubleClick) return;
+    const now = Date.now();
+    if (now - lastTap.current < 300) onDoubleClick();
+    lastTap.current = now;
+  };
+  return (
   <div style={{
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     background: TOKENS.surf2, borderRadius: 9, padding: '4px 4px', border: `1px solid ${TOKENS.border}`,
@@ -310,7 +313,7 @@ const SetInput = ({ val, onDelta, dis, step = 1, suffix }) => (
       width: 26, height: 26, borderRadius: 7, background: 'transparent', border: 'none', cursor: dis ? 'default' : 'pointer',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}><Icon name="minus" size={12} color={TOKENS.tSec} /></button>
-    <span style={{ fontSize: 14, fontWeight: 700, color: TOKENS.tPrim, fontVariantNumeric: 'tabular-nums' }}>
+    <span onClick={handleValueTap} style={{ fontSize: 14, fontWeight: 700, color: TOKENS.tPrim, fontVariantNumeric: 'tabular-nums', cursor: onDoubleClick ? 'pointer' : 'default', userSelect: 'none' }}>
       {val}{suffix && <span style={{ fontSize: 10, color: TOKENS.tTer, marginLeft: 1 }}>{suffix}</span>}
     </span>
     <button onClick={() => !dis && onDelta(step)} style={{
@@ -318,7 +321,8 @@ const SetInput = ({ val, onDelta, dis, step = 1, suffix }) => (
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}><Icon name="plus" size={12} color={TOKENS.tSec} /></button>
   </div>
-);
+  );
+};
 
 const FinishSheet = ({ onClose, onConfirm, elapsed, totalSets, doneSets }) => (
   <div style={{

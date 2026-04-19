@@ -33,27 +33,32 @@
 <body>
   <div id="root"></div>
 
-  <script type="text/babel" src="components/design-system.jsx?v=4"></script>
-  <script type="text/babel" src="components/shared-viz.jsx?v=4"></script>
-  <script type="text/babel" src="components/sample-data.jsx?v=4"></script>
-  <script type="text/babel" src="components/home-variants.jsx?v=4"></script>
-  <script type="text/babel" src="components/train-screen.jsx?v=4"></script>
-  <script type="text/babel" src="components/active-workout.jsx?v=4"></script>
-  <script type="text/babel" src="components/progress-screen.jsx?v=4"></script>
+  <script type="text/babel" src="components/design-system.jsx?v=6"></script>
+  <script type="text/babel" src="components/shared-viz.jsx?v=6"></script>
+  <script type="text/babel" src="components/sample-data.jsx?v=6"></script>
+  <script type="text/babel" src="components/interactions.jsx?v=6"></script>
+  <script type="text/babel" src="components/home-variants.jsx?v=6"></script>
+  <script type="text/babel" src="components/train-screen.jsx?v=6"></script>
+  <script type="text/babel" src="components/active-workout.jsx?v=6"></script>
+  <script type="text/babel" src="components/progress-screen.jsx?v=6"></script>
 
   <script type="text/babel">
     const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
       "direction": "hub",
-      "accent": "coral",
+      "accent": "magenta",
       "density": "balanced",
-      "showLabels": true
+      "showLabels": true,
+      "streakPalette": "cyan"
     }/*EDITMODE-END*/;
 
     const ACCENT_MAP = {
-      coral: { primary: '#FF4D5E', dim: '#C43745', secondary: '#E8C547' },
-      amber: { primary: '#FFB86B', dim: '#D9924A', secondary: '#FF4D5E' },
-      violet:{ primary: '#B48CFF', dim: '#8C66D4', secondary: '#FF4D5E' },
-      gold:  { primary: '#E8C547', dim: '#B8992E', secondary: '#FF4D5E' },
+      coral:   { primary: '#FF4D5E', dim: '#C43745', secondary: '#E8C547' },
+      magenta: { primary: '#FF3D7F', dim: '#C42863', secondary: '#9BE80A' },
+      violet:  { primary: '#B48CFF', dim: '#8C66D4', secondary: '#9BE80A' },
+      orange:  { primary: '#FF8A3D', dim: '#CC6A24', secondary: '#9BE80A' },
+      white:   { primary: '#FFFFFF', dim: '#B8B8BD', secondary: '#9BE80A' },
+      amber:   { primary: '#FFB86B', dim: '#D9924A', secondary: '#FF4D5E' },
+      gold:    { primary: '#E8C547', dim: '#B8992E', secondary: '#FF4D5E' },
     };
 
     const App = () => {
@@ -110,7 +115,7 @@
 
       const renderHome = () => {
         if (tweaks.direction === 'bold') return <HomeBold onStart={startWorkout} onTab={setTab} />;
-        if (tweaks.direction === 'hub')  return <HomeHub onStart={startWorkout} onTab={setTab} />;
+        if (tweaks.direction === 'hub')  return <HomeHub onStart={startWorkout} onTab={setTab} streakPalette={tweaks.streakPalette} />;
         return <HomeSafe onStart={startWorkout} onTab={setTab} />;
       };
 
@@ -209,10 +214,24 @@
               </TweakGroup>
 
               <TweakGroup label="Cor de destaque">
-                {['coral','amber','violet','gold'].map(c => (
+                {['coral','magenta','violet','orange','white','gold'].map(c => (
                   <button key={c} onClick={() => updateTweak('accent', c)} style={{
                     width: 28, height: 28, borderRadius: 999, border: tweaks.accent === c ? '2px solid #fff' : '2px solid transparent',
                     background: ACCENT_MAP[c].primary, cursor: 'pointer',
+                  }} />
+                ))}
+              </TweakGroup>
+
+              <TweakGroup label="Paleta do Streak">
+                {[
+                  { id: 'gold', color: '#F5C542', label: 'Ouro' },
+                  { id: 'lime', color: '#9BE80A', label: 'Verde' },
+                  { id: 'cyan', color: '#4DD4E8', label: 'Azul' },
+                ].map(p => (
+                  <button key={p.id} onClick={() => updateTweak('streakPalette', p.id)} title={p.label} style={{
+                    width: 28, height: 28, borderRadius: 999,
+                    border: tweaks.streakPalette === p.id ? '2px solid #fff' : '2px solid transparent',
+                    background: p.color, cursor: 'pointer',
                   }} />
                 ))}
               </TweakGroup>

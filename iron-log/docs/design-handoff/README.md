@@ -1,245 +1,218 @@
-# Handoff: Training Log — Home redesign + Workout flow
+# Handoff: Training Log — App de Registro de Treinos
 
 ## Overview
 
-Redesign of a training-log app built in React Native. This handoff focuses on:
+Design de um app mobile de log de treinos de musculação, com foco em:
+- Iniciar/registrar treinos ao vivo (logger de séries, reps, RIR, carga)
+- Painel de progresso (volume, streak, PRs, frequência)
+- Navegação principal por 4 tabs (Hoje, Treinar, Progresso, Mais)
+- Planejamento semanal (templates de treino, split A/B)
 
-1. **Home ("Hoje") as the true hub** — the Frequência chart was moved here from Progresso so that Hoje → Treino → Progresso forms a clear loop. Streak, weekly volume, next workout, and goals all live on Home.
-2. **Three home directions** explored (A · Safe, B · Bold, C · Hub) so the team can pick the aesthetic level they want to push to.
-3. **Full live workout-logging flow** — active set logger with +/− steppers for kg / reps / RIR, rest-timer ring that auto-starts when a set is checked, finish sheet, post-workout summary.
-4. **Refined color system** — coral primary + cream neutral + amber energy. No verdes/azuis/dourados competing.
-
-All copy is in PT-BR.
-
----
+O protótipo apresenta **3 direções de home** ("Safe", "Bold", "Hub") tweakáveis, além de dois fluxos principais de uso (tela de treino ativo e tela de progresso).
 
 ## About the Design Files
 
-The files in this bundle are **design references created in HTML + React (via Babel standalone)** — prototypes showing intended look and behavior, **not production code to copy directly**.
+Os arquivos neste bundle são **referências de design criadas em HTML** — protótipos que mostram a aparência e o comportamento pretendidos, **não código de produção para copiar diretamente**. A tarefa é **recriar esses designs em HTML dentro do ambiente da codebase alvo** (React Native, SwiftUI, Flutter, etc.), usando seus padrões e bibliotecas estabelecidos. Se ainda não houver ambiente, escolher a stack mais apropriada (recomendado: React Native ou SwiftUI para iOS nativo) e implementar lá.
 
-The task is to **recreate these designs in the target codebase's environment** (likely React Native given the original app), using its established patterns, component libraries, and navigation stack.
-
-The component files are organized to mirror a probable real app structure — `design-system.jsx` holds tokens, `home-variants.jsx` holds the three home directions, each major screen is its own file — so they should be straightforward to translate screen-by-screen.
-
----
+O HTML foi construído em React (UMD) + Babel inline + JSX, com componentes funcionais e tokens inline — serve como **especificação visual e de interação**, não como arquitetura.
 
 ## Fidelity
 
-**High-fidelity.** Final colors, typography, spacing, animations, and interactions are all locked in. Recreate pixel-perfectly using the codebase's RN equivalents (View / Text / Pressable / Animated, or NativeWind / Tamagui / etc.).
+**High-fidelity (hifi).** Cores, tipografia, espaçamento e estados de interação são finais. Reproduzir pixel-perfect usando as libs existentes da codebase, respeitando os tokens declarados abaixo.
 
----
+## Paleta Final
 
-## Design Tokens
+Após várias iterações, a paleta final é:
 
-All tokens live in `components/design-system.jsx` → `TOKENS`.
+| Token | Hex | Uso |
+|---|---|---|
+| `ink` | `#0A0D13` | Preto de fundo absoluto |
+| `bg` | `#0E1218` | Background base |
+| `surf1` | `#141924` | Cards nível 1 |
+| `surf2` | `#1A2030` | Cards nível 2 / inputs |
+| `surf3` | `#212838` | Elementos elevados |
+| `border` | `rgba(255,255,255,0.06)` | Divisores sutis |
+| `borderStrong` | `rgba(255,255,255,0.10)` | Divisores visíveis |
+| `tPrim` | `#F4F5F7` | Texto primário |
+| `tSec` | `rgba(244,245,247,0.62)` | Texto secundário |
+| `tTer` | `rgba(244,245,247,0.38)` | Texto terciário / labels |
+| `tQuat` | `rgba(244,245,247,0.22)` | Placeholders / desabilitado |
+| **`coral` / primary** | **`#FF3D7F`** | **Rosa/magenta — ação principal, PRs, destaques, CTA, streak flame** |
+| `coralDim` | `#C42863` | Hover/pressed do rosa |
+| **`mint` / success** | **`#4DD4E8`** | **Cyan/azul — sucesso, "feito", streak bar, séries completas, heatmap** |
+| `mintDim` | `#2A8FA3` | Variante escura do cyan |
+| `amber` / `gold` | `#4DD4E8` | Aliases pro cyan (não usar amarelo/dourado) |
+| `violet` | `#B48CFF` | Acento terciário (gráficos apenas) |
+| `rose` | `#FF8FA3` | Estado "abaixo do MV" em gráficos de volume |
+| `red` | `#FF3D7F` | Erro (mesmo que primário) |
 
-### Colors
+**Regra:** Apenas DUAS cores de destaque — **rosa `#FF3D7F`** e **cyan `#4DD4E8`**. Sem verdes, amarelos, cremes ou laranjas. Toda a UI vive sobre o preto `#0E1218`.
 
-```
-// Surfaces (dark theme)
-ink:          #0A0D13   // deepest — bottom of stack
-bg:           #0E1218   // app background
-surf1:        #141924   // cards
-surf2:        #1A2030   // raised cards, sheets
-surf3:        #212838   // input wells, inactive chips
-border:       rgba(255,255,255,0.06)
-borderStrong: rgba(255,255,255,0.10)
+## Tipografia
 
-// Text
-tPrim:  #F4F5F7                      // primary
-tSec:   rgba(244,245,247,0.62)       // secondary
-tTer:   rgba(244,245,247,0.38)       // tertiary / captions
-tQuat:  rgba(244,245,247,0.22)       // disabled
+- **Famílias**: `Inter` (UI, 400-800) + `JetBrains Mono` (números mono, opcional em displays grandes)
+- **Escala**:
+  - Display XL: 44px / 800 / letter-spacing -1.5
+  - Display L: 32px / 800 / -1
+  - H1: 22px / 700 / -0.5
+  - H2: 18px / 700 / -0.3
+  - Body: 14px / 500
+  - Body Small: 12px / 500
+  - Label: 11px / 700 / letter-spacing 1 / UPPERCASE
+  - Micro: 10px / 700 / letter-spacing 0.8 / UPPERCASE
+- **Números**: sempre `font-variant-numeric: tabular-nums`
+- **Line-height**: padrão 1.4, displays 1.0
 
-// Accents
-coral:  #FF4D5E    // PRIMARY — CTAs, today indicator, key numbers, "brilho do rolê"
-mint:   #F2E6C9    // CREAM — "feito/OK", checks, streak, positive deltas, e1RM
-amber:  #FFB86B    // energy — streak flame, occasional highlights
-violet: #B48CFF    // brand mark only
-rose:   #FF8FA3    // rare accent
+## Spacing & Radius
 
-// States
-red:   #FF5B5B     // destructive / warning
-```
-
-**Palette rationale:** one saturated primary (coral) + a warm off-white (cream) + muted amber. Avoids the classic "dark UI with 5 competing saturated colors" problem. Cream replaces mint/green for success states because it reads clean on dark without fighting coral.
-
-### Typography
-
-- **Family:** system stack (SF Pro / Inter). The prototype uses `-apple-system, BlinkMacSystemFont, "Inter", sans-serif`.
-- **Weights used:** 400, 600, 700, 800.
-- **Tabular numerics:** all stat values, timers, weight, reps use `font-variant-numeric: tabular-nums`. Essential for stable layout when numbers tick.
-- **Scale:**
-  - `44px / 800 / -1.5 letter-spacing` — editorial headlines (Bold home, post-workout "finalizado.")
-  - `32–34px / 800 / -1` — hero numbers (weekly volume, streak count)
-  - `22–24px / 700 / -0.5` — screen titles ("Olá, Lucas")
-  - `14–15px / 600–700` — section labels, card titles
-  - `12–13px / 600–700` — meta, inline labels
-  - `10–11px / 700 / 1–2 letter-spacing / uppercase` — eyebrows ("PRÓXIMO TREINO", "STREAK", "VOLUME · 30D")
-
-### Spacing
-
-8-point grid. Common values: `6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 32`.
-Card padding typically `14` or `16`. Screen horizontal padding `16`.
-
-### Radii
-
-- `7` — small chips (set-number badges)
-- `8–10` — buttons, small pills
-- `12` — inputs, medium cards
-- `14–16` — main cards
-- `18–20` — large hero cards
-- `999` — circular (avatars, weekstrip dots, filter pills)
-
-### Shadows
-
-Used sparingly — only for floating elements (rest timer banner, sheets):
-```
-0 10px 30px rgba(0,0,0,0.5)
-```
-
----
+- Spacing scale: 4, 6, 8, 10, 12, 14, 16, 18, 22, 26, 32
+- Padding padrão de card: 14-16px
+- Gap entre cards: 12-16px
+- **Radius**: 8 (pequeno), 10 (input), 12 (card padrão), 14 (card grande), 999 (pill/círculo)
+- Cards usam `border: 1px solid rgba(255,255,255,0.06)` + background `surf1`
 
 ## Screens / Views
 
-### 1. Home (Hoje) — three directions
+Screenshots de referência estão em `screenshots/` (numerados por fluxo).
 
-The prototype exposes **three variants** of Home; the team should pick one (or mix). All three are in `components/home-variants.jsx`.
+| # | Tela | Arquivo |
+|---|---|---|
+| 1 | Home — topo (saudação, dayRing, próximo treino) | `screenshots/01-hoje-topo.png` |
+| 2 | Home — meio (streak hero, heatmap) | `screenshots/02-hoje-meio.png` |
+| 3 | Home — fim (goals, últimos treinos) | `screenshots/03-hoje-fim.png` |
+| 4 | Treinar — topo (próximo treino, AI, templates) | `screenshots/04-treinar-topo.png` |
+| 5 | Treinar — scroll | `screenshots/05-treinar-scroll.png` |
+| 6 | Progresso — topo (volume 30d, KPIs, frequência) | `screenshots/06-progresso-topo.png` |
+| 7 | Progresso — scroll (PRs, distribuição) | `screenshots/07-progresso-scroll.png` |
+| 8 | Mais (ajustes, templates, configs) | `screenshots/08-mais.png` |
+| 9 | Treino Ativo — logger de séries | `screenshots/09-treino-ativo-topo.png` |
+| 10 | Treino Ativo — exercício (sem header) | `screenshots/10-treino-ativo-scroll.png` |
 
-#### Direction A · Safe (`HomeSafe`)
-Refined version of the existing design. Tightens hierarchy, moves Frequência chart onto Home, keeps current density.
-- Greeting row with streak pill (cream flame + day count)
-- Three stat cards (Treinos / Cardio / Peso) with sparklines
-- Frequência · 4 semanas chart
-- Metas (goals) as horizontal chips
+### 1. Home — 3 direções (Safe / Bold / Hub)
 
-#### Direction B · Bold (`HomeBold`)
-Editorial typography, huge greeting, data-as-moments.
-- 44px "Boa noite." headline
-- Oversized weekly stats treated as magazine pull-quotes
-- Weekstrip with day letters + filled coral for today
+**Propósito**: Tela de abertura do app. Mostra próximo treino, streak, volume recente, e atalhos.
 
-#### Direction C · Hub (`HomeHub`) **← recommended**
-Command-center layout, most unified. Brings everything into one scannable screen.
-- Date + streak header
-- **Hero ring** around "Olá, Lucas" — animated progress ring (weekly training goal)
-- **Próximo treino** card with play icon, muscle-group chips
-- **Streak + Volume** dual cards
-- **Frequência** compact chart (Força = cream bars, Cardio = coral)
-- **Metas** grid (2 cols)
-- **IA sidekick** card — gradient violet, optional command input
+- **Safe** (variante conservadora): layout em cards estruturado, stats em linha de 3.
+- **Bold** (variante agressiva): números grandes estilo editorial, cor rosa dominante, tipografia pesada.
+- **Hub** (default, mais rica): combina hero CTA + heatmap de frequência + últimos treinos + goals.
 
-### 2. Treinar (`components/train-screen.jsx`)
-Pattern library / workout picker.
-- Hero ring shared with Home
-- Search + filter chips
-- AI card (violet gradient) — "Pedir treino"
-- Template list with per-template icon tint and "PRÓXIMO" highlight row
+Ver `components/home-variants.jsx` — cada direção é um componente (`HomeSafe`, `HomeBold`, `HomeHub`).
 
-### 3. Active workout (`components/active-workout.jsx`)
-The flow starts when the user taps "Iniciar treino" from Home or Treinar.
+**Componentes principais**:
+- `StreakHero`: barra horizontal com dias consecutivos, milestones, flame icon (rosa), gradiente cyan.
+- `StatCard`: card compacto com valor grande, label UPPERCASE, sparkline.
+- `NextWorkoutCard`: próximo treino com play button rosa circular, nome, duração estimada, grupos musculares em pills.
+- `FrequencyHeatmap`: grid 7×4 de quadrados 11×11px, colorido por intensidade (cyan em 4 níveis).
+- `GoalsRow`: metas ativas em cards pequenos.
 
-- **Top bar:** elapsed timer + Finalizar button (cream pill)
-- **Exercise strip** (horizontal scroll of numbered chips — active = coral, done = cream tint + check)
-- **Current exercise header** — name, target sets × reps, current e1RM (cream)
-- **Set list** — each row: badge (gray when pending, cream when done) / kg stepper / reps stepper / RIR stepper / check button
-- **Stepper:** tap − / + to change value in 2.5kg or 1 rep/RIR increments
-- **Checking a set** → row turns cream-tinted, rest-timer banner appears at bottom with coral ring countdown (auto-dismisses when timer hits 0)
-- **Finish sheet** — slide-up confirmation with elapsed / sets / volume summary
-- **Post-workout summary** — big "Lower A *finalizado.*" headline, cream "TREINO COMPLETO" eyebrow, stats row, "PR em RDL" callout
+### 2. Treinar (Train)
 
-### 4. Progresso (`components/progress-screen.jsx`)
-- Editorial hero — "27.8 toneladas" in 34px/800, "+241% vs anterior" in cream
-- 7d / 30d / 90d segmented toggle
-- Three KPI cards (Sessões / Streak / Tempo)
-- Frequência chart (same component as Home, 4 semanas)
-- Recent exercises list with e1RM in cream
+**Propósito**: Planejamento da semana e acesso a templates.
 
-### 5. Mais (`components/progress-screen.jsx` → `MoreScreen`)
-Settings-style list with profile card up top (gradient avatar, name, subtitle) and categorized rows (Conta / Treino / App) with colored icons.
+Mostra split da semana (Upper A, Lower A, Upper B, Lower B, Cardio), templates salvos, histórico recente.
 
----
+Ver `components/train-screen.jsx`.
+
+### 3. Treino Ativo (Active Workout Logger)
+
+**Propósito**: Tela principal de execução — logger ao vivo de séries/reps/carga com timer de descanso.
+
+**Layout**:
+- Header sticky com nome do treino, timer geral, botão "Finalizar" (pill cyan).
+- Tab row de exercícios (pills rosa pro ativo, cyan translúcido pros feitos).
+- Stats do exercício atual: última vez, e1RM.
+- **Grid de séries** (`SET | KG | REPS | RIR | ✓`): cada linha é uma série com steppers `+/-`, botão de check cyan.
+- Bottom bar: timer de descanso (círculo animado rosa), botão +15s, skip.
+- Finalização: modal com stats, botão "Salvar" cyan.
+- Pós-treino: tela de celebração com "finalizado." em rosa.
+
+Ver `components/active-workout.jsx`.
+
+### 4. Progresso
+
+**Propósito**: Analytics de longo prazo — volume, PRs, distribuição muscular, frequência.
+
+**Componentes**:
+- Header com volume 30d em display grande rosa, delta cyan.
+- KPIs em row de 3 (sessões, streak, tempo).
+- Heatmap de frequência 4 semanas (bars força em cyan + cardio em rosa).
+- Lista de PRs com e1RM em cyan.
+- Mini bar chart de distribuição muscular.
+
+Ver `components/progress-screen.jsx`.
+
+### 5. iOS Frame
+
+Wrapper de device — status bar, home indicator. Ver `components/ios-frame.jsx`.
 
 ## Interactions & Behavior
 
-### Navigation
-Bottom tab bar with 4 tabs: Hoje / Treinar / Progresso / Mais. Pressable with subtle scale-down (`transform: scale(0.96)` on active).
-
-### Active workout flow
-- `Iniciar treino` on any template → pushes `active-workout` screen.
-- Tapping the check button on a set:
-  1. Marks set as done (cream tint, number badge fills cream).
-  2. Starts rest-timer (default 90s, per-exercise override).
-  3. Rest banner appears at bottom with coral progress ring.
-  4. On timer end, banner auto-dismisses; haptic on native.
-- `Finalizar` (top-right) → slide-up sheet with summary + Continuar / Salvar.
-- `Salvar` → post-workout screen.
-
-### Steppers
-- Tap − / + buttons: ±2.5kg on weight, ±1 on reps/RIR.
-- Long-press: continuous increment (native only; in RN use `onLongPress` + interval).
-- Tap the value itself → numeric keypad.
-
-### Animations
-- Ring progress: 600ms ease-out on mount and value change.
-- Sheet transitions: slide up from bottom, 250ms ease-out.
-- Set completion: row background fades from `surf1` to cream@10% over 200ms.
-- Rest banner: fade + slide up 15px, 200ms.
-
-### Hover / pressed states
-- Buttons: `opacity: 0.85` + `scale: 0.97` on press.
-- Cards (tappable): `background` lerps toward `surf2` on press.
-
----
+- **Navegação por tabs**: 4 tabs fixas no bottom (Hoje / Treinar / Progresso / Mais). Tab ativa em rosa, inativa em `tSec`.
+- **Completar série**: clique no check preenche o círculo (transparente → cyan), aplica background `${cyan}10` na linha, e dispara o timer de descanso.
+- **Timer de descanso**: círculo SVG animado preenchendo ao longo do tempo, cor rosa. Botões +15s e skip (x).
+- **Tweaks panel** (dev only, removível em prod): painel flutuante bottom-right pra trocar direção/accent/streakPalette/densidade em tempo real. NÃO enviar em produção.
+- **Transitions**: `.2s` em hover states, `.3s` em expansões de card.
+- **Tap targets**: mínimo 36×36px, ideal 44×44px.
 
 ## State Management
 
-For a React Native port, keep it simple:
+Principais estados da tela de treino ativo:
+```
+currentExerciseIndex: number
+exercises: [{ id, name, sets: [{ kg, reps, rir, done }] }]
+restTimer: { active: bool, remaining: seconds, total: seconds }
+elapsed: seconds (tempo total do treino)
+showFinish: bool
+```
 
-- **Workout session state** (active or null) — holds current template, exercises, per-set kg/reps/RIR/done flags, start time, rest-timer state. Context or Zustand.
-- **History** — array of completed sessions. Persist with AsyncStorage or SQLite (react-native-mmkv is fastest).
-- **Templates** — user-defined workout templates. Same persistence.
-- **Streak / weekly metrics** — derived from history; memoize.
-- **Tweaks (accent color, home direction)** — user preference, AsyncStorage.
+Home e Progresso consomem dados de `sample-data.jsx` — em produção vir de state global (Redux/Zustand/SwiftData).
 
-The prototype has sample data in `components/sample-data.jsx`; use it as a schema reference.
+## Design Tokens (recap rápido para variáveis)
 
----
+```ts
+export const colors = {
+  bg: '#0E1218',
+  surface1: '#141924',
+  surface2: '#1A2030',
+  surface3: '#212838',
+  text: { primary: '#F4F5F7', secondary: 'rgba(244,245,247,0.62)', tertiary: 'rgba(244,245,247,0.38)' },
+  primary: '#FF3D7F',      // rosa — ação, PRs
+  primaryDim: '#C42863',
+  success: '#4DD4E8',      // cyan — feito, sucesso
+  successDim: '#2A8FA3',
+  border: 'rgba(255,255,255,0.06)',
+  borderStrong: 'rgba(255,255,255,0.10)',
+};
+
+export const radius = { sm: 8, md: 10, lg: 12, xl: 14, pill: 999 };
+export const spacing = { 1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 8: 32 };
+```
 
 ## Assets
 
-- **Icons:** the prototype uses an inline stroked icon set in `design-system.jsx` → `<Icon>`. For RN, swap to `react-native-svg` with the same paths, or use Phosphor / Lucide RN — paths are near-identical.
-- **Illustrations:** none. All visual interest comes from typography + color + data viz.
-- **Fonts:** system. If the brand team later picks a custom display face, only the 34–44px headlines need it.
-
----
+Nenhuma imagem raster. Todos os ícones são SVG inline, traço 1.75px, em `components/design-system.jsx` → `<Icon name="..." />`. Set usado: home, dumbbell, chart/trend, menu, check, x, flame, chevR, play, calendar, layers, plus, minus, info, swap.
 
 ## Files
 
-Bundled in this handoff:
+- `Training Log.html` — entrypoint, monta React root, controla Tweaks e a árvore de telas.
+- `components/design-system.jsx` — TOKENS (paleta, tipografia), `<Icon>`, `<Card>`, `<TabBar>`, `<Stepper>`.
+- `components/shared-viz.jsx` — `<WeekBars>`, `<VolumeBar>` (MEV/MAV/MRV), `<Heatmap>`.
+- `components/sample-data.jsx` — dados fake (streak, PRs, músculos, goals).
+- `components/home-variants.jsx` — `HomeSafe`, `HomeBold`, `HomeHub`.
+- `components/train-screen.jsx` — tela de planejamento semanal.
+- `components/active-workout.jsx` — logger de treino ao vivo + finalização.
+- `components/progress-screen.jsx` — analytics/progresso.
+- `components/interactions.jsx` — micro-interações (rest timer, celebration confetti).
+- `components/ios-frame.jsx` — bezel iPhone.
 
-```
-Training Log.html                   — entry point, Babel setup, Tweaks panel
-components/
-  design-system.jsx                 — TOKENS, Icon set, primitives (Card, Ring, Chip, Tab bar)
-  shared-viz.jsx                    — StatCard, Sparkline, Frequência chart, KPI card
-  sample-data.jsx                   — sample user / workouts / history
-  home-variants.jsx                 — HomeSafe / HomeBold / HomeHub
-  train-screen.jsx                  — Treinar tab
-  active-workout.jsx                — Live workout flow + finish sheet + post-workout summary
-  progress-screen.jsx               — Progresso + Mais tabs
-  ios-frame.jsx                     — iOS device bezel (prototype-only, do NOT port)
-```
+## Checklist de implementação
 
-To preview: open `Training Log.html` in a browser. Use the **Tweaks** panel (bottom-right gear) to switch home direction and accent color.
-
----
-
-## Recommended port order
-
-1. Design tokens → theme file (one module, export `colors` / `spacing` / `radii` / `type`).
-2. Shared primitives (Card, Ring, Chip, Icon, StatCard, Sparkline).
-3. Home (start with **Direction C · Hub** — it's the most complete).
-4. Active workout flow — highest behavioral complexity, do it early to validate state shape.
-5. Treinar, Progresso, Mais.
-6. Tab navigation + deep-link from Home "Próximo treino" → Active workout.
+- [ ] Setup de tokens (colors, spacing, radius, typography)
+- [ ] Componentes atômicos: Card, Icon, Stepper, Pill, Badge, TabBar
+- [ ] Viz: Heatmap, VolumeBar (MEV/MAV/MRV), WeekBars, Sparkline
+- [ ] Home (escolher Safe/Bold/Hub — recomendação: **Hub**)
+- [ ] Tela Treinar + templates
+- [ ] Active Workout logger (rest timer é a peça mais crítica)
+- [ ] Progresso
+- [ ] TabBar + navegação
+- [ ] Remover Tweaks panel antes do build de produção

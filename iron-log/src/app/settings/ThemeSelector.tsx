@@ -8,7 +8,7 @@ const SWATCHES: Record<Theme, string[]> = {
   gohan: ["#0c0a14", "#EDF1F5", "#EE1111", "#49426B"],
   beast: ["#0c0816", "#e8e0f0", "#e11d48", "#a855f7"],
   openclaw: ["#050911", "#F0F4FF", "#FF4D4D", "#1a2540"],
-  tlog: ["#0E1218", "#F4F5F7", "#FF4D5E", "#F2E6C9"],
+  tlog: ["#0E1218", "#F4F5F7", "#FF3D7F", "#4DD4E8"],
 };
 
 export function ThemeSelector() {
