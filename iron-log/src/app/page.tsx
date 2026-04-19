@@ -20,6 +20,7 @@ import { DiaryRow, type DiaryEntry } from "./DiaryRow";
 import { HomeStreakAndWeek } from "./HomeStreakAndWeek";
 import { LastWorkoutCard } from "./LastWorkoutCard";
 import { AISidekick } from "./AISidekick";
+import { DailyGreeting } from "./DailyGreeting";
 import { TodayChecklist } from "./TodayChecklist";
 import { TodayGoalsRing } from "./TodayGoalsRing";
 import { NotaDescansoRow } from "./NotaDescansoRow";
@@ -55,6 +56,13 @@ function greeting(hour: number): string {
   if (hour < 12) return "Bom dia";
   if (hour < 18) return "Boa tarde";
   return "Boa noite";
+}
+
+function timeOfDayLabel(hour: number): "madrugada" | "manhã" | "tarde" | "noite" {
+  if (hour < 5) return "madrugada";
+  if (hour < 12) return "manhã";
+  if (hour < 18) return "tarde";
+  return "noite";
 }
 
 // Always compute day buckets in the user's timezone (not the server's), so
@@ -753,11 +761,15 @@ export default async function HomePage() {
       {/* Top bar — date + greeting + settings. Streak lives in the dual
           row below, not repeated here, so the masthead stays clean. */}
       <header className="mb-5 flex items-start justify-between">
-        <div>
+        <div className="min-w-0 flex-1 pr-3">
           <p className="text-xs font-semibold text-[var(--text-muted)] mb-1 tnum">
             {weekday}, {day} de {month}
           </p>
-          <h1 className="tlog-title">{greet}</h1>
+          <DailyGreeting
+            greet={greet}
+            timeOfDay={timeOfDayLabel(now.getHours())}
+            dayKey={todayKey}
+          />
         </div>
         <Link
           href="/settings"
