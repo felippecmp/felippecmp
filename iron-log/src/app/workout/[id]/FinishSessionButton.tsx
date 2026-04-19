@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Brain, Flag, Loader2, Trophy, X } from "lucide-react";
 import { useToast } from "@/components/Toast";
@@ -18,9 +18,18 @@ const FEELING_OPTIONS = [
 export function FinishSessionButton({
   sessionId,
   totalLogged,
+  totalTarget,
+  totalVolumeKg,
+  startedAt,
 }: {
   sessionId: string;
   totalLogged: number;
+  /** Total target sets for the session (working sets only). */
+  totalTarget?: number;
+  /** Sum of weight_kg × reps across saved working sets. */
+  totalVolumeKg?: number;
+  /** ISO timestamp when the session started. Used to show elapsed time. */
+  startedAt?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -32,6 +41,34 @@ export function FinishSessionButton({
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const { toast } = useToast();
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
+
+  // Tick once a second while the sheet is open — keeps the elapsed stat live.
+  useEffect(() => {
+    if (!open || !startedAt) return;
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [open, startedAt]);
+
+  const elapsedSec = startedAt
+    ? Math.max(0, Math.floor((nowMs - new Date(startedAt).getTime()) / 1000))
+    : null;
+  const elapsedLabel =
+    elapsedSec !== null
+      ? (() => {
+          const h = Math.floor(elapsedSec / 3600);
+          const m = Math.floor((elapsedSec % 3600) / 60);
+          if (h > 0) return `${h}h${m.toString().padStart(2, "0")}`;
+          return `${m}m`;
+        })()
+      : null;
+  const volumeLabel =
+    typeof totalVolumeKg === "number" && totalVolumeKg > 0
+      ? (() => {
+          const t = totalVolumeKg / 1000;
+          return t >= 10 ? `${t.toFixed(1)}t` : `${t.toFixed(2)}t`;
+        })()
+      : null;
 
   function handleSubmit() {
     setError(null);
@@ -200,6 +237,33 @@ export function FinishSessionButton({
                 </div>
               )}
 
+              {/* Stats row — Duração · Séries · Volume. Matches the Training
+                  Log handoff finish sheet. Hidden on first-render when
+                  we have no data at all (e.g., no sets AND no startedAt). */}
+              {(elapsedLabel || totalLogged > 0 || volumeLabel) && (
+                <div className="grid grid-cols-3 gap-2">
+                  <FinishStat
+                    label="Duração"
+                    value={elapsedLabel ?? "—"}
+                    color="var(--status-ready)"
+                  />
+                  <FinishStat
+                    label="Séries"
+                    value={
+                      typeof totalTarget === "number" && totalTarget > 0
+                        ? `${totalLogged}/${totalTarget}`
+                        : String(totalLogged)
+                    }
+                    color="var(--accent)"
+                  />
+                  <FinishStat
+                    label="Volume"
+                    value={volumeLabel ?? "—"}
+                    color="var(--status-progressed)"
+                  />
+                </div>
+              )}
+
               <div>
                 <p className="label mb-3">Como foi?</p>
                 <div className="grid grid-cols-5 gap-2">
@@ -279,4 +343,26 @@ function formatKg(v: number): string {
   const rounded = Math.round(v * 10) / 10;
   if (Number.isInteger(rounded)) return `${rounded}kg`;
   return `${rounded.toFixed(1)}kg`;
+}
+
+function FinishStat({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: string;
+  color: string;
+}) {
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3">
+      <p className="tlog-eyebrow text-[var(--text-muted)]">{label}</p>
+      <p
+        className="mt-1.5 text-[18px] font-extrabold tnum leading-none"
+        style={{ color, letterSpacing: "-0.01em" }}
+      >
+        {value}
+      </p>
+    </div>
+  );
 }

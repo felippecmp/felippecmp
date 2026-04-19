@@ -439,7 +439,12 @@ export default async function WorkoutSessionPage({
   const isFinished = Boolean(session.finished_at);
   // The "N sets" counter in the header refers to working sets only —
   // warmups don't count toward the session's volume.
-  const totalLogged = currentSets.filter((s) => !s.is_warmup).length;
+  const workingSets = currentSets.filter((s) => !s.is_warmup);
+  const totalLogged = workingSets.length;
+  const totalVolumeKg = workingSets.reduce(
+    (sum, s) => sum + Number(s.weight_kg) * (s.reps ?? 0),
+    0
+  );
 
   // Raw HR samples + set markers for the SessionHrChart. Both live in
   // the same "seconds since device_start_time" coordinate space so the
@@ -671,6 +676,9 @@ export default async function WorkoutSessionPage({
           <FinishSessionButton
             sessionId={session.id}
             totalLogged={totalLogged}
+            totalTarget={totalTarget}
+            totalVolumeKg={totalVolumeKg}
+            startedAt={session.started_at}
           />
           <AbandonSessionButton sessionId={session.id} />
         </div>

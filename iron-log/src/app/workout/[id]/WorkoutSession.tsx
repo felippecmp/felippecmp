@@ -8,11 +8,14 @@ import {
   CloudOff,
   Flame,
   Loader2,
+  Minus,
   Plus,
+  Timer,
   Trash2,
   WifiOff,
   X,
 } from "lucide-react";
+import { Ring } from "@/components/Ring";
 import { equipmentLabel, muscleLabel } from "@/lib/muscles";
 import {
   statusCssVar,
@@ -476,22 +479,32 @@ function RestTimer({
   rest: RestState | null;
   onDismiss: () => void;
 }) {
+  if (!rest) return null;
+  // Remount on each new rest (token change) so the +15s bonus state resets
+  // without a setState-in-effect. See React docs: "Resetting all state when
+  // a prop changes" — use `key` on the subtree.
+  return <RestTimerInner key={rest.token} rest={rest} onDismiss={onDismiss} />;
+}
+
+function RestTimerInner({
+  rest,
+  onDismiss,
+}: {
+  rest: RestState;
+  onDismiss: () => void;
+}) {
   const [now, setNow] = useState(() => Date.now());
+  const [bonus, setBonus] = useState(0);
   const firedRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!rest) return;
     const id = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(id);
-  }, [rest]);
+  }, []);
 
   useEffect(() => {
-    if (!rest) {
-      firedRef.current = null;
-      return;
-    }
     const elapsed = Math.floor((now - rest.startedAt) / 1000);
-    const remaining = rest.totalSeconds - elapsed;
+    const remaining = rest.totalSeconds + bonus - elapsed;
     if (remaining <= 0 && firedRef.current !== rest.token) {
       firedRef.current = rest.token;
       if (typeof navigator !== "undefined" && "vibrate" in navigator) {
@@ -502,91 +515,84 @@ function RestTimer({
         }
       }
     }
-  }, [now, rest]);
+  }, [now, rest, bonus]);
 
-  if (!rest) return null;
-
+  const total = rest.totalSeconds + bonus;
   const elapsed = Math.floor((now - rest.startedAt) / 1000);
-  const remaining = rest.totalSeconds - elapsed;
+  const remaining = total - elapsed;
   const done = remaining <= 0;
-  const progress = Math.min(
-    100,
-    Math.max(0, (Math.min(elapsed, rest.totalSeconds) / rest.totalSeconds) * 100)
-  );
 
-  // Circular progress: the ring draws from top (12 o'clock) clockwise.
-  const RADIUS = 38;
-  const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-  const strokeOffset = CIRCUMFERENCE * (1 - progress / 100);
+  // Ring winds DOWN — stroke shrinks as time passes. That way the ring visually
+  // empties into the background, not the other way around.
+  const ringValue = total > 0 ? Math.max(0, remaining) / total : 0;
+  const ringColor = "var(--status-ready)";
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none"
+      role="dialog"
+      aria-live="polite"
+      aria-label={done ? "Descanso concluído" : "Descanso em andamento"}
+      className="fixed inset-x-3 bottom-20 z-40 pointer-events-none flex justify-center"
+      style={{
+        paddingBottom: "env(safe-area-inset-bottom)",
+      }}
     >
       <div
-        className="pointer-events-auto flex flex-col items-center gap-4 animate-in fade-in"
-        onClick={done ? onDismiss : undefined}
+        className="pointer-events-auto flex w-full max-w-[420px] items-center gap-3 rounded-2xl border px-3.5 py-3 bg-[var(--bg-raised)] shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
+        style={{
+          borderColor: done
+            ? "color-mix(in oklab, var(--status-ready) 60%, transparent)"
+            : "color-mix(in oklab, var(--status-ready) 40%, transparent)",
+        }}
       >
-        {/* Circular timer */}
-        <div className="relative w-32 h-32">
-          <svg
-            viewBox="0 0 96 96"
-            className="w-full h-full -rotate-90"
-            aria-hidden="true"
+        <Ring
+          value={ringValue}
+          size={44}
+          stroke={4}
+          color={ringColor}
+          track="var(--border-strong)"
+        >
+          <Timer
+            size={15}
+            strokeWidth={2}
+            className="text-[var(--status-ready)]"
+          />
+        </Ring>
+        <div className="min-w-0 flex-1">
+          <p className="tlog-eyebrow text-[var(--text-muted)]">
+            {done ? "Pronto" : "Descanso"}
+          </p>
+          <p
+            className="tnum font-extrabold leading-none"
+            style={{
+              fontSize: 22,
+              letterSpacing: "-0.02em",
+              color: "var(--status-ready)",
+            }}
           >
-            <circle
-              cx="48" cy="48" r={RADIUS}
-              fill="none"
-              stroke="var(--border)"
-              strokeWidth="3"
-            />
-            <circle
-              cx="48" cy="48" r={RADIUS}
-              fill="none"
-              stroke={done ? "var(--status-ready)" : "var(--text-soft)"}
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeDasharray={CIRCUMFERENCE}
-              strokeDashoffset={strokeOffset}
-              className="transition-[stroke-dashoffset] duration-300 ease-linear"
-            />
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span
-              className={`tnum display text-3xl ${
-                done ? "text-[var(--status-ready)]" : "text-[var(--text)]"
-              }`}
-            >
-              {formatMMSS(Math.max(0, remaining))}
-            </span>
-            <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mt-0.5">
-              {done ? "Pronto!" : "Descanso"}
-            </span>
-          </div>
+            {formatMMSS(Math.max(0, remaining))}
+          </p>
+          <p className="mt-0.5 text-[10px] text-[var(--text-muted)] truncate">
+            {rest.exerciseName}
+          </p>
         </div>
-
-        {/* Exercise label */}
-        <p className="text-xs text-[var(--text-muted)] text-center truncate max-w-[200px]">
-          {rest.exerciseName}
-        </p>
-
-        {/* Dismiss */}
+        <button
+          type="button"
+          onClick={() => setBonus((b) => b + 15)}
+          aria-label="Adicionar 15 segundos"
+          className="shrink-0 px-2.5 py-1.5 rounded-lg bg-[var(--bg-hover)] text-[var(--text)] text-[11px] font-bold tnum hover:bg-[var(--bg-card)] transition-colors"
+        >
+          +15s
+        </button>
         <button
           type="button"
           onClick={onDismiss}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-xs text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--border-strong)] transition-colors shadow-lg"
+          aria-label={done ? "Continuar" : "Dispensar"}
+          className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
         >
-          <X size={12} strokeWidth={1.75} />
-          {done ? "Continuar" : "Dispensar"}
+          <X size={16} strokeWidth={2} />
         </button>
       </div>
-
-      {/* Dimmed backdrop */}
-      <div
-        className="absolute inset-0 bg-[var(--bg)]/80 backdrop-blur-sm -z-10"
-        onClick={onDismiss}
-        aria-hidden="true"
-      />
     </div>
   );
 }
@@ -1140,6 +1146,24 @@ function SetRowInput({
     prevSavedRef.current = saved;
   }, [saved]);
 
+  const stepperDisabled = row.saving || disabled;
+
+  function stepWeight(delta: number) {
+    const current = parseFloat(row.weight);
+    const base = Number.isFinite(current) ? current : 0;
+    const next = Math.max(0, Math.round((base + delta) * 10) / 10);
+    // Strip trailing ".0" so "82.5" stays compact and "80.0" shows as "80".
+    const formatted = Number.isInteger(next) ? String(next) : next.toFixed(1);
+    onChange({ weight: formatted, error: null });
+  }
+
+  function stepReps(delta: number) {
+    const current = parseInt(row.reps, 10);
+    const base = Number.isFinite(current) ? current : 0;
+    const next = Math.max(0, base + delta);
+    onChange({ reps: String(next), error: null });
+  }
+
   return (
     <div className={`px-4 py-3 transition-colors ${warmup ? "bg-[var(--bg-card)]/40" : ""} ${justSaved ? "set-saved-flash" : ""}`}>
       <div className="flex items-center gap-2">
@@ -1150,29 +1174,24 @@ function SetRowInput({
         >
           {label}
         </span>
-        <label className="flex-1 min-w-0">
-          <input
-            type="text"
-            inputMode="decimal"
-            placeholder="kg"
-            value={row.weight}
-            onChange={(e) => onChange({ weight: e.target.value, error: null })}
-            disabled={row.saving || disabled}
-            className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm tnum text-right focus:outline-none focus:border-[var(--text-muted)] transition-colors"
-          />
-        </label>
+        <Stepper
+          value={row.weight}
+          placeholder="kg"
+          inputMode="decimal"
+          suffix="kg"
+          disabled={stepperDisabled}
+          onStep={stepWeight}
+          onType={(v) => onChange({ weight: v, error: null })}
+        />
         <span className="text-[var(--text-dim)] text-xs">×</span>
-        <label className="flex-1 min-w-0">
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="reps"
-            value={row.reps}
-            onChange={(e) => onChange({ reps: e.target.value, error: null })}
-            disabled={row.saving || disabled}
-            className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm tnum text-right focus:outline-none focus:border-[var(--text-muted)] transition-colors"
-          />
-        </label>
+        <Stepper
+          value={row.reps}
+          placeholder="reps"
+          inputMode="numeric"
+          disabled={stepperDisabled}
+          onStep={stepReps}
+          onType={(v) => onChange({ reps: v, error: null })}
+        />
         <button
           type="button"
           onClick={onSave}
@@ -1242,6 +1261,73 @@ function SetRowInput({
           {row.error}
         </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * Compact stepper input: [−] [value] [+]. Tap buttons to increment/decrement
+ * (kg by 2.5, reps/RIR by 1 — handled by the caller via onStep), or tap the
+ * value itself to open the numeric keypad for direct entry.
+ *
+ * Ported from the Claude Design "Training Log" handoff
+ * (docs/design-handoff/components/active-workout.jsx → SetInput).
+ */
+function Stepper({
+  value,
+  placeholder,
+  inputMode,
+  disabled,
+  onStep,
+  onType,
+  suffix,
+}: {
+  value: string;
+  placeholder: string;
+  inputMode: "numeric" | "decimal";
+  disabled: boolean;
+  onStep: (delta: number) => void;
+  onType: (next: string) => void;
+  suffix?: string;
+}) {
+  const stepMag = inputMode === "decimal" ? 2.5 : 1;
+  return (
+    <div
+      className={`flex-1 min-w-0 flex items-center bg-[var(--bg-card)] border border-[var(--border)] rounded-lg ${disabled ? "opacity-70" : ""}`}
+    >
+      <button
+        type="button"
+        onClick={() => onStep(-stepMag)}
+        disabled={disabled}
+        aria-label={`Diminuir ${placeholder}`}
+        className="shrink-0 w-7 h-8 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-40 transition-colors"
+      >
+        <Minus size={12} strokeWidth={2.25} />
+      </button>
+      <input
+        type="text"
+        inputMode={inputMode}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onType(e.target.value)}
+        disabled={disabled}
+        aria-label={placeholder}
+        className="w-full min-w-0 bg-transparent border-0 px-0 py-2 text-sm tnum text-center focus:outline-none"
+      />
+      {suffix && value && (
+        <span className="text-[10px] text-[var(--text-dim)] pr-0.5">
+          {suffix}
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={() => onStep(stepMag)}
+        disabled={disabled}
+        aria-label={`Aumentar ${placeholder}`}
+        className="shrink-0 w-7 h-8 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-40 transition-colors"
+      >
+        <Plus size={12} strokeWidth={2.25} />
+      </button>
     </div>
   );
 }
