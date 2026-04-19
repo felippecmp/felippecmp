@@ -1,24 +1,18 @@
 "use server";
 
-import {
-  getAnthropicClient,
-  COACH_MODEL,
-} from "@/lib/coach/ai-client";
-import { buildTrainingContext } from "@/lib/coach/training-context";
+import { getAnthropicClient, COACH_MODEL } from "@/lib/coach/ai-client";
 
 export type DailyGreetingResult =
   | { ok: true; message: string }
   | { ok: false; error: string };
 
 /**
- * Generate a short personalized line for the Home header — aggressive,
- * confrontational, pushing against regression. Not motivational filler.
+ * Pure motivational line for the Home header — an order, not a stat.
+ * NO training context, NO personal data: a punch in the gut of laziness
+ * that tells Felippe to do the thing he was about to postpone.
  *
- * Felippe doesn't want to go back to being out of shape. Use that as
- * leverage. Treat slack as the enemy, not a friend.
- *
- * Client caches the result in localStorage keyed by day so we only
- * hit the API once per day per device.
+ * Client caches the result in localStorage keyed by day so we only hit
+ * the API once per day per device.
  */
 export async function generateDailyGreeting(
   timeOfDay: "madrugada" | "manhã" | "tarde" | "noite"
@@ -28,45 +22,56 @@ export async function generateDailyGreeting(
     return { ok: false, error: "ANTHROPIC_API_KEY não configurada." };
   }
 
-  const context = await buildTrainingContext();
+  // Rotate "flavors" per day-of-week so the AI doesn't converge on the same
+  // shape every morning. Each flavor is just a seed to push the line in a
+  // slightly different direction — all still motivational commands.
+  const flavors = [
+    "um comando direto, sem rodeio",
+    "uma provocação seca contra a preguiça",
+    "uma constatação fria sobre postergar",
+    "uma ordem curta tipo técnico durão",
+    "um aviso sobre o custo real de relaxar",
+    "uma frase que vira o estômago de quem quer fugir do treino",
+    "um lembrete brutal de pra onde o caminho fácil leva",
+  ];
+  const flavor = flavors[new Date().getDay() % flavors.length];
 
-  const userMessage = `Gere UMA frase de abertura pra home do app do Felippe agora (${timeOfDay}). É pessoal, vai só pra ele.
+  const userMessage = `Gere UMA frase motivacional pra home do app do Felippe agora (${timeOfDay}).
 
-Tom: agressivo, confrontacional, visceral. Amigo durão que não deixa o Felippe ser otário consigo mesmo. Ele NÃO quer voltar a ficar fora de forma — pode usar esse medo como alavanca. Treine como se a versão gorda dele estivesse atrás dele.
+É um soco no estômago da preguiça. Uma ordem pra ele fazer o que tem que ser feito. Nada de dado, nada de estatística, nada sobre treino específico dele — é MOTIVAÇÃO BRUTA.
+
+Tom deste exemplar: ${flavor}.
+
+Princípios:
+- Fale COM ele, como quem cutuca: "faz", "levanta", "acaba com", "para de", "não negocia", "não inventa"
+- Ou constata em terceira pessoa um padrão perdedor pra ele reconhecer ("Preguiça é a única coisa que cresce sem treinar")
+- Pode mirar no medo de voltar a ficar fora de forma, perder o físico, envergonhar a versão futura dele
+- Pode ser sarcástico, seco, afiado
 
 PROIBIDO:
-- Motivação rasa ("vamos nessa", "bora", "tá indo bem", "você consegue")
+- Frases clichê ("vamos nessa", "você consegue", "acredite em si", "a melhor versão de você")
 - Emoji
 - Exclamação (!)
 - Pergunta (?)
-- Corporate speak ou inspirational bullshit
-- **Citar o número do streak em dias** (não diga "X dias", "streak de Y")
-- **Citar o nome do próximo treino** (não diga "Lower A", "Upper B")
-- Dado óbvio que ele já vê na própria home (sets da semana, volume do mês, nome de template)
+- Hashtag
+- Citar NÚMERO de qualquer tipo (dias, séries, kg, %)
+- Citar nome de treino, músculo ou exercício específico
+- Citar "Felippe" (o nome já tá em cima)
+- Qualquer dado do treino dele (você não tem contexto — e nem deve ter)
 
-LIBERADO:
-- Medo de regressão física — voltar a ficar gordo, perder o físico, virar o cara que ele era
-- Crítica direta se o contexto mostrar slack (músculo negligenciado há tempo, feeling baixo, cardio zerado)
-- Sarcasmo seco
-- Chamada de atenção tipo "não se ilude", "não se enrola", "não confia em ontem"
-- Referência a padrões insidiosos (descanso virando desleixo, "começo semana que vem")
-
-Regras de forma:
-- 10 a 18 palavras
+Forma:
+- 8 a 16 palavras
 - PRIMEIRA LETRA MAIÚSCULA
 - Sem ponto final
-- Sem "Felippe" (o nome já tá em cima)
-- Linha só — não é continuação do "Boa noite,"
 
-Contexto real do treino dele:
-${context.text}
-
-Responde APENAS a linha. Sem aspas, sem explicação, sem "Aqui está:".`;
+Responde APENAS a frase. Sem aspas, sem explicação, sem "Aqui está:".`;
 
   try {
     const response = await client.messages.create({
       model: COACH_MODEL,
       max_tokens: 100,
+      // Higher temperature: with no context, we need variety between days.
+      temperature: 1,
       messages: [{ role: "user", content: userMessage }],
     });
 
@@ -80,8 +85,8 @@ Responde APENAS a linha. Sem aspas, sem explicação, sem "Aqui está:".`;
     if (!cleaned) {
       return { ok: false, error: "Resposta vazia." };
     }
-    // Ensure first letter is uppercase — belt-and-suspenders on top of the
-    // prompt rule in case the model slips.
+    // Capitalize first letter — belt-and-suspenders on top of the prompt
+    // rule in case the model slips.
     const capitalized =
       cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
     return { ok: true, message: capitalized };
