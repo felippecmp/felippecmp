@@ -19,7 +19,9 @@ import { WeeklyBars } from "./progresso/components/WeeklyBars";
 import { DiaryRow, type DiaryEntry } from "./DiaryRow";
 import { HomeStreakAndWeek } from "./HomeStreakAndWeek";
 import { LastWorkoutCard } from "./LastWorkoutCard";
+import { AISidekick } from "./AISidekick";
 import { TodayChecklist } from "./TodayChecklist";
+import { TodayGoalsRing } from "./TodayGoalsRing";
 import { NotaDescansoRow } from "./NotaDescansoRow";
 import { WeeklyRecap } from "./WeeklyRecap";
 import { WeeklySummary } from "./WeeklySummary";
@@ -995,23 +997,35 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* Today's checklist */}
+      {/* Today's goals — ring summary on top, interactive chips below.
+          Same hit math as the heatmap on /progresso. */}
       {!firstRun && (
-        <TodayChecklist
-          hasWeight={hasWeightToday}
-          hasStrength={hasStrengthToday}
-          hasCardio={hasCardioToday}
-          hasSteps={hasStepsToday}
-          isRestDay={isRestDayToday}
-          todayWeightKg={
-            todayWeight ? Number(todayWeight.weight_kg) : null
-          }
-          todayStepsCount={todaySteps?.steps ?? null}
-          latestWeightKg={
-            latestWeight ? Number(latestWeight.weight_kg) : null
-          }
-          todayKey={todayKey}
-        />
+        <section className="mb-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-4">
+          {(() => {
+            const goalsDone =
+              (hasWeightToday ? 1 : 0) +
+              (hasCardioToday ? 1 : 0) +
+              (hasStepsToday ? 1 : 0) +
+              (!isRestDayToday && hasStrengthToday ? 1 : 0);
+            const goalsMax = isRestDayToday ? 3 : 4;
+            return <TodayGoalsRing done={goalsDone} max={goalsMax} />;
+          })()}
+          <TodayChecklist
+            hasWeight={hasWeightToday}
+            hasStrength={hasStrengthToday}
+            hasCardio={hasCardioToday}
+            hasSteps={hasStepsToday}
+            isRestDay={isRestDayToday}
+            todayWeightKg={
+              todayWeight ? Number(todayWeight.weight_kg) : null
+            }
+            todayStepsCount={todaySteps?.steps ?? null}
+            latestWeightKg={
+              latestWeight ? Number(latestWeight.weight_kg) : null
+            }
+            todayKey={todayKey}
+          />
+        </section>
       )}
 
       {/* Nota + descanso */}
@@ -1043,6 +1057,9 @@ export default async function HomePage() {
 
       {/* AI Weekly Summary */}
       {!firstRun && <WeeklySummary />}
+
+      {/* AI sidekick — violet glass prompt card, links to /coach/chat. */}
+      {!firstRun && <AISidekick />}
 
       {/* Diary timeline */}
       {dayKeys.length > 0 && (

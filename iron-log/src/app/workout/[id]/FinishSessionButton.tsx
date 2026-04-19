@@ -22,6 +22,7 @@ export function FinishSessionButton({
   totalTarget,
   totalVolumeKg,
   startedAt,
+  compact = false,
 }: {
   sessionId: string;
   totalLogged: number;
@@ -31,6 +32,9 @@ export function FinishSessionButton({
   totalVolumeKg?: number;
   /** ISO timestamp when the session started. Used to show elapsed time. */
   startedAt?: string;
+  /** When true, renders a small pill instead of a full-width button. Used
+      for the top-bar variant on the live workout screen. */
+  compact?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -122,14 +126,31 @@ export function FinishSessionButton({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="w-full flex items-center justify-center gap-2 bg-accent text-accent-fg font-semibold py-3.5 rounded-xl hover:bg-accent-hover transition-colors"
-      >
-        <Flag size={16} strokeWidth={2.5} />
-        Finalizar treino
-      </button>
+      {compact ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Finalizar treino"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-extrabold transition-colors"
+          style={{
+            background: "color-mix(in oklab, var(--status-ready) 18%, transparent)",
+            color: "var(--status-ready)",
+            border: "1px solid color-mix(in oklab, var(--status-ready) 30%, transparent)",
+          }}
+        >
+          <Flag size={12} strokeWidth={2.5} />
+          Finalizar
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="w-full flex items-center justify-center gap-2 bg-accent text-accent-fg font-semibold py-3.5 rounded-xl hover:bg-accent-hover transition-colors"
+        >
+          <Flag size={16} strokeWidth={2.5} />
+          Finalizar treino
+        </button>
+      )}
 
       {open && (
         <div

@@ -508,16 +508,42 @@ export default async function WorkoutSessionPage({
           <ChevronLeft size={16} strokeWidth={1.75} />
           Treinar
         </Link>
-        {!isFinished && <ElapsedTimer startedAt={session.started_at} />}
+        <div className="flex items-center gap-2">
+          {!isFinished && <ElapsedTimer startedAt={session.started_at} />}
+          {!isFinished && (
+            <FinishSessionButton
+              sessionId={session.id}
+              totalLogged={totalLogged}
+              totalTarget={totalTarget}
+              totalVolumeKg={totalVolumeKg}
+              startedAt={session.started_at}
+              compact
+            />
+          )}
+        </div>
       </div>
 
       <header className="mb-6">
-        <p className="label mb-2 uppercase">
-          {template?.session_type ?? "Sessão"}
+        <p className="tlog-eyebrow mb-2 text-[var(--text-muted)]">
+          {isFinished ? "Treino completo" : (template?.session_type ?? "Sessão")}
         </p>
-        <h1 className="display text-4xl leading-none">
-          {template?.name ?? "Sessão"}
-        </h1>
+        {isFinished ? (
+          <h1
+            className="font-extrabold leading-[0.95]"
+            style={{
+              fontSize: 44,
+              letterSpacing: "-0.04em",
+            }}
+          >
+            {template?.name ?? "Sessão"}
+            <br />
+            <span style={{ color: "var(--accent)" }}>finalizado.</span>
+          </h1>
+        ) : (
+          <h1 className="display text-4xl leading-none">
+            {template?.name ?? "Sessão"}
+          </h1>
+        )}
         <div className="mt-3 flex items-center gap-3 text-xs text-[var(--text-muted)] tnum">
           {isFinished && (
             <>
@@ -531,6 +557,12 @@ export default async function WorkoutSessionPage({
           <span>{exercisesWithSets}/{exercises.length} exercícios</span>
           <span className="text-[var(--text-faint)]">·</span>
           <span>{totalLogged}/{totalTarget} sets</span>
+          {isFinished && totalVolumeKg > 0 && (
+            <>
+              <span className="text-[var(--text-faint)]">·</span>
+              <span>{(totalVolumeKg / 1000).toFixed(1)}t</span>
+            </>
+          )}
         </div>
 
         {/* Session progress bar */}

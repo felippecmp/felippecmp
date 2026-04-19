@@ -8,6 +8,7 @@ import { Ring } from "@/components/Ring";
 import { AIWorkoutGenerator } from "./AIWorkoutGenerator";
 import { PreWorkoutBriefing } from "./PreWorkoutBriefing";
 import { StartSessionButton } from "./StartSessionButton";
+import { TemplateFilter } from "./TemplateFilter";
 
 export const dynamic = "force-dynamic";
 
@@ -359,21 +360,16 @@ export default async function TreinarPage() {
               Gerenciar
             </Link>
           </div>
-          <ul className="flex flex-col gap-2">
-            {templates.map((t) => {
-              const isSuggested = t.id === suggestedId;
-              const disabled = t.exercise_count === 0 || Boolean(active);
-              return (
-                <li key={t.id}>
-                  <TemplateRowItem
-                    template={t}
-                    isSuggested={isSuggested}
-                    disabled={disabled}
-                  />
-                </li>
-              );
-            })}
-          </ul>
+          <TemplateFilter
+            templates={templates}
+            renderRow={(t) => (
+              <TemplateRowItem
+                template={t}
+                isSuggested={t.id === suggestedId}
+                disabled={t.exercise_count === 0 || Boolean(active)}
+              />
+            )}
+          />
         </section>
       )}
     </div>

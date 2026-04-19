@@ -21,6 +21,7 @@ import { CardioStat, TopStat } from "./components/Stats";
 import { VolumeBar, type VolumeEntry } from "./components/VolumeBar";
 import { VolumeCalculator } from "./components/VolumeCalculator";
 import { WeeklyBars, type WeekData } from "./components/WeeklyBars";
+import { PeriodToggle, type Period } from "./PeriodToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -81,8 +82,15 @@ function pickJoined<T>(value: T | T[] | null): T | null {
   return Array.isArray(value) ? value[0] ?? null : value;
 }
 
-export default async function ProgressoPage() {
+export default async function ProgressoPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ p?: string }>;
+}) {
   const supabase = await createClient();
+  const { p: periodParam } = await searchParams;
+  const period: Period = periodParam === "7d" || periodParam === "90d" ? periodParam : "30d";
+  const periodDays = period === "7d" ? 7 : period === "90d" ? 90 : 30;
 
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -364,12 +372,47 @@ export default async function ProgressoPage() {
     (sum, s) => sum + Number(s.weight_kg) * s.reps,
     0
   );
-  const volumeDeltaPct =
-    totalVolumePrev30d > 0
+
+  // --- Period-scoped volume + sets (drives the hero stat when the user
+  // toggles 7d / 30d / 90d). 30d reuses the precomputed totals. 7d and
+  // 90d are filtered from the broader windows we already fetch. ---
+  const periodCutoff = new Date(
+    now.getTime() - periodDays * 24 * 60 * 60 * 1000
+  );
+  const periodPrevCutoff = new Date(
+    now.getTime() - periodDays * 2 * 24 * 60 * 60 * 1000
+  );
+  const setsPeriod =
+    period === "30d"
+      ? sets30d
+      : sets.filter((s) => new Date(s.performed_at) >= periodCutoff);
+  const setsPrevPeriod =
+    period === "30d"
+      ? setsPrev30d
+      : sets.filter((s) => {
+          const t = new Date(s.performed_at);
+          return t >= periodPrevCutoff && t < periodCutoff;
+        });
+  const totalVolumePeriod =
+    period === "30d"
+      ? totalVolume30d
+      : setsPeriod.reduce((sum, s) => sum + Number(s.weight_kg) * s.reps, 0);
+  const totalVolumePrevPeriod =
+    period === "30d"
+      ? totalVolumePrev30d
+      : setsPrevPeriod.reduce(
+          (sum, s) => sum + Number(s.weight_kg) * s.reps,
+          0
+        );
+  const volumeDeltaPeriodPct =
+    totalVolumePrevPeriod > 0
       ? Math.round(
-          ((totalVolume30d - totalVolumePrev30d) / totalVolumePrev30d) * 100
+          ((totalVolumePeriod - totalVolumePrevPeriod) /
+            totalVolumePrevPeriod) *
+            100
         )
       : null;
+  const totalSetsPeriod = setsPeriod.length;
 
   // --- Cardio aggregates (30d current + prev) ---
   const cardioKm30d = cardio30d.reduce(
@@ -473,14 +516,7 @@ export default async function ProgressoPage() {
           </p>
           <h1 className="tlog-title">Progresso</h1>
         </div>
-        {!empty && (
-          <p className="text-xs text-[var(--text-muted)] tnum text-right leading-tight pt-1">
-            <span className="block font-bold text-[var(--text-soft)] text-[13px]">
-              {totalSessions30d}
-            </span>
-            treinos · 30d
-          </p>
-        )}
+        {!empty && <PeriodToggle active={period} />}
       </header>
 
       {empty ? (
@@ -518,11 +554,10 @@ export default async function ProgressoPage() {
             />
           </section>
 
-          {/* Volume levantado · 30d — editorial hero. Radial coral glow tops
-              the card; number rides ~48px/800 in coral with "toneladas" set
-              in tSec. Delta chip + set count as meta below. Matches the
-              Progresso hero from the Training Log handoff. */}
-          {totalVolume30d > 0 && (
+          {/* Volume levantado · {period} — editorial hero. Reads from the
+              period-scoped totals so the toggle in the header rewires the
+              window. Delta + set count update accordingly. */}
+          {totalVolumePeriod > 0 && (
             <section className="mb-6">
               <div
                 className="relative overflow-hidden rounded-[24px] border border-[var(--border)] p-5"
@@ -532,7 +567,7 @@ export default async function ProgressoPage() {
                 }}
               >
                 <p className="tlog-eyebrow text-[var(--text-muted)] mb-3">
-                  Volume levantado · 30d
+                  Volume levantado · {period}
                 </p>
                 <div className="flex items-baseline gap-2">
                   <span
@@ -543,7 +578,7 @@ export default async function ProgressoPage() {
                       color: "var(--accent)",
                     }}
                   >
-                    {(totalVolume30d / 1000).toFixed(1)}
+                    {(totalVolumePeriod / 1000).toFixed(1)}
                   </span>
                   <span
                     className="text-[18px] font-bold"
@@ -556,11 +591,11 @@ export default async function ProgressoPage() {
                   </span>
                 </div>
                 <div className="mt-3 flex items-center gap-3 text-[11.5px] font-semibold">
-                  {volumeDeltaPct !== null && (
-                    <PercentChip pct={volumeDeltaPct} />
+                  {volumeDeltaPeriodPct !== null && (
+                    <PercentChip pct={volumeDeltaPeriodPct} />
                   )}
                   <span className="text-[var(--text-muted)] tnum">
-                    · {totalSets7d} séries · 7d
+                    · {totalSetsPeriod} séries · {period}
                   </span>
                 </div>
               </div>
