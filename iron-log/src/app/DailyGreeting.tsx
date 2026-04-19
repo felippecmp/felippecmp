@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { generateDailyGreeting } from "./daily-greeting-action";
 
-const CACHE_PREFIX = "flog:greeting:";
+// Cache version bump invalidates previously-cached greetings when the
+// prompt/tone changes. Increment on prompt rewrites so old cached lines
+// from a different tone don't linger.
+const CACHE_VERSION = "v2";
+const CACHE_PREFIX = `flog:greeting:${CACHE_VERSION}:`;
+const LEGACY_PREFIX = "flog:greeting:";
 const USER_NAME = "Felippe";
 
 type CachedGreeting = {
@@ -31,11 +36,15 @@ function writeCache(dayKey: string, timeOfDay: string, message: string) {
   try {
     const payload: CachedGreeting = { dayKey, timeOfDay, message };
     localStorage.setItem(`${CACHE_PREFIX}${dayKey}`, JSON.stringify(payload));
-    // Best-effort cleanup: prune any cached greetings from previous days so
-    // localStorage doesn't accumulate forever.
+    // Best-effort cleanup: prune any cached greetings from previous days OR
+    // older cache versions so localStorage doesn't accumulate forever.
+    const keep = `${CACHE_PREFIX}${dayKey}`;
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && k.startsWith(CACHE_PREFIX) && k !== `${CACHE_PREFIX}${dayKey}`) {
+      if (!k) continue;
+      const isOurs =
+        k.startsWith(CACHE_PREFIX) || k.startsWith(LEGACY_PREFIX);
+      if (isOurs && k !== keep) {
         localStorage.removeItem(k);
         // Rewind since we mutated the storage mid-iteration.
         i -= 1;

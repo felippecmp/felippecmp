@@ -11,10 +11,11 @@ export type DailyGreetingResult =
   | { ok: false; error: string };
 
 /**
- * Generate a short personalized greeting line for the Home header.
- * Uses Felippe's current training context (streak, recent sessions,
- * next planned template) so the line actually lands — no generic
- * "let's crush it" spam, no emoji, no corporate speak.
+ * Generate a short personalized line for the Home header — aggressive,
+ * confrontational, pushing against regression. Not motivational filler.
+ *
+ * Felippe doesn't want to go back to being out of shape. Use that as
+ * leverage. Treat slack as the enemy, not a friend.
  *
  * Client caches the result in localStorage keyed by day so we only
  * hit the API once per day per device.
@@ -29,27 +30,43 @@ export async function generateDailyGreeting(
 
   const context = await buildTrainingContext();
 
-  const userMessage = `Gere UMA linha curta de abertura pra home do app do Felippe agora (${timeOfDay}).
+  const userMessage = `Gere UMA frase de abertura pra home do app do Felippe agora (${timeOfDay}). É pessoal, vai só pra ele.
 
-Tom: direto, específico, conectado ao que tá acontecendo no treino dele AGORA. Nada de motivação rasa ("vamos nessa", "bora treinar"), nada de emoji, nada de "!" exclamação. Um amigo de academia que sabe o que ele tá fazendo.
+Tom: agressivo, confrontacional, visceral. Amigo durão que não deixa o Felippe ser otário consigo mesmo. Ele NÃO quer voltar a ficar fora de forma — pode usar esse medo como alavanca. Treine como se a versão gorda dele estivesse atrás dele.
 
-Regras:
-- Máximo 12 palavras
-- Pode mencionar: streak, próximo treino, músculo que tá negligenciado, exercício em que ele tá progredindo, PR recente, dia da semana
-- Nada genérico. Se mencionar streak, cita o número. Se mencionar treino, cita o nome.
-- Sem "Felippe" (o nome já tá em cima)
+PROIBIDO:
+- Motivação rasa ("vamos nessa", "bora", "tá indo bem", "você consegue")
+- Emoji
+- Exclamação (!)
+- Pergunta (?)
+- Corporate speak ou inspirational bullshit
+- **Citar o número do streak em dias** (não diga "X dias", "streak de Y")
+- **Citar o nome do próximo treino** (não diga "Lower A", "Upper B")
+- Dado óbvio que ele já vê na própria home (sets da semana, volume do mês, nome de template)
+
+LIBERADO:
+- Medo de regressão física — voltar a ficar gordo, perder o físico, virar o cara que ele era
+- Crítica direta se o contexto mostrar slack (músculo negligenciado há tempo, feeling baixo, cardio zerado)
+- Sarcasmo seco
+- Chamada de atenção tipo "não se ilude", "não se enrola", "não confia em ontem"
+- Referência a padrões insidiosos (descanso virando desleixo, "começo semana que vem")
+
+Regras de forma:
+- 10 a 18 palavras
+- PRIMEIRA LETRA MAIÚSCULA
 - Sem ponto final
-- Primeira letra minúscula (emenda visualmente com o "Boa noite," que vem antes)
+- Sem "Felippe" (o nome já tá em cima)
+- Linha só — não é continuação do "Boa noite,"
 
-Contexto:
+Contexto real do treino dele:
 ${context.text}
 
-Responde APENAS a linha. Sem aspas, sem explicação.`;
+Responde APENAS a linha. Sem aspas, sem explicação, sem "Aqui está:".`;
 
   try {
     const response = await client.messages.create({
       model: COACH_MODEL,
-      max_tokens: 80,
+      max_tokens: 100,
       messages: [{ role: "user", content: userMessage }],
     });
 
@@ -58,12 +75,16 @@ Responde APENAS a linha. Sem aspas, sem explicação.`;
     const cleaned = text
       .trim()
       .replace(/^["'«»]+|["'«»]+$/g, "")
-      .replace(/^[.!?]+|[.!?]+$/g, "")
+      .replace(/[.!?]+$/g, "")
       .trim();
     if (!cleaned) {
       return { ok: false, error: "Resposta vazia." };
     }
-    return { ok: true, message: cleaned };
+    // Ensure first letter is uppercase — belt-and-suspenders on top of the
+    // prompt rule in case the model slips.
+    const capitalized =
+      cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+    return { ok: true, message: capitalized };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erro desconhecido";
     return { ok: false, error: `Falha: ${msg}` };
