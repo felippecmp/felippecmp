@@ -50,7 +50,7 @@ export function StartSessionButton({
         type="button"
         onClick={handleClick}
         disabled={disabled || isPending}
-        className="w-full flex items-center justify-center gap-2 text-[var(--accent-fg)] font-bold text-[15px] py-4 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
+        className="w-full flex items-center justify-center gap-2 text-[var(--accent-fg)] font-bold text-[15px] py-4 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
         style={{ background: `linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 75%, var(--bg)))` }}
       >
         <Play size={16} strokeWidth={2.5} fill="currentColor" />

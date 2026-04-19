@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { ArrowRight, ChevronRight, Layers } from "lucide-react";
+import { ChevronRight, Dumbbell, Layers, Play } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { isAIAvailable } from "@/lib/coach/ai-client";
+import { muscleLabel } from "@/lib/muscles";
 import { getUserSettings, type RotationMode } from "@/lib/settings";
+import { Ring } from "@/components/Ring";
 import { AIWorkoutGenerator } from "./AIWorkoutGenerator";
 import { PreWorkoutBriefing } from "./PreWorkoutBriefing";
 import { StartSessionButton } from "./StartSessionButton";
@@ -102,13 +104,26 @@ export default async function TreinarPage() {
       .limit(10),
     supabase
       .from("template_exercises")
-      .select("template_id"),
+      .select("template_id, exercises(primary_muscle)"),
   ]);
 
-  // Count exercises per template from the raw rows
+  // Count exercises + collect distinct primary muscles per template in one
+  // pass. Muscles power the Hub hero chip row.
+  type TeRow = {
+    template_id: string;
+    exercises: { primary_muscle: string | null } | { primary_muscle: string | null }[] | null;
+  };
   const teCounts = new Map<string, number>();
-  for (const row of (teCountRes.data ?? []) as Array<{ template_id: string }>) {
+  const teMuscles = new Map<string, string[]>();
+  for (const row of (teCountRes.data ?? []) as TeRow[]) {
     teCounts.set(row.template_id, (teCounts.get(row.template_id) ?? 0) + 1);
+    const ex = Array.isArray(row.exercises) ? row.exercises[0] : row.exercises;
+    const muscle = ex?.primary_muscle ?? null;
+    if (muscle) {
+      const list = teMuscles.get(row.template_id) ?? [];
+      if (!list.includes(muscle)) list.push(muscle);
+      teMuscles.set(row.template_id, list);
+    }
   }
 
   const templates: TemplateRow[] = (templatesRes.data ?? []).map((t) => {
@@ -157,74 +172,135 @@ export default async function TreinarPage() {
       .filter((n): n is string => n !== null);
   }
 
+  const suggestionMuscles: string[] = suggestion
+    ? (teMuscles.get(suggestion.template.id) ?? []).slice(0, 4).map(muscleLabel)
+    : [];
+
   return (
     <div className="px-6 pt-10">
-      <header className="mb-8">
-        <h1 className="display text-4xl leading-none">Treinar</h1>
-        {suggestion && !active && (
-          <p className="text-sm text-[var(--text-muted)] mt-2">
-            Próximo:{" "}
-            <span className="text-[var(--text-soft)] font-medium">
-              {sessionTypeLabel(suggestion.targetType)}
-            </span>
-          </p>
-        )}
+      {/* Top bar — title + settings/plus slot (kept lightweight; the handoff
+          also had calendar/plus icons but /templates already covers creation). */}
+      <header className="mb-5 flex items-start justify-between">
+        <div>
+          {suggestion && !active && (
+            <p className="text-xs font-semibold text-[var(--text-muted)] mb-1 tnum">
+              Próximo: {sessionTypeLabel(suggestion.targetType)}
+            </p>
+          )}
+          <h1 className="tlog-title">Treinar</h1>
+        </div>
+        <Link
+          href="/templates"
+          aria-label="Gerenciar templates"
+          className="shrink-0 w-9 h-9 rounded-full bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text)] flex items-center justify-center transition-colors"
+        >
+          <Layers size={16} strokeWidth={1.75} />
+        </Link>
       </header>
 
       {/* Active session banner */}
       {active && activeTemplate && (
-        <section className="mb-6">
-          <Link
-            href={`/workout/${active.id}`}
-            className="block rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-card)] p-5 hover:border-[var(--text-muted)] transition-colors"
-          >
-            <p className="label mb-2">Em andamento</p>
-            <div className="flex items-end justify-between gap-4">
-              <div className="min-w-0">
-                <h2 className="display-sm text-2xl truncate">
-                  {(activeTemplate as { name: string }).name}
-                </h2>
-                <p className="text-xs text-[var(--text-muted)] mt-1 tnum">
-                  Iniciado{" "}
-                  {new Date(active.started_at).toLocaleTimeString("pt-BR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </p>
-              </div>
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--text)]">
-                Continuar
-                <ArrowRight size={14} strokeWidth={2} />
-              </span>
+        <Link
+          href={`/workout/${active.id}`}
+          className="group relative block mb-4 overflow-hidden rounded-[20px] bg-[var(--bg-card)] border border-[var(--border)] p-5 active:scale-[0.99] transition-transform"
+        >
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-8 -right-8 h-40 w-40 rounded-full"
+            style={{
+              background:
+                "radial-gradient(circle, color-mix(in oklab, var(--accent) 25%, transparent), transparent 70%)",
+            }}
+          />
+          <div className="relative flex items-center gap-4">
+            <Ring value={1} size={78} stroke={5} color="var(--accent)">
+              <Play size={22} strokeWidth={2.5} fill="currentColor" className="text-[var(--accent)]" />
+            </Ring>
+            <div className="min-w-0 flex-1">
+              <p className="tlog-eyebrow mb-1 text-[var(--text-muted)]">Em andamento</p>
+              <h2 className="text-[24px] leading-none font-extrabold tracking-[-0.02em] truncate">
+                {(activeTemplate as { name: string }).name}
+              </h2>
+              <p className="text-xs text-[var(--text-muted)] mt-1 tnum">
+                Iniciado{" "}
+                {new Date(active.started_at).toLocaleTimeString("pt-BR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
             </div>
-          </Link>
-        </section>
+            <ChevronRight size={20} className="shrink-0 text-[var(--text-muted)]" />
+          </div>
+        </Link>
       )}
 
-      {/* Suggestion card — gradient CTA */}
+      {/* Hero — Próximo treino card with ring + muscle chips + CTA button.
+          Matches the Hub hero on /, but here the CTA actually starts the
+          session instead of linking to /treinar. */}
       {!active && suggestion && (
-        <section className="mb-8">
-          <div className="rounded-2xl bg-[var(--bg-card)] overflow-hidden">
-            <div className="p-6 pb-5">
-              <p className="text-xs uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-3">
-                {sessionTypeLabel(suggestion.targetType)} · {suggestion.template.exercise_count} exercícios
-              </p>
-              <h2 className="display text-[40px] leading-none tracking-tighter">
-                {suggestion.template.name}
-              </h2>
-              {suggestion.template.exercise_count === 0 && (
-                <p className="text-xs text-[var(--text-muted)] mt-3">
-                  Adicione exercícios ao template antes de iniciar.
+        <section className="mb-5">
+          <div className="relative overflow-hidden rounded-[20px] bg-[var(--bg-card)] border border-[var(--border)] p-5">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -top-8 -right-8 h-40 w-40 rounded-full"
+              style={{
+                background:
+                  "radial-gradient(circle, color-mix(in oklab, var(--accent) 22%, transparent), transparent 70%)",
+              }}
+            />
+            <div className="relative flex items-center gap-4">
+              <Ring
+                value={0}
+                size={78}
+                stroke={5}
+                color="var(--accent)"
+                ariaLabel={`Próximo treino: ${suggestion.template.name}`}
+              >
+                <Play
+                  size={22}
+                  strokeWidth={2.5}
+                  fill="currentColor"
+                  className="text-[var(--accent)]"
+                />
+              </Ring>
+              <div className="min-w-0 flex-1">
+                <p className="tlog-eyebrow mb-1 text-[var(--text-muted)]">
+                  Próximo treino
                 </p>
-              )}
+                <h2 className="text-[26px] leading-none font-extrabold tracking-[-0.02em] truncate">
+                  {suggestion.template.name}
+                </h2>
+                <p className="text-xs text-[var(--text-muted)] mt-1 tnum">
+                  {sessionTypeLabel(suggestion.targetType)} ·{" "}
+                  {suggestion.template.exercise_count} exercícios
+                </p>
+              </div>
             </div>
-            <div className="px-0">
-              <StartSessionButton
-                templateId={suggestion.template.id}
-                label={`Iniciar ${suggestion.template.name}`}
-                disabled={suggestion.template.exercise_count === 0}
-              />
-            </div>
+            {suggestionMuscles.length > 0 && (
+              <ul className="relative mt-3.5 flex flex-wrap gap-1.5">
+                {suggestionMuscles.map((m) => (
+                  <li
+                    key={m}
+                    className="rounded-md bg-[var(--bg-hover)] px-2 py-1 text-[10.5px] font-semibold text-[var(--text-soft)]"
+                  >
+                    {m}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {suggestion.template.exercise_count === 0 ? (
+              <p className="relative mt-4 text-xs text-[var(--text-muted)]">
+                Adicione exercícios ao template antes de iniciar.
+              </p>
+            ) : (
+              <div className="relative mt-4">
+                <StartSessionButton
+                  templateId={suggestion.template.id}
+                  label={`Iniciar ${suggestion.template.name}`}
+                  disabled={false}
+                />
+              </div>
+            )}
           </div>
 
           {/* AI Briefing — below the CTA */}
@@ -270,7 +346,8 @@ export default async function TreinarPage() {
         </section>
       )}
 
-      {/* All templates list */}
+      {/* All templates list — Hub style: 44px icon tile on left, group eyebrow,
+          name, meta. "Próximo" row gets a coral-tinted icon tile + border. */}
       {templates.length > 1 && (
         <section className="mb-10">
           <div className="flex items-baseline justify-between mb-3">
@@ -282,7 +359,7 @@ export default async function TreinarPage() {
               Gerenciar
             </Link>
           </div>
-          <ul className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border)]">
+          <ul className="flex flex-col gap-2">
             {templates.map((t) => {
               const isSuggested = t.id === suggestedId;
               const disabled = t.exercise_count === 0 || Boolean(active);
@@ -312,23 +389,50 @@ function TemplateRowItem({
   isSuggested: boolean;
   disabled: boolean;
 }) {
+  const accent = isSuggested ? "var(--accent)" : null;
   return (
-    <div className="flex items-center gap-3 px-4 py-3.5">
+    <div
+      className="flex items-center gap-3 rounded-[14px] border bg-[var(--bg-card)] px-3.5 py-3"
+      style={{
+        borderColor: accent
+          ? "color-mix(in oklab, var(--accent) 30%, transparent)"
+          : "var(--border)",
+      }}
+    >
+      <div
+        className="shrink-0 flex items-center justify-center rounded-xl"
+        style={{
+          width: 44,
+          height: 44,
+          background: accent
+            ? "color-mix(in oklab, var(--accent) 15%, transparent)"
+            : "var(--bg-hover)",
+          border: accent
+            ? "1px solid color-mix(in oklab, var(--accent) 30%, transparent)"
+            : "none",
+          color: accent ?? "var(--text-muted)",
+        }}
+      >
+        <Dumbbell size={18} strokeWidth={2} />
+      </div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-semibold tracking-widest uppercase text-[var(--text-dim)]">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[9.5px] font-bold tracking-[0.1em] uppercase text-[var(--text-muted)]">
             {sessionTypeLabel(template.session_type)}
           </span>
           {isSuggested && (
-            <span className="text-[10px] font-semibold tracking-widest uppercase text-[var(--status-ready)]">
+            <span
+              className="text-[9px] font-extrabold tracking-[0.1em] uppercase"
+              style={{ color: "var(--accent)" }}
+            >
               · Próximo
             </span>
           )}
         </div>
-        <div className="font-medium text-[15px] leading-tight mt-0.5 truncate">
+        <div className="mt-0.5 truncate text-[15px] font-bold leading-tight">
           {template.name}
         </div>
-        <div className="text-xs text-[var(--text-muted)] mt-1 tnum">
+        <div className="mt-0.5 text-[11px] text-[var(--text-muted)] tnum">
           {template.exercise_count} exercícios
         </div>
       </div>
