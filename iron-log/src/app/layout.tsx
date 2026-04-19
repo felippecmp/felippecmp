@@ -51,7 +51,7 @@ export default function RootLayout({
             hydrates, preventing a flash of the wrong palette. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem("flog:theme");if(t==="gohan")document.documentElement.classList.add("theme-gohan");if(t==="beast")document.documentElement.classList.add("theme-beast");if(t==="openclaw")document.documentElement.classList.add("theme-openclaw")}catch{}`,
+            __html: `try{var t=localStorage.getItem("flog:theme");if(t==="gohan")document.documentElement.classList.add("theme-gohan");if(t==="beast")document.documentElement.classList.add("theme-beast");if(t==="openclaw")document.documentElement.classList.add("theme-openclaw");if(t==="tlog")document.documentElement.classList.add("theme-tlog")}catch{}`,
           }}
         />
       </head>
