@@ -466,11 +466,19 @@ export default async function ProgressoPage() {
 
   return (
     <div className="px-6 pt-10">
-      <header className="mb-8">
-        <h1 className="display text-4xl leading-none">Progresso</h1>
+      <header className="mb-5 flex items-start justify-between">
+        <div>
+          <p className="text-xs font-semibold text-[var(--text-muted)] mb-1">
+            Análise
+          </p>
+          <h1 className="tlog-title">Progresso</h1>
+        </div>
         {!empty && (
-          <p className="text-sm text-[var(--text-muted)] mt-2 tnum">
-            {totalSessions30d} treinos · {totalSets7d} sets esta semana
+          <p className="text-xs text-[var(--text-muted)] tnum text-right leading-tight pt-1">
+            <span className="block font-bold text-[var(--text-soft)] text-[13px]">
+              {totalSessions30d}
+            </span>
+            treinos · 30d
           </p>
         )}
       </header>
@@ -510,21 +518,50 @@ export default async function ProgressoPage() {
             />
           </section>
 
-          {/* Volume total mensal */}
+          {/* Volume levantado · 30d — editorial hero. Radial coral glow tops
+              the card; number rides ~48px/800 in coral with "toneladas" set
+              in tSec. Delta chip + set count as meta below. Matches the
+              Progresso hero from the Training Log handoff. */}
           {totalVolume30d > 0 && (
             <section className="mb-6">
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
-                <p className="label mb-2">Volume levantado · 30 dias</p>
-                <div className="flex items-baseline gap-3">
-                  <div className="display text-4xl tnum leading-none">
+              <div
+                className="relative overflow-hidden rounded-[24px] border border-[var(--border)] p-5"
+                style={{
+                  background:
+                    "radial-gradient(120% 80% at 100% 0%, color-mix(in oklab, var(--accent) 18%, transparent) 0%, var(--bg-card) 60%)",
+                }}
+              >
+                <p className="tlog-eyebrow text-[var(--text-muted)] mb-3">
+                  Volume levantado · 30d
+                </p>
+                <div className="flex items-baseline gap-2">
+                  <span
+                    className="tnum font-extrabold leading-none"
+                    style={{
+                      fontSize: 48,
+                      letterSpacing: "-0.04em",
+                      color: "var(--accent)",
+                    }}
+                  >
                     {(totalVolume30d / 1000).toFixed(1)}
-                  </div>
-                  <span className="text-sm text-[var(--text-muted)]">
+                  </span>
+                  <span
+                    className="text-[18px] font-bold"
+                    style={{
+                      color: "var(--text-soft)",
+                      letterSpacing: "-0.02em",
+                    }}
+                  >
                     toneladas
                   </span>
+                </div>
+                <div className="mt-3 flex items-center gap-3 text-[11.5px] font-semibold">
                   {volumeDeltaPct !== null && (
                     <PercentChip pct={volumeDeltaPct} />
                   )}
+                  <span className="text-[var(--text-muted)] tnum">
+                    · {totalSets7d} séries · 7d
+                  </span>
                 </div>
               </div>
             </section>
