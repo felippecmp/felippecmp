@@ -1,19 +1,27 @@
 import Link from "next/link";
 import {
-  ArrowRight,
+  ChevronRight,
   Flame,
   Play,
   Settings as SettingsIcon,
+  TrendingUp,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { computeStreak } from "@/lib/streak";
+import { muscleLabel } from "@/lib/muscles";
 import { userDayKey } from "@/lib/timezone";
-import { Sparkline } from "@/components/Sparkline";
+import { Ring } from "@/components/Ring";
+import { WeekStrip } from "@/components/WeekStrip";
 import { DiaryRow, type DiaryEntry } from "./DiaryRow";
 import { TodayChecklist } from "./TodayChecklist";
 import { NotaDescansoRow } from "./NotaDescansoRow";
 import { WeeklyRecap } from "./WeeklyRecap";
 import { WeeklySummary } from "./WeeklySummary";
+
+// Default weekly training sessions goal used to fill the hero ring when the
+// user has no per-user setting yet. Matches the planning doc's 3–5 sessions
+// recommendation — 4 hits the midpoint.
+const WEEKLY_SESSIONS_GOAL = 4;
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +98,10 @@ export default async function HomePage() {
   const now = new Date();
   const todayKey = localDayKey(now);
 
+  // 30 days ago (UTC) — used for the Volume · 30d dual card.
+  const thirtyDaysAgoUtc = new Date(now);
+  thirtyDaysAgoUtc.setDate(thirtyDaysAgoUtc.getDate() - 30);
+
   const [
     ,
     { data: strengthYear },
@@ -101,6 +113,7 @@ export default async function HomePage() {
     { data: dailyNoteRows },
     { data: activeSessionData },
     { data: teCountRaw },
+    { data: volume30dRows },
   ] = await Promise.all([
     supabase.from("exercises").select("*", { count: "exact", head: true }),
     supabase
@@ -153,7 +166,12 @@ export default async function HomePage() {
       .maybeSingle(),
     supabase
       .from("template_exercises")
-      .select("template_id"),
+      .select("template_id, exercises(primary_muscle)"),
+    supabase
+      .from("workout_sets")
+      .select("weight_kg, reps")
+      .eq("is_warmup", false)
+      .gte("performed_at", thirtyDaysAgoUtc.toISOString()),
   ]);
 
   const { weekday, day, month } = formatHeaderDate(now);
@@ -364,10 +382,25 @@ export default async function HomePage() {
     session_type: "upper" | "lower";
     exercise_count: number;
   };
-  // Count exercises per template from raw rows
+  // Count exercises + collect distinct primary muscles per template in one pass.
+  // Muscles power the Hub hero's chip row; order is first-seen in slot_order
+  // (which is the select's implicit order when no ORDER BY is given, but we
+  // dedupe with a Set so repeats don't show twice).
   const teCounts = new Map<string, number>();
-  for (const row of (teCountRaw ?? []) as Array<{ template_id: string }>) {
+  const teMuscles = new Map<string, string[]>();
+  type TeRow = {
+    template_id: string;
+    exercises: { primary_muscle: string | null } | { primary_muscle: string | null }[] | null;
+  };
+  for (const row of (teCountRaw ?? []) as TeRow[]) {
     teCounts.set(row.template_id, (teCounts.get(row.template_id) ?? 0) + 1);
+    const ex = Array.isArray(row.exercises) ? row.exercises[0] : row.exercises;
+    const muscle = ex?.primary_muscle ?? null;
+    if (muscle) {
+      const list = teMuscles.get(row.template_id) ?? [];
+      if (!list.includes(muscle)) list.push(muscle);
+      teMuscles.set(row.template_id, list);
+    }
   }
   const templates: TemplateLite[] = (templatesData ?? []).map((t) => ({
     id: t.id,
@@ -379,9 +412,6 @@ export default async function HomePage() {
   // Quick stats for the home header area
   const sessions7d = strengthSessions.filter(
     (s) => new Date(s.started_at) >= sevenDaysAgo
-  ).length;
-  const cardio7d = cardioSessions.filter(
-    (c) => new Date(c.started_at) >= sevenDaysAgo
   ).length;
 
   // Use the same rotation logic as /treinar (auto mode: alternate
@@ -420,154 +450,245 @@ export default async function HomePage() {
     return pool[(idx + 1) % pool.length];
   })();
 
-  // Sparkline data: daily counts for last 7 days
-  const sparkStrength: number[] = [];
-  const sparkCardio: number[] = [];
-  const sparkWeight: number[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    const k = localDayKey(d);
-    sparkStrength.push(
-      strengthSessions.filter((s) => localDayKey(new Date(s.started_at)) === k).length
-    );
-    sparkCardio.push(
-      cardioSessions.filter((c) => localDayKey(new Date(c.started_at)) === k).length
-    );
-    const wt = weights.find((w) => localDayKey(new Date(w.recorded_at)) === k);
-    sparkWeight.push(wt ? Number(wt.weight_kg) : 0);
+  // Weekstrip data — set of YYYY-MM-DD day keys with any strength session
+  // or cardio session. Weekstrip uses this to fill the past dots with cream
+  // checks. Same "active day" definition as the streak calc.
+  const activeDayKeys = new Set<string>();
+  for (const s of strengthSessions) {
+    activeDayKeys.add(localDayKey(new Date(s.started_at)));
   }
-  // Fill weight gaps (carry forward)
-  for (let i = 1; i < sparkWeight.length; i++) {
-    if (sparkWeight[i] === 0 && sparkWeight[i - 1] > 0) sparkWeight[i] = sparkWeight[i - 1];
+  for (const c of cardioSessions) {
+    activeDayKeys.add(localDayKey(new Date(c.started_at)));
   }
+
+  // Volume · 30d — total kg lifted (sum of weight × reps across working sets
+  // in the last 30 days). Displayed as tonnes with 1 decimal in the hero.
+  const vol30Sets = (volume30dRows ?? []) as Array<{
+    weight_kg: number | string;
+    reps: number;
+  }>;
+  const volume30dKg = vol30Sets.reduce(
+    (sum, s) => sum + Number(s.weight_kg) * (s.reps ?? 0),
+    0
+  );
+  const volume30dTonnes = volume30dKg / 1000;
+
+  // Hero ring fill — fraction of the weekly sessions goal completed this week.
+  // Clamped 0-1 for the stroke math; the label shows the raw count.
+  const heroRingValue = Math.min(1, sessions7d / WEEKLY_SESSIONS_GOAL);
+
+  // Muscle chips for the next-template card. Up to 4 primary muscles from the
+  // template's exercises, pt-BR labels. Empty array if the template has no
+  // exercises yet (card degrades to plain count line).
+  const nextTemplateMuscles: string[] = nextTemplate
+    ? (teMuscles.get(nextTemplate.id) ?? []).slice(0, 4).map(muscleLabel)
+    : [];
 
   return (
     <div className="px-6 pt-10">
-      {/* Header */}
-      <header className="mb-8 flex items-start justify-between">
+      {/* Top bar — date + greeting + settings. Streak lives in the dual
+          row below, not repeated here, so the masthead stays clean. */}
+      <header className="mb-5 flex items-start justify-between">
         <div>
-          <p className="text-sm text-[var(--text-muted)] mb-1 tnum">
+          <p className="text-xs font-semibold text-[var(--text-muted)] mb-1 tnum">
             {weekday}, {day} de {month}
           </p>
-          <h1 className="display text-[32px] leading-none tracking-tighter">
-            {greet}
-          </h1>
+          <h1 className="tlog-title">{greet}</h1>
         </div>
-        <div className="flex items-center gap-3">
-          {streak.current > 0 && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--status-ready)]/15">
-              <Flame size={14} strokeWidth={2} className="text-[var(--status-ready)]" />
-              <span className="text-sm font-bold tnum text-[var(--status-ready)]">{streak.current}</span>
-            </div>
-          )}
-          <Link
-            href="/settings"
-            aria-label="Configurações"
-            className="shrink-0 w-10 h-10 rounded-full bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text)] flex items-center justify-center transition-colors"
-          >
-            <SettingsIcon size={16} strokeWidth={1.75} />
-          </Link>
-        </div>
+        <Link
+          href="/settings"
+          aria-label="Configurações"
+          className="shrink-0 w-9 h-9 rounded-full bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text)] flex items-center justify-center transition-colors"
+        >
+          <SettingsIcon size={17} strokeWidth={1.75} />
+        </Link>
       </header>
 
-      {/* Active session — pulsing accent gradient, dominates the screen */}
+      {/* Weekstrip — current week at a glance (Sun..Sat). Fills past dots
+          with a cream check for days that had any strength/cardio activity,
+          highlights today in coral. */}
+      {!firstRun && (
+        <WeekStrip activeDayKeys={activeDayKeys} today={now} />
+      )}
+
+      {/* Hero — unified ring + próximo treino card. When there's an active
+          session, swaps to an "Em andamento" state so the ring icon flips to
+          a pulse/chevron and the CTA points at /workout/[id]. */}
       {activeSession && (
         <Link
           href={`/workout/${activeSession.id}`}
-          className="block mb-6 rounded-2xl p-5 relative overflow-hidden active:scale-[0.98] transition-transform"
-          style={{ background: `linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 70%, var(--bg)))` }}
+          className="group relative block mb-4 overflow-hidden rounded-[20px] bg-[var(--bg-card)] border border-[var(--border)] p-5 active:scale-[0.99] transition-transform"
         >
-          <div className="relative z-10">
-            <p className="text-xs uppercase tracking-wider font-bold text-[var(--accent-fg)]/70 mb-2">
-              Em andamento
-            </p>
-            <p className="display text-[28px] leading-none text-[var(--accent-fg)]">
-              {activeSession.templateName}
-            </p>
-            <p className="text-sm text-[var(--accent-fg)]/60 tnum mt-2">
-              Iniciado{" "}
-              {new Date(activeSession.startedAt).toLocaleTimeString("pt-BR", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </p>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-8 -right-8 h-40 w-40 rounded-full"
+            style={{
+              background:
+                "radial-gradient(circle, color-mix(in oklab, var(--accent) 25%, transparent), transparent 70%)",
+            }}
+          />
+          <div className="relative flex items-center gap-4">
+            <Ring value={heroRingValue} size={78} stroke={5} color="var(--accent)">
+              <Play size={22} strokeWidth={2.5} className="text-[var(--accent)]" fill="currentColor" />
+            </Ring>
+            <div className="min-w-0 flex-1">
+              <p className="tlog-eyebrow mb-1 text-[var(--text-muted)]">Em andamento</p>
+              <h2 className="text-[24px] leading-none font-extrabold tracking-[-0.02em] truncate">
+                {activeSession.templateName}
+              </h2>
+              <p className="text-xs text-[var(--text-muted)] mt-1 tnum">
+                Iniciado{" "}
+                {new Date(activeSession.startedAt).toLocaleTimeString("pt-BR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+            </div>
+            <ChevronRight size={20} className="shrink-0 text-[var(--text-muted)]" />
           </div>
-          <ArrowRight size={24} strokeWidth={2.5} className="absolute right-5 top-1/2 -translate-y-1/2 text-[var(--accent-fg)]/40" />
         </Link>
       )}
 
-      {/* Hero CTA — gradient button, big template name */}
       {!activeSession && !firstRun && nextTemplate && (
-        <section className="mb-6">
-          <div className="rounded-2xl bg-[var(--bg-card)] overflow-hidden">
-            <div className="p-6 pb-5">
-              <p className="text-xs uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-3">
-                {nextTemplate.session_type === "upper" ? "Upper" : "Lower"} · {nextTemplate.exercise_count} exercícios
-              </p>
-              <h2 className="display text-[36px] leading-none tracking-tighter">
+        <Link
+          href="/treinar"
+          className="group relative block mb-4 overflow-hidden rounded-[20px] bg-[var(--bg-card)] border border-[var(--border)] p-5 active:scale-[0.99] transition-transform"
+        >
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-8 -right-8 h-40 w-40 rounded-full"
+            style={{
+              background:
+                "radial-gradient(circle, color-mix(in oklab, var(--accent) 22%, transparent), transparent 70%)",
+            }}
+          />
+          <div className="relative flex items-center gap-4">
+            <Ring
+              value={heroRingValue}
+              size={78}
+              stroke={5}
+              color="var(--accent)"
+              ariaLabel={`${sessions7d} de ${WEEKLY_SESSIONS_GOAL} treinos nesta semana`}
+            >
+              <Play size={22} strokeWidth={2.5} className="text-[var(--accent)]" fill="currentColor" />
+            </Ring>
+            <div className="min-w-0 flex-1">
+              <p className="tlog-eyebrow mb-1 text-[var(--text-muted)]">Próximo treino</p>
+              <h2 className="text-[24px] leading-none font-extrabold tracking-[-0.02em] truncate">
                 {nextTemplate.name}
               </h2>
+              <p className="text-xs text-[var(--text-muted)] mt-1 tnum">
+                {nextTemplate.session_type === "upper" ? "Upper" : "Lower"} ·{" "}
+                {nextTemplate.exercise_count} exercícios
+              </p>
             </div>
-            <Link
-              href="/treinar"
-              className="flex items-center justify-center gap-2 font-bold text-[15px] py-4 transition-all active:scale-[0.98]"
-              style={{ background: `linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 75%, var(--bg)))`, color: "var(--accent-fg)" }}
-            >
-              <Play size={16} strokeWidth={2.5} fill="currentColor" />
-              Iniciar treino
-            </Link>
+            <ChevronRight size={20} className="shrink-0 text-[var(--text-muted)]" />
           </div>
-        </section>
+          {nextTemplateMuscles.length > 0 && (
+            <ul className="relative mt-3.5 flex flex-wrap gap-1.5">
+              {nextTemplateMuscles.map((m) => (
+                <li
+                  key={m}
+                  className="rounded-md bg-[var(--bg-hover)] px-2 py-1 text-[10.5px] font-semibold text-[var(--text-soft)]"
+                >
+                  {m}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Link>
       )}
 
       {!activeSession && firstRun && (
-        <section className="mb-6 rounded-2xl bg-[var(--bg-card)] p-6">
-          <h2 className="display text-2xl mb-2">Ainda vazio</h2>
+        <section className="mb-4 rounded-[20px] bg-[var(--bg-card)] border border-[var(--border)] p-6">
+          <h2 className="tlog-title mb-2">Ainda vazio</h2>
           <p className="text-sm text-[var(--text-muted)] mb-5 leading-relaxed">
             Cadastre exercícios, monte um template e inicie.
           </p>
-          <Link href="/exercicios" className="group inline-flex items-center gap-2 text-[var(--text)] font-semibold text-sm">
+          <Link
+            href="/exercicios"
+            className="group inline-flex items-center gap-2 text-[var(--text)] font-semibold text-sm"
+          >
             Configurar exercícios
-            <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+            <ChevronRight size={16} className="transition-transform group-hover:translate-x-1" />
           </Link>
         </section>
       )}
 
       {!activeSession && !firstRun && !nextTemplate && (
-        <section className="mb-6 rounded-2xl bg-[var(--bg-card)] p-6">
-          <p className="text-sm text-[var(--text-muted)] mb-4">Crie seu primeiro template para começar.</p>
-          <Link href="/templates/novo" className="block w-full text-center font-semibold py-3.5 rounded-xl" style={{ background: "var(--accent)", color: "var(--accent-fg)" }}>
+        <section className="mb-4 rounded-[20px] bg-[var(--bg-card)] border border-[var(--border)] p-6">
+          <p className="text-sm text-[var(--text-muted)] mb-4">
+            Crie seu primeiro template para começar.
+          </p>
+          <Link
+            href="/templates/novo"
+            className="block w-full text-center font-semibold py-3.5 rounded-xl"
+            style={{ background: "var(--accent)", color: "var(--accent-fg)" }}
+          >
             Criar template
           </Link>
         </section>
       )}
 
-      {/* Stats — big numbers with sparklines */}
+      {/* Dual focus row — Streak (cream) + Volume · 30d (coral). Replaces
+          the old three-stat sparkline grid; bottom nav covers /peso,
+          /cardio, /progresso shortcuts. */}
       {!firstRun && (
-        <div className="mb-5 grid grid-cols-3 gap-3">
-          <Link href="/progresso" className="rounded-2xl bg-[var(--bg-card)] p-4 hover:bg-[var(--bg-hover)] transition-colors">
-            <div className="flex items-start justify-between">
-              <p className="display text-[28px] tnum leading-none" style={{ color: "var(--status-ready)" }}>{sessions7d}</p>
-              <Sparkline values={sparkStrength} color="var(--status-ready)" />
+        <div className="mb-4 grid grid-cols-2 gap-2.5">
+          <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-3.5">
+            <div className="mb-2 flex items-center gap-2">
+              <Flame
+                size={14}
+                strokeWidth={2}
+                className="text-[var(--status-ready)]"
+              />
+              <span className="tlog-eyebrow text-[var(--text-muted)]">Streak</span>
             </div>
-            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mt-2">treinos</p>
-          </Link>
-          <Link href="/cardio" className="rounded-2xl bg-[var(--bg-card)] p-4 hover:bg-[var(--bg-hover)] transition-colors">
-            <div className="flex items-start justify-between">
-              <p className="display text-[28px] tnum leading-none" style={{ color: "var(--status-stalled)" }}>{cardio7d}</p>
-              <Sparkline values={sparkCardio} color="var(--status-stalled)" />
+            <div className="flex items-baseline gap-1.5">
+              <span
+                className="tlog-hero tnum"
+                style={{ color: "var(--status-ready)" }}
+              >
+                {streak.current}
+              </span>
+              <span className="text-xs font-semibold text-[var(--text-muted)]">
+                {streak.current === 1 ? "dia" : "dias"}
+              </span>
             </div>
-            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mt-2">cardio</p>
-          </Link>
-          <Link href="/peso" className="rounded-2xl bg-[var(--bg-card)] p-4 hover:bg-[var(--bg-hover)] transition-colors">
-            <div className="flex items-start justify-between">
-              <p className="display text-[28px] tnum leading-none" style={{ color: "var(--status-progressed)" }}>
-                {latestWeight ? `${Number(latestWeight.weight_kg).toFixed(1)}` : "—"}
-              </p>
-              <Sparkline values={sparkWeight.some((v) => v > 0) ? sparkWeight : []} color="var(--status-progressed)" />
+            <p className="mt-1 text-[11px] text-[var(--text-muted)] tnum">
+              Melhor: {streak.best} {streak.best === 1 ? "dia" : "dias"}
+            </p>
+          </div>
+          <Link
+            href="/progresso"
+            className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-3.5 hover:bg-[var(--bg-hover)] transition-colors"
+          >
+            <div className="mb-2 flex items-center gap-2">
+              <TrendingUp
+                size={14}
+                strokeWidth={2}
+                className="text-[var(--accent)]"
+              />
+              <span className="tlog-eyebrow text-[var(--text-muted)]">
+                Volume · 30d
+              </span>
             </div>
-            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mt-2">peso</p>
+            <div className="flex items-baseline gap-1.5">
+              <span
+                className="tlog-hero tnum"
+                style={{ color: "var(--accent)" }}
+              >
+                {volume30dTonnes >= 10
+                  ? volume30dTonnes.toFixed(1)
+                  : volume30dTonnes.toFixed(2)}
+              </span>
+              <span className="text-xs font-semibold text-[var(--text-muted)]">
+                t
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] text-[var(--text-muted)] tnum">
+              {sessions7d} {sessions7d === 1 ? "treino" : "treinos"} · 7d
+            </p>
           </Link>
         </div>
       )}
