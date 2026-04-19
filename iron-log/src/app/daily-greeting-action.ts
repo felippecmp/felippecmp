@@ -22,47 +22,52 @@ export async function generateDailyGreeting(
     return { ok: false, error: "ANTHROPIC_API_KEY não configurada." };
   }
 
-  // Rotate "flavors" per day-of-week so the AI doesn't converge on the same
-  // shape every morning. Each flavor is just a seed to push the line in a
-  // slightly different direction — all still motivational commands.
+  // Rotate "flavors" per day-of-week so the model doesn't converge on the
+  // same shape every morning. Each flavor pushes the acid in a slightly
+  // different direction.
   const flavors = [
-    "um comando direto, sem rodeio",
-    "uma provocação seca contra a preguiça",
-    "uma constatação fria sobre postergar",
-    "uma ordem curta tipo técnico durão",
-    "um aviso sobre o custo real de relaxar",
-    "uma frase que vira o estômago de quem quer fugir do treino",
-    "um lembrete brutal de pra onde o caminho fácil leva",
+    "pergunta ácida + empurrão",
+    "cutucada direta no medo de regredir fisicamente",
+    "constatação fria seguida de ordem curta",
+    "provocação tipo: 'vai mesmo?' + resposta",
+    "chamada pro confronto com a versão mole dele",
+    "frase que explora o medo de acordar gordo de novo",
+    "ordem seca, tipo técnico que perdeu a paciência",
   ];
   const flavor = flavors[new Date().getDay() % flavors.length];
 
-  const userMessage = `Gere UMA frase motivacional pra home do app do Felippe agora (${timeOfDay}).
+  const userMessage = `Gere UMA frase motivacional ÁCIDA pra home do app do Felippe agora (${timeOfDay}). É um soco no estômago da preguiça — feito pra ele, pessoal, ninguém mais vê.
 
-É um soco no estômago da preguiça. Uma ordem pra ele fazer o que tem que ser feito. Nada de dado, nada de estatística, nada sobre treino específico dele — é MOTIVAÇÃO BRUTA.
+EXEMPLO da vibe certa:
+"Vai ser gordo pra sempre? Bora, vai fazer o que tem que ser feito."
+
+Note o formato: pergunta ácida que expõe o medo → imperativo seco que empurra. Duas cláusulas. Direta, sem poesia.
 
 Tom deste exemplar: ${flavor}.
 
 Princípios:
-- Fale COM ele, como quem cutuca: "faz", "levanta", "acaba com", "para de", "não negocia", "não inventa"
-- Ou constata em terceira pessoa um padrão perdedor pra ele reconhecer ("Preguiça é a única coisa que cresce sem treinar")
-- Pode mirar no medo de voltar a ficar fora de forma, perder o físico, envergonhar a versão futura dele
-- Pode ser sarcástico, seco, afiado
+- Confrontacional. Ácida. Sem papas na língua.
+- Pode (e deve) usar o medo de voltar a ficar gordo / fora de forma / flácido como alavanca — ele PEDIU por isso.
+- Pode ser pergunta retórica: "Vai…?", "Quer…?", "Sabe quem volta gordo?"
+- Pode ter duas cláusulas separadas por "." ou "?" — uma provoca, outra manda fazer.
+- Fala com ele direto: "faz", "levanta", "para de", "acaba com", "não inventa", "mexe essa bunda"
+- Ou constatação fria sobre padrão perdedor que ele precisa ouvir.
 
 PROIBIDO:
-- Frases clichê ("vamos nessa", "você consegue", "acredite em si", "a melhor versão de você")
+- Frases clichê motivacional ("vamos nessa", "você consegue", "acredite", "melhor versão")
 - Emoji
-- Exclamação (!)
-- Pergunta (?)
+- Exclamação (!) — NUNCA
 - Hashtag
-- Citar NÚMERO de qualquer tipo (dias, séries, kg, %)
-- Citar nome de treino, músculo ou exercício específico
+- Citar NÚMERO de qualquer tipo (dias, kg, %, séries)
+- Citar nome de treino, músculo ou exercício
 - Citar "Felippe" (o nome já tá em cima)
-- Qualquer dado do treino dele (você não tem contexto — e nem deve ter)
+- Acomodar, suavizar, pedir licença
 
 Forma:
-- 8 a 16 palavras
+- 8 a 18 palavras
 - PRIMEIRA LETRA MAIÚSCULA
-- Sem ponto final
+- Pode terminar sem ponto, com ponto final, ou ser 2 frases separadas
+- Nada de "!" em lugar nenhum
 
 Responde APENAS a frase. Sem aspas, sem explicação, sem "Aqui está:".`;
 
@@ -77,10 +82,13 @@ Responde APENAS a frase. Sem aspas, sem explicação, sem "Aqui está:".`;
 
     const text =
       response.content[0].type === "text" ? response.content[0].text : "";
+    // Strip outer quotes + any exclamation marks anywhere (banned by the
+    // prompt; this is the belt-and-suspenders). "?" and "." stay — the
+    // v2 acid tone wants rhetorical questions + period-separated clauses.
     const cleaned = text
       .trim()
       .replace(/^["'«»]+|["'«»]+$/g, "")
-      .replace(/[.!?]+$/g, "")
+      .replace(/!+/g, "")
       .trim();
     if (!cleaned) {
       return { ok: false, error: "Resposta vazia." };
