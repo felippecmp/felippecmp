@@ -7,6 +7,7 @@ import {
   ChevronDown,
   CloudOff,
   Flame,
+  Info,
   Loader2,
   Minus,
   Plus,
@@ -15,6 +16,8 @@ import {
   WifiOff,
   X,
 } from "lucide-react";
+import { ExerciseSheet, type ExerciseSheetData } from "@/components/ExerciseSheet";
+import { PlateCalculator } from "@/components/PlateCalculator";
 import { Ring } from "@/components/Ring";
 import { equipmentLabel, muscleLabel } from "@/lib/muscles";
 import {
@@ -839,6 +842,38 @@ function ExerciseCard({
   const reference = exercise.previousSets;
   const suggestion = exercise.suggestion;
   const [detailOpen, setDetailOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  // Latest e1RM across the reference sets — Epley formula. Null when there's
+  // no reference yet (first time doing this exercise).
+  const referenceE1rm: number | null = (() => {
+    if (reference.length === 0) return null;
+    let best = 0;
+    for (const r of reference) {
+      const reps = Math.max(1, r.reps);
+      const e = r.weightKg * (1 + reps / 30);
+      if (e > best) best = e;
+    }
+    return best > 0 ? best : null;
+  })();
+
+  const sheetData: ExerciseSheetData = {
+    exerciseId: exercise.exerciseId,
+    name: exercise.exerciseName,
+    muscle: muscleLabel(exercise.primaryMuscle),
+    reference: reference.map((r) => ({
+      weightKg: r.weightKg,
+      reps: r.reps,
+      rir: r.rir,
+    })),
+    referenceAt: exercise.previousSetsAt,
+    suggestedWeight: suggestion.suggestedWeight,
+    suggestedRepsLabel:
+      exercise.repRangeLow === exercise.repRangeHigh
+        ? String(exercise.repRangeLow)
+        : `${exercise.repRangeLow}-${exercise.repRangeHigh}`,
+    e1rmKg: referenceE1rm,
+  };
 
   // Allow swap always (new exercise is added, old stays with logged sets).
   // Delete only if no sets logged yet.
@@ -864,6 +899,14 @@ function ExerciseCard({
                   ad-hoc
                 </span>
               )}
+              <button
+                type="button"
+                onClick={() => setSheetOpen(true)}
+                aria-label="Detalhes do exercício"
+                className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--text-muted)] transition-colors"
+              >
+                <Info size={12} strokeWidth={1.75} />
+              </button>
               {canSwap && (
                 <button type="button" onClick={() => onSwapExercise?.({} as CatalogExercise)} aria-label="Trocar exercício" className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--text-muted)] transition-colors">
                   <ArrowLeftRight size={12} strokeWidth={1.75} />
@@ -983,6 +1026,11 @@ function ExerciseCard({
           Set extra
         </button>
       </div>
+
+      <ExerciseSheet
+        data={sheetOpen ? sheetData : null}
+        onClose={() => setSheetOpen(false)}
+      />
     </li>
   );
 }
@@ -1134,6 +1182,7 @@ function SetRowInput({
   const pending = row.pendingOffline;
   const warmup = row.isWarmup;
   const [justSaved, setJustSaved] = useState(false);
+  const [calcOpen, setCalcOpen] = useState(false);
   const prevSavedRef = useRef(saved);
 
   // Trigger flash when row transitions from unsaved → saved
@@ -1182,6 +1231,10 @@ function SetRowInput({
           disabled={stepperDisabled}
           onStep={stepWeight}
           onType={(v) => onChange({ weight: v, error: null })}
+          onLongActivate={() => {
+            const w = parseFloat(row.weight);
+            if (Number.isFinite(w) && w > 0) setCalcOpen(true);
+          }}
         />
         <span className="text-[var(--text-dim)] text-xs">×</span>
         <Stepper
@@ -1261,6 +1314,12 @@ function SetRowInput({
           {row.error}
         </p>
       )}
+
+      <PlateCalculator
+        open={calcOpen}
+        onClose={() => setCalcOpen(false)}
+        weightKg={parseFloat(row.weight) || 0}
+      />
     </div>
   );
 }
@@ -1281,6 +1340,7 @@ function Stepper({
   onStep,
   onType,
   suffix,
+  onLongActivate,
 }: {
   value: string;
   placeholder: string;
@@ -1289,6 +1349,9 @@ function Stepper({
   onStep: (delta: number) => void;
   onType: (next: string) => void;
   suffix?: string;
+  /** Optional long-press / double-click on the value. Used for the Plate
+      Calculator on kg inputs. */
+  onLongActivate?: () => void;
 }) {
   const stepMag = inputMode === "decimal" ? 2.5 : 1;
   return (
@@ -1310,6 +1373,7 @@ function Stepper({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onType(e.target.value)}
+        onDoubleClick={onLongActivate}
         disabled={disabled}
         aria-label={placeholder}
         className="w-full min-w-0 bg-transparent border-0 px-0 py-2 text-sm tnum text-center focus:outline-none"
