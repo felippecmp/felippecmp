@@ -10,9 +10,15 @@ import { computeStreak } from "@/lib/streak";
 import { muscleLabel } from "@/lib/muscles";
 import { userDayKey } from "@/lib/timezone";
 import type { DayPeekData } from "@/components/DayPeek";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { Ring } from "@/components/Ring";
+import { Sparkline } from "@/components/Sparkline";
+import { StreakHero } from "@/components/StreakHero";
+import type { WorkoutRecapData } from "@/components/WorkoutRecap";
+import { WeeklyBars } from "./progresso/components/WeeklyBars";
 import { DiaryRow, type DiaryEntry } from "./DiaryRow";
 import { HomeStreakAndWeek } from "./HomeStreakAndWeek";
+import { LastWorkoutCard } from "./LastWorkoutCard";
 import { TodayChecklist } from "./TodayChecklist";
 import { NotaDescansoRow } from "./NotaDescansoRow";
 import { WeeklyRecap } from "./WeeklyRecap";
@@ -169,7 +175,7 @@ export default async function HomePage() {
       .select("template_id, exercises(primary_muscle)"),
     supabase
       .from("workout_sets")
-      .select("weight_kg, reps")
+      .select("weight_kg, reps, performed_at")
       .eq("is_warmup", false)
       .gte("performed_at", thirtyDaysAgoUtc.toISOString()),
   ]);
@@ -582,6 +588,140 @@ export default async function HomePage() {
     return out;
   })();
 
+  // Daily volume series for the last 30 days — feeds the sparkline inside
+  // the Volume card. Bucketed in user TZ so a set logged at 11pm doesn't
+  // bleed into the next day. Reads from the raw query rows so we don't
+  // depend on the vol30Sets cast that's declared later in the file.
+  const volumeDailySeries: number[] = (() => {
+    const buckets = new Map<string, number>();
+    for (const s of (volume30dRows ?? []) as Array<{
+      weight_kg: number | string;
+      reps: number;
+      performed_at: string;
+    }>) {
+      if (!s.performed_at) continue;
+      const k = localDayKey(new Date(s.performed_at));
+      buckets.set(k, (buckets.get(k) ?? 0) + Number(s.weight_kg) * (s.reps ?? 0));
+    }
+    const series: number[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const probe = new Date(now);
+      probe.setDate(probe.getDate() - i);
+      series.push(buckets.get(localDayKey(probe)) ?? 0);
+    }
+    return series;
+  })();
+
+  // Frequency · 4 weeks — strength + cardio session counts bucketed into
+  // weeks ending on each Saturday. Mirrors the 4-week grouping used by
+  // /progresso so the on-Home chart reads identically.
+  const weeklyFreqData: Array<{ weekKey: string; strength: number; cardio: number }> = (() => {
+    const weeks: Array<{ weekKey: string; strength: number; cardio: number }> = [];
+    for (let w = 3; w >= 0; w--) {
+      // Build [start..end) week range ending on (today - w*7 + 6) day.
+      const end = new Date(now);
+      end.setDate(end.getDate() - w * 7);
+      const start = new Date(end);
+      start.setDate(end.getDate() - 6);
+      const startTs = new Date(start).setHours(0, 0, 0, 0);
+      const endTs = new Date(end).setHours(23, 59, 59, 999);
+      const strength = strengthSessions.filter((s) => {
+        const t = new Date(s.started_at).getTime();
+        return t >= startTs && t <= endTs;
+      }).length;
+      const cardio = cardioSessions.filter((c) => {
+        const t = new Date(c.started_at).getTime();
+        return t >= startTs && t <= endTs;
+      }).length;
+      weeks.push({
+        weekKey: `${localDayKey(start)}/${localDayKey(end)}`,
+        strength,
+        cardio,
+      });
+    }
+    return weeks;
+  })();
+
+  // Last completed session — drives the WorkoutRecap modal triggered by
+  // the LastWorkoutCard. We fetch its sets with primary_muscle joined so
+  // the per-muscle bars in the recap don't need extra round-trips on tap.
+  const lastSession = strengthSessions[0] ?? null;
+  let lastSessionMuscleImpact: Array<{ muscle: string; sets: number }> = [];
+  let lastSessionVolumeKg = 0;
+  let lastSessionSetCount = 0;
+  if (lastSession) {
+    const { data: lastSetsRaw } = await supabase
+      .from("workout_sets")
+      .select("weight_kg, reps, exercises(primary_muscle)")
+      .eq("session_id", lastSession.id)
+      .eq("is_warmup", false);
+    type SetWithMuscle = {
+      weight_kg: number | string;
+      reps: number;
+      exercises:
+        | { primary_muscle: string | null }
+        | { primary_muscle: string | null }[]
+        | null;
+    };
+    const rows = (lastSetsRaw ?? []) as SetWithMuscle[];
+    lastSessionSetCount = rows.length;
+    const muscleBuckets = new Map<string, number>();
+    for (const s of rows) {
+      lastSessionVolumeKg += Number(s.weight_kg) * (s.reps ?? 0);
+      const ex = Array.isArray(s.exercises) ? s.exercises[0] : s.exercises;
+      const m = ex?.primary_muscle ?? null;
+      if (!m) continue;
+      muscleBuckets.set(m, (muscleBuckets.get(m) ?? 0) + 1);
+    }
+    lastSessionMuscleImpact = Array.from(muscleBuckets.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([muscle, sets]) => ({ muscle: muscleLabel(muscle), sets }));
+  }
+
+  // Build the recap payload for the LastWorkoutCard. Null when there's no
+  // finished session yet (first-run users) — the card just doesn't render.
+  const lastWorkoutRecap: WorkoutRecapData | null = lastSession
+    ? (() => {
+        const tpl = Array.isArray(lastSession.workout_templates)
+          ? lastSession.workout_templates[0]
+          : lastSession.workout_templates;
+        const tplName =
+          (tpl as { name: string } | null)?.name ?? "Sessão anterior";
+        const startedAt = new Date(lastSession.started_at);
+        const dateLabel = startedAt
+          .toLocaleDateString("pt-BR", {
+            weekday: "short",
+            day: "2-digit",
+            month: "short",
+          })
+          .toUpperCase()
+          .replace(".", "");
+        const intensity =
+          lastSession.overall_feeling != null
+            ? `${lastSession.overall_feeling}/5`
+            : null;
+        return {
+          sessionId: lastSession.id,
+          dateLabel,
+          templateName: tplName,
+          durationMin: lastSession.duration_minutes,
+          setCount: lastSessionSetCount,
+          volumeKg: lastSessionVolumeKg,
+          intensityLabel: intensity,
+          muscleImpact: lastSessionMuscleImpact,
+        };
+      })()
+    : null;
+
+  // Frequency 4-week data → WeekData[] for the existing WeeklyBars
+  // component. Last bucket is "Atual"; the other three are "-Nsem".
+  const weeklyBarsData = weeklyFreqData.map((w, i, arr) => ({
+    label: i === arr.length - 1 ? "Atual" : `-${arr.length - 1 - i}sem`,
+    strength: w.strength,
+    cardio: w.cardio,
+  }));
+
   // Volume · 30d — total kg lifted (sum of weight × reps across working sets
   // in the last 30 days). Displayed as tonnes with 1 decimal in the hero.
   const vol30Sets = (volume30dRows ?? []) as Array<{
@@ -606,6 +746,7 @@ export default async function HomePage() {
     : [];
 
   return (
+    <PullToRefresh>
     <div className="px-6 pt-10">
       {/* Top bar — date + greeting + settings. Streak lives in the dual
           row below, not repeated here, so the masthead stays clean. */}
@@ -635,6 +776,19 @@ export default async function HomePage() {
         weekDayInfo={weekDayInfo}
         hasFirstRunData={!firstRun}
       />
+
+      {/* Streak hero — full-width motivational card with 12-week heatmap +
+          milestone progress. Hidden during first-run; tapping wires the
+          same StreakCalendar that the pill opens (parent state is in
+          HomeStreakAndWeek so we don't duplicate). */}
+      {!firstRun && streak.best > 0 && (
+        <StreakHero
+          current={streak.current}
+          best={streak.best}
+          activeDayKeys={Array.from(activeDayKeys)}
+          todayKey={todayKey}
+        />
+      )}
 
       {/* Hero — unified ring + próximo treino card. When there's an active
           session, swaps to an "Em andamento" state so the ring icon flips to
@@ -755,8 +909,10 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* Volume · 30d — single full-width card. Streak migrated to the pill
-          in the header (clickable → opens StreakCalendar) per v2 layout. */}
+      {/* Volume · 30d — single full-width card with sparkline. Streak
+          migrated to the pill in the header per v2 layout. The sparkline
+          is the per-day kg total over the last 30d so the trend reads
+          even when individual days were rest. */}
       {!firstRun && (
         <Link
           href="/progresso"
@@ -772,23 +928,71 @@ export default async function HomePage() {
               Volume · 30d
             </span>
           </div>
-          <div className="flex items-baseline gap-2">
-            <span
-              className="tlog-hero tnum"
-              style={{ color: "var(--accent)" }}
-            >
-              {volume30dTonnes >= 10
-                ? volume30dTonnes.toFixed(1)
-                : volume30dTonnes.toFixed(2)}
-            </span>
-            <span className="text-sm font-semibold text-[var(--text-muted)]">
-              toneladas
-            </span>
-            <span className="ml-auto text-[11px] font-bold text-[var(--text-muted)] tnum">
-              {sessions7d} {sessions7d === 1 ? "treino" : "treinos"} · 7d
-            </span>
+          <div className="flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-baseline gap-2">
+                <span
+                  className="tlog-hero tnum"
+                  style={{ color: "var(--accent)" }}
+                >
+                  {volume30dTonnes >= 10
+                    ? volume30dTonnes.toFixed(1)
+                    : volume30dTonnes.toFixed(2)}
+                </span>
+                <span className="text-sm font-semibold text-[var(--text-muted)]">
+                  toneladas
+                </span>
+              </div>
+              <p className="mt-1 text-[11px] font-bold text-[var(--text-muted)] tnum">
+                {sessions7d} {sessions7d === 1 ? "treino" : "treinos"} · 7d
+              </p>
+            </div>
+            {volumeDailySeries.some((v) => v > 0) && (
+              <Sparkline
+                values={volumeDailySeries}
+                color="var(--accent)"
+                width={96}
+                height={36}
+              />
+            )}
           </div>
         </Link>
+      )}
+
+      {/* Last workout recap card → opens WorkoutRecap modal. */}
+      {!firstRun && lastWorkoutRecap && (
+        <LastWorkoutCard data={lastWorkoutRecap} />
+      )}
+
+      {/* Frequência · 4 semanas — moved from /progresso onto Home per the
+          v2 handoff, so Hoje → Treino → Progresso closes the loop. */}
+      {!firstRun && weeklyBarsData.some((w) => w.strength + w.cardio > 0) && (
+        <section className="mb-4">
+          <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-4">
+            <div className="mb-3 flex items-baseline justify-between">
+              <p className="tlog-eyebrow text-[var(--text-muted)]">
+                Frequência · 4 semanas
+              </p>
+              <div className="flex items-center gap-3 text-[10px] text-[var(--text-muted)]">
+                <span className="flex items-center gap-1">
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ background: "var(--status-ready)" }}
+                  />
+                  Força
+                </span>
+                <span className="flex items-center gap-1">
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ background: "var(--status-stalled)" }}
+                  />
+                  Cardio
+                </span>
+              </div>
+            </div>
+            <WeeklyBars weeks={weeklyBarsData} />
+          </div>
+        </section>
       )}
 
       {/* Today's checklist */}
@@ -873,6 +1077,7 @@ export default async function HomePage() {
         </section>
       )}
     </div>
+    </PullToRefresh>
   );
 }
 
