@@ -5,6 +5,8 @@ import {
   ArrowLeftRight,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CloudOff,
   Flame,
   Info,
@@ -262,6 +264,12 @@ export function WorkoutSession({
   // The picker opens and on selection, the exercise is replaced in-place.
   const [swappingId, setSwappingId] = useState<string | null>(null);
 
+  // v2 handoff: live sessions are a horizontal carousel — one exercise at
+  // a time with prev/next nav at the bottom. Edit mode (finished session)
+  // stays as the vertical list so the user can scroll the full history.
+  // Index is clamped during render via safeIdx; no useEffect needed.
+  const [currentIdx, setCurrentIdx] = useState(0);
+
   // If the server-side list changes (e.g., router refresh after finish),
   // re-sync local state. We intentionally don't merge — whatever the server
   // returned is canonical once we observe a change in its identity.
@@ -377,6 +385,28 @@ export function WorkoutSession({
   const usedIds = new Set(exercises.map((e) => e.exerciseId));
   const pickerOptions = catalog.filter((e) => !usedIds.has(e.id));
 
+  // Per-exercise progress (from server-known existingSets only). Used by the
+  // ExerciseStrip pills + the page-level progress bar.
+  const exerciseProgress = exercises.map((ex) => {
+    const working = ex.existingSets.filter((s) => !s.isWarmup).length;
+    return {
+      done: working,
+      target: ex.targetSets,
+      complete: working >= ex.targetSets && ex.targetSets > 0,
+    };
+  });
+  const totalDone = exerciseProgress.reduce((s, p) => s + p.done, 0);
+  const totalTarget = exerciseProgress.reduce((s, p) => s + p.target, 0);
+  const progressPct = totalTarget > 0
+    ? Math.min(100, Math.round((totalDone / totalTarget) * 100))
+    : 0;
+
+  // Carousel mode = live session (not in edit). Edit mode keeps the full
+  // stacked list so the user can review every exercise in one scroll.
+  const carouselMode = !disabled || !editMode ? !disabled : false;
+  const safeIdx = Math.min(currentIdx, Math.max(0, exercises.length - 1));
+  const current = exercises[safeIdx];
+
   return (
     <>
       {!online && <OfflineBanner />}
@@ -397,41 +427,148 @@ export function WorkoutSession({
         </div>
       )}
 
-      <ul className="space-y-3 mb-4">
-        {exercises.map((ex, idx) => (
-          <ExerciseCard
-            key={ex.templateExerciseId}
-            number={idx + 1}
-            sessionId={sessionId}
-            exercise={ex}
-            disabled={effectiveDisabled}
-            phaseRirTarget={phaseRirTarget}
-            onSetLogged={() => startRest(ex.restSeconds, ex.exerciseName)}
-            onRemoveBlock={() => handleRemoveBlock(ex.templateExerciseId)}
-            onSwapExercise={
-              !effectiveDisabled
-                ? () => {
-                    setSwappingId(ex.templateExerciseId);
-                    setPickerOpen(true);
-                  }
-                : null
-            }
-          />
-        ))}
-      </ul>
+      {carouselMode && exercises.length > 0 ? (
+        <>
+          {/* Top progress bar — coral fill = total working sets done /
+              total target across the whole session. */}
+          <div className="mb-3 h-1 rounded-full bg-[var(--bg-hover)] overflow-hidden">
+            <div
+              className="h-full rounded-full transition-[width] duration-500 ease-out"
+              style={{
+                width: `${progressPct}%`,
+                background: "var(--accent)",
+              }}
+              aria-hidden="true"
+            />
+          </div>
 
-      {!effectiveDisabled && (
-        <button
-          type="button"
-          onClick={() => setPickerOpen(true)}
-          disabled={pickerOptions.length === 0}
-          className="w-full flex items-center justify-center gap-2 border border-dashed border-[var(--border-strong)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--text-muted)] disabled:opacity-50 py-3.5 rounded-xl text-sm font-medium transition-colors mb-8"
-        >
-          <Plus size={14} strokeWidth={1.75} />
-          {pickerOptions.length === 0
-            ? "Todos os exercícios já estão na sessão"
-            : "Adicionar exercício ao treino"}
-        </button>
+          {/* Exercise strip — horizontal scroll of numbered pills. Active
+              exercise = rosa, complete = cyan w/ check, pending = surf. */}
+          <ExerciseStrip
+            exercises={exercises}
+            progress={exerciseProgress}
+            currentIdx={safeIdx}
+            onJump={setCurrentIdx}
+          />
+
+          <p className="mt-3 mb-2 text-[11px] font-bold tracking-[0.1em] uppercase text-[var(--text-muted)] tnum">
+            Exercício {safeIdx + 1} de {exercises.length}
+            {totalTarget > 0 && (
+              <span className="ml-2 text-[var(--text-soft)]">
+                · {totalDone}/{totalTarget} séries
+              </span>
+            )}
+          </p>
+
+          {current && (
+            <ul className="mb-3">
+              <ExerciseCard
+                key={current.templateExerciseId}
+                number={safeIdx + 1}
+                sessionId={sessionId}
+                exercise={current}
+                disabled={effectiveDisabled}
+                phaseRirTarget={phaseRirTarget}
+                onSetLogged={() =>
+                  startRest(current.restSeconds, current.exerciseName)
+                }
+                onRemoveBlock={() =>
+                  handleRemoveBlock(current.templateExerciseId)
+                }
+                onSwapExercise={
+                  !effectiveDisabled
+                    ? () => {
+                        setSwappingId(current.templateExerciseId);
+                        setPickerOpen(true);
+                      }
+                    : null
+                }
+              />
+            </ul>
+          )}
+
+          {/* Bottom nav — prev arrow + "Próximo exercício ▶" CTA.
+              Last exercise: CTA text changes to encourage finishing. */}
+          <div className="mb-8 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentIdx((i) => Math.max(0, i - 1))}
+              disabled={safeIdx === 0}
+              aria-label="Exercício anterior"
+              className="shrink-0 w-12 h-12 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+            >
+              <ChevronLeft size={18} strokeWidth={2} />
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setCurrentIdx((i) => Math.min(exercises.length - 1, i + 1))
+              }
+              disabled={safeIdx >= exercises.length - 1}
+              className="flex-1 h-12 rounded-2xl text-[var(--accent-fg)] font-extrabold text-[14px] tracking-tight disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-[0.99] transition-transform"
+              style={{
+                background:
+                  "linear-gradient(135deg, var(--accent), var(--accent-hover))",
+              }}
+            >
+              {safeIdx >= exercises.length - 1 ? "Último exercício" : "Próximo exercício"}
+              <ChevronRight size={16} strokeWidth={2.5} />
+            </button>
+          </div>
+
+          {!effectiveDisabled && (
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              disabled={pickerOptions.length === 0}
+              className="w-full flex items-center justify-center gap-2 border border-dashed border-[var(--border-strong)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--text-muted)] disabled:opacity-50 py-3 rounded-xl text-xs font-medium transition-colors mb-8"
+            >
+              <Plus size={12} strokeWidth={1.75} />
+              {pickerOptions.length === 0
+                ? "Todos os exercícios já estão na sessão"
+                : "Adicionar exercício ao treino"}
+            </button>
+          )}
+        </>
+      ) : (
+        <>
+          <ul className="space-y-3 mb-4">
+            {exercises.map((ex, idx) => (
+              <ExerciseCard
+                key={ex.templateExerciseId}
+                number={idx + 1}
+                sessionId={sessionId}
+                exercise={ex}
+                disabled={effectiveDisabled}
+                phaseRirTarget={phaseRirTarget}
+                onSetLogged={() => startRest(ex.restSeconds, ex.exerciseName)}
+                onRemoveBlock={() => handleRemoveBlock(ex.templateExerciseId)}
+                onSwapExercise={
+                  !effectiveDisabled
+                    ? () => {
+                        setSwappingId(ex.templateExerciseId);
+                        setPickerOpen(true);
+                      }
+                    : null
+                }
+              />
+            ))}
+          </ul>
+
+          {!effectiveDisabled && (
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              disabled={pickerOptions.length === 0}
+              className="w-full flex items-center justify-center gap-2 border border-dashed border-[var(--border-strong)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--text-muted)] disabled:opacity-50 py-3.5 rounded-xl text-sm font-medium transition-colors mb-8"
+            >
+              <Plus size={14} strokeWidth={1.75} />
+              {pickerOptions.length === 0
+                ? "Todos os exercícios já estão na sessão"
+                : "Adicionar exercício ao treino"}
+            </button>
+          )}
+        </>
       )}
 
       <RestTimer rest={rest} onDismiss={dismissRest} />
@@ -445,6 +582,61 @@ export function WorkoutSession({
         />
       )}
     </>
+  );
+}
+
+/**
+ * Horizontal scroll of numbered pills, one per exercise. Active = rosa,
+ * complete (all working sets logged) = cyan with check, pending = surf.
+ *
+ * Ported from the v2 handoff (active-workout.jsx → exercise strip).
+ */
+function ExerciseStrip({
+  exercises,
+  progress,
+  currentIdx,
+  onJump,
+}: {
+  exercises: ExerciseBlockData[];
+  progress: Array<{ done: number; target: number; complete: boolean }>;
+  currentIdx: number;
+  onJump: (idx: number) => void;
+}) {
+  return (
+    <div className="-mx-6 px-6 pb-1 overflow-x-auto no-scrollbar">
+      <div className="flex gap-1.5">
+        {exercises.map((ex, i) => {
+          const p = progress[i];
+          const isActive = i === currentIdx;
+          const isDone = p.complete;
+          const bg = isActive
+            ? "var(--accent)"
+            : isDone
+              ? "color-mix(in oklab, var(--status-ready) 18%, transparent)"
+              : "var(--bg-hover)";
+          const color = isActive
+            ? "var(--accent-fg)"
+            : isDone
+              ? "var(--status-ready)"
+              : "var(--text-muted)";
+          return (
+            <button
+              key={ex.templateExerciseId}
+              type="button"
+              onClick={() => onJump(i)}
+              aria-label={`Ir para ${ex.exerciseName}`}
+              className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[12px] font-bold tnum transition-transform active:scale-95"
+              style={{ background: bg, color }}
+            >
+              {isDone && !isActive && (
+                <Check size={11} strokeWidth={2.5} />
+              )}
+              {i + 1}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
