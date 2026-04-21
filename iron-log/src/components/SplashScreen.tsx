@@ -135,20 +135,23 @@ export function SplashScreen() {
         }}
       />
 
-      {/* Robot logo — pulses during intro, expands at the finale. */}
+      {/* Robot logo — pulses during intro, expands at the finale.
+
+          `key` swaps between "pulse" and "expand" so React remounts the
+          <img>, giving us a FRESH element with a fresh CSS animation
+          each time. Changing the animation via inline style on the same
+          element is unreliable — browsers often keep the previous
+          animation state and no restart happens, which is exactly why
+          the expansion snapped instead of eased in. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
+        key={robotExpanding ? "expand" : "pulse"}
         src="/splash-robot.png"
         alt=""
         aria-hidden="true"
         onError={() => setPhase("hidden")}
         className="w-40 h-40 object-contain relative z-10"
         style={{
-          // Animation-driven. Pulse during intro, expand during the
-          // finale (both drive `transform`, so the browser hands off
-          // cleanly — no snap). `forwards` keeps scale(9) after the
-          // animation finishes so the dark overlay covers a still-
-          // expanded robot.
           animation: robotExpanding
             ? "tlog-splash-expand 1200ms cubic-bezier(0.55, 0, 0.3, 1) forwards"
             : "tlog-splash-pulse 1.6s ease-in-out infinite",
