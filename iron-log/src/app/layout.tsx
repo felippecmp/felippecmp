@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { BottomNav } from "@/components/BottomNav";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { SplashScreen } from "@/components/SplashScreen";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ToastProvider } from "@/components/Toast";
 
@@ -57,6 +58,7 @@ export default function RootLayout({
       <body className="min-h-full bg-[var(--bg)] text-[var(--text)]">
         <ThemeProvider>
           <ToastProvider>
+            <SplashScreen />
             <main
               className="max-w-xl mx-auto pb-24 min-h-[100dvh]"
               style={{ paddingTop: "env(safe-area-inset-top)" }}
