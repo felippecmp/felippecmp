@@ -242,6 +242,30 @@
     /* Native-like smooth scroll */
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
+    /* Prevent iOS from bumping text size in landscape / after rotation. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    /* Belt-and-suspenders against rogue horizontal overflow on mobile.
+       Any element wider than the viewport (long table, big svg, etc.)
+       triggers a lateral scroll on the whole app otherwise. */
+    overflow-x: hidden;
+  }
+
+  /* iOS Safari zooms the viewport when an <input> with font-size < 16px
+     gets focus. Force 16px on all form fields so the page stays put. We
+     don't override rendered sizes elsewhere — inputs typically display
+     small numeric values where 16px reads fine. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* Button / link tap feedback — native feel. */
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 
 
