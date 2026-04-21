@@ -614,4 +614,25 @@
       opacity: 0;
     }
   }
+
+  /* Splash finale — robot expands from pulse-size to cover the screen.
+     Uses its own keyframe (instead of CSS transition on transform) so
+     the handoff from the pulsing animation is continuous: both share
+     the same transform property and the browser doesn't snap. */
+  @keyframes tlog-splash-expand {
+    0% {
+      transform: scale(1);
+      filter:
+        drop-shadow(0 0 45px color-mix(in oklab, var(--accent) 70%, transparent));
+    }
+    60% {
+      filter:
+        drop-shadow(0 0 80px color-mix(in oklab, var(--accent) 80%, transparent));
+    }
+    100% {
+      transform: scale(9);
+      filter:
+        drop-shadow(0 0 120px color-mix(in oklab, var(--accent) 60%, transparent));
+    }
+  }
 }

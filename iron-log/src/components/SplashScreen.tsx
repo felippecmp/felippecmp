@@ -144,13 +144,14 @@ export function SplashScreen() {
         onError={() => setPhase("hidden")}
         className="w-40 h-40 object-contain relative z-10"
         style={{
+          // Animation-driven. Pulse during intro, expand during the
+          // finale (both drive `transform`, so the browser hands off
+          // cleanly — no snap). `forwards` keeps scale(9) after the
+          // animation finishes so the dark overlay covers a still-
+          // expanded robot.
           animation: robotExpanding
-            ? undefined
+            ? "tlog-splash-expand 1200ms cubic-bezier(0.55, 0, 0.3, 1) forwards"
             : "tlog-splash-pulse 1.6s ease-in-out infinite",
-          transform: robotExpanding ? "scale(9)" : "scale(1)",
-          transition: robotExpanding
-            ? "transform 1200ms cubic-bezier(0.55, 0, 0.3, 1)"
-            : "transform 400ms ease-out",
           filter:
             "drop-shadow(0 0 30px color-mix(in oklab, var(--accent) 55%, transparent))",
           opacity:
@@ -159,14 +160,7 @@ export function SplashScreen() {
             phase === "fading-out"
               ? 0
               : 1,
-          // Fade the robot out during the dark phase so the screen lands
-          // on pure black before the flash pops.
-          transitionProperty:
-            phase === "darkening"
-              ? "opacity, transform"
-              : phase === "expanding"
-                ? "transform"
-                : "opacity, transform",
+          transition: "opacity 400ms ease-in",
         }}
       />
 
