@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Check, Plus, X } from "lucide-react";
+import { CroppedPhoto } from "@/components/CroppedPhoto";
 import type { PhotoListItem } from "../actions";
 
 type Side = "left" | "right";
@@ -121,28 +122,29 @@ export function ComparePhotos({ photos }: { photos: PhotoListItem[] }) {
                   key={p.id}
                   type="button"
                   onClick={() => pickFor(picking, p.id)}
-                  className={`relative aspect-[3/4] overflow-hidden rounded-lg border active:scale-[0.98] transition-transform ${
+                  className={`relative rounded-lg border active:scale-[0.98] transition-transform overflow-hidden ${
                     active
                       ? "border-[var(--accent)]"
                       : "border-[var(--border)]"
                   }`}
                 >
-                  <CroppedImg photo={p} />
-                  {active && (
-                    <span
-                      aria-hidden="true"
-                      className="absolute top-1 right-1 inline-flex h-5 w-5 items-center justify-center rounded-full"
-                      style={{
-                        background: "var(--accent)",
-                        color: "var(--accent-fg)",
-                      }}
-                    >
-                      <Check size={12} strokeWidth={3} />
+                  <CroppedPhoto photo={p} forceAspect={3 / 4}>
+                    {active && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute top-1 right-1 inline-flex h-5 w-5 items-center justify-center rounded-full"
+                        style={{
+                          background: "var(--accent)",
+                          color: "var(--accent-fg)",
+                        }}
+                      >
+                        <Check size={12} strokeWidth={3} />
+                      </span>
+                    )}
+                    <span className="absolute left-1 bottom-1 text-[9px] font-bold tnum text-white drop-shadow">
+                      {p.photoDate.slice(5).replace("-", "/")}
                     </span>
-                  )}
-                  <span className="absolute left-1 bottom-1 text-[9px] font-bold tnum text-white drop-shadow">
-                    {p.photoDate.slice(5).replace("-", "/")}
-                  </span>
+                  </CroppedPhoto>
                 </button>
               );
             })}
@@ -180,71 +182,48 @@ function CompareSlot({
   }
 
   return (
-    <div className="relative aspect-[3/4] overflow-hidden rounded-[14px] border border-[var(--border)] bg-[var(--bg-card)]">
-      <CroppedImg photo={photo} />
-      {/* Caption + clear */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-x-0 bottom-0 h-20 pointer-events-none"
-        style={{
-          background:
-            "linear-gradient(to top, rgba(0,0,0,0.75), transparent)",
-        }}
-      />
-      <div className="absolute inset-x-0 bottom-0 p-2">
-        <p className="text-[11px] font-bold tnum text-white">
-          {formatLabel(photo.photoDate)}
-        </p>
-        {photo.weightKg !== null && (
-          <p
-            className="text-[13px] font-extrabold tnum leading-none"
-            style={{ color: "var(--accent)" }}
-          >
-            {photo.weightKg.toFixed(1)}kg
+    <div className="relative overflow-hidden rounded-[14px] border border-[var(--border)] bg-[var(--bg-card)]">
+      <CroppedPhoto photo={photo} forceAspect={3 / 4}>
+        {/* Darker gradient for caption legibility against bright photos. */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 bottom-0 h-28 pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 35%, transparent 100%)",
+          }}
+        />
+        <div className="absolute inset-x-0 bottom-0 p-2">
+          <p className="text-[11px] font-bold tnum text-white">
+            {formatLabel(photo.photoDate)}
           </p>
-        )}
-      </div>
-      <button
-        type="button"
-        onClick={onClear}
-        aria-label="Remover"
-        className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center"
-      >
-        <X size={13} strokeWidth={2.5} />
-      </button>
-      <button
-        type="button"
-        onClick={onPick}
-        aria-label="Trocar"
-        className="absolute top-1.5 left-1.5 text-[9.5px] font-bold uppercase tracking-wider px-2 py-1 rounded-md bg-black/60 text-white"
-      >
-        Trocar
-      </button>
+          {photo.weightKg !== null && (
+            <p
+              className="text-[13px] font-extrabold tnum leading-none"
+              style={{ color: "var(--accent)" }}
+            >
+              {photo.weightKg.toFixed(1)}kg
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onClear}
+          aria-label="Remover"
+          className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center"
+        >
+          <X size={13} strokeWidth={2.5} />
+        </button>
+        <button
+          type="button"
+          onClick={onPick}
+          aria-label="Trocar"
+          className="absolute top-1.5 left-1.5 text-[9.5px] font-bold uppercase tracking-wider px-2 py-1 rounded-md bg-black/60 text-white"
+        >
+          Trocar
+        </button>
+      </CroppedPhoto>
     </div>
-  );
-}
-
-function CroppedImg({ photo }: { photo: PhotoListItem }) {
-  // Same math as PhotoThumbnail — apply stored 4-sided crop to display.
-  const windowH = Math.max(0.001, photo.cropBottom - photo.cropTop);
-  const windowW = Math.max(0.001, photo.cropRight - photo.cropLeft);
-  const scaleX = 1 / windowW;
-  const scaleY = 1 / windowH;
-  const translateX = -(photo.cropLeft / windowW) * 100;
-  const translateY = -(photo.cropTop / windowH) * 100;
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={photo.signedUrl}
-      alt={photo.note ?? `Foto de ${photo.photoDate}`}
-      className="absolute left-0 top-0 w-full h-auto select-none pointer-events-none"
-      style={{
-        transform: `translate(${translateX}%, ${translateY}%) scale(${scaleX}, ${scaleY})`,
-        transformOrigin: "top left",
-      }}
-      loading="lazy"
-      draggable={false}
-    />
   );
 }
 

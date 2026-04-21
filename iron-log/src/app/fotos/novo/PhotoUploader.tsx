@@ -78,7 +78,7 @@ export function PhotoUploader({
       try {
         const resized = await resizeImage(file, { maxEdge: 1200, quality: 0.8 });
         const fd = new FormData();
-        fd.set("file", resized);
+        fd.set("file", resized.file);
         fd.set("photo_date", date);
         fd.set("weight_kg", weight);
         fd.set("note", note);
@@ -86,6 +86,8 @@ export function PhotoUploader({
         fd.set("crop_bottom", String(crop.bottom));
         fd.set("crop_left", String(crop.left));
         fd.set("crop_right", String(crop.right));
+        fd.set("orig_width", String(resized.width));
+        fd.set("orig_height", String(resized.height));
         const result = await uploadPhoto(fd);
         if (result.ok) {
           router.push("/fotos");

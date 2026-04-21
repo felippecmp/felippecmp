@@ -2,18 +2,22 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, Trash2 } from "lucide-react";
+import { Check, Crop, Loader2, Trash2, X } from "lucide-react";
+import { CroppedPhoto } from "@/components/CroppedPhoto";
 import { CropFrame, type CropRect } from "@/components/CropFrame";
 import type { PhotoListItem } from "../actions";
 import { deletePhoto, updatePhoto } from "../actions";
 
 /**
- * Full-width photo view with editable crop bars + metadata form. Lets
- * the user adjust crop_top / crop_bottom / weight / note / photo_date
- * without re-uploading. Destructive delete is two-step (confirm pill).
+ * Full-width photo view. Defaults to "view" mode — the image already
+ * cropped, no handles — and hides the crop UI behind an explicit
+ * "Editar recorte" button so the user doesn't see the frame every
+ * time they open a photo. Weight / note / date stay inline-editable
+ * since they're not visually loud.
  */
 export function PhotoDetail({ photo }: { photo: PhotoListItem }) {
   const router = useRouter();
+  const [editingCrop, setEditingCrop] = useState(false);
   const [crop, setCrop] = useState<CropRect>({
     top: photo.cropTop,
     bottom: photo.cropBottom,
@@ -30,14 +34,16 @@ export function PhotoDetail({ photo }: { photo: PhotoListItem }) {
   const [isSaving, startSave] = useTransition();
   const [isDeleting, startDelete] = useTransition();
 
-  const dirty =
+  const cropDirty =
     crop.top !== photo.cropTop ||
     crop.bottom !== photo.cropBottom ||
     crop.left !== photo.cropLeft ||
-    crop.right !== photo.cropRight ||
+    crop.right !== photo.cropRight;
+  const fieldsDirty =
     weight !== (photo.weightKg !== null ? photo.weightKg.toString() : "") ||
     note !== (photo.note ?? "") ||
     date !== photo.photoDate;
+  const dirty = cropDirty || fieldsDirty;
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -57,9 +63,21 @@ export function PhotoDetail({ photo }: { photo: PhotoListItem }) {
       if (!result.ok) {
         setError(result.error);
       } else {
+        setEditingCrop(false);
         router.refresh();
       }
     });
+  }
+
+  function handleCancelCrop() {
+    // Revert pending crop edits back to the saved values.
+    setCrop({
+      top: photo.cropTop,
+      bottom: photo.cropBottom,
+      left: photo.cropLeft,
+      right: photo.cropRight,
+    });
+    setEditingCrop(false);
   }
 
   function handleDelete() {
@@ -78,17 +96,79 @@ export function PhotoDetail({ photo }: { photo: PhotoListItem }) {
     });
   }
 
+  // Crop preview uses the pending crop state so "Editar" shows the user
+  // their in-flight edits immediately without needing to save first. We
+  // construct a pseudo-photo with the pending crop for the renderer.
+  const previewPhoto: PhotoListItem = {
+    ...photo,
+    cropTop: crop.top,
+    cropBottom: crop.bottom,
+    cropLeft: crop.left,
+    cropRight: crop.right,
+  };
+
   return (
     <form onSubmit={handleSave} className="flex flex-col gap-4">
-      <CropFrame value={crop} onChange={setCrop}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={photo.signedUrl}
-          alt={photo.note ?? `Foto de ${photo.photoDate}`}
-          className="block w-full h-auto select-none pointer-events-none"
-          draggable={false}
-        />
-      </CropFrame>
+      {editingCrop ? (
+        <>
+          <CropFrame value={crop} onChange={setCrop}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={photo.signedUrl}
+              alt={photo.note ?? `Foto de ${photo.photoDate}`}
+              className="block w-full h-auto select-none pointer-events-none"
+              draggable={false}
+            />
+          </CropFrame>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCancelCrop}
+              className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-[var(--border)] py-2.5 text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--text-muted)] transition-colors"
+            >
+              <X size={12} strokeWidth={2.25} />
+              Cancelar recorte
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditingCrop(false)}
+              className="flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-extrabold text-[var(--accent-fg)]"
+              style={{
+                background: "var(--accent)",
+              }}
+            >
+              <Check size={12} strokeWidth={2.5} />
+              Concluir recorte
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="relative">
+          <CroppedPhoto photo={previewPhoto} lazy={false} className="rounded-[14px]">
+            <div
+              aria-hidden="true"
+              className="absolute inset-x-0 bottom-0 h-24 pointer-events-none rounded-b-[14px]"
+              style={{
+                background:
+                  "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 40%, transparent 100%)",
+              }}
+            />
+          </CroppedPhoto>
+          <button
+            type="button"
+            onClick={() => setEditingCrop(true)}
+            className="absolute top-2 right-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-extrabold backdrop-blur"
+            style={{
+              background: "rgba(0,0,0,0.55)",
+              color: "white",
+              border: "1px solid rgba(255,255,255,0.15)",
+            }}
+          >
+            <Crop size={11} strokeWidth={2.25} />
+            Editar recorte
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-2.5">
         <label className="flex flex-col gap-1">

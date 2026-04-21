@@ -35,6 +35,10 @@ export async function uploadPhoto(formData: FormData): Promise<UploadPhotoResult
   const cropBottom = Number(formData.get("crop_bottom") ?? 1);
   const cropLeft = Number(formData.get("crop_left") ?? 0);
   const cropRight = Number(formData.get("crop_right") ?? 1);
+  const origWidthRaw = formData.get("orig_width");
+  const origHeightRaw = formData.get("orig_height");
+  const origWidth = origWidthRaw ? Math.round(Number(origWidthRaw)) : null;
+  const origHeight = origHeightRaw ? Math.round(Number(origHeightRaw)) : null;
 
   const ext =
     file.type === "image/webp"
@@ -69,6 +73,8 @@ export async function uploadPhoto(formData: FormData): Promise<UploadPhotoResult
       crop_bottom: Math.max(0, Math.min(1, cropBottom)),
       crop_left: Math.max(0, Math.min(1, cropLeft)),
       crop_right: Math.max(0, Math.min(1, cropRight)),
+      orig_width: origWidth,
+      orig_height: origHeight,
     })
     .select("id")
     .single();
@@ -94,6 +100,11 @@ export type PhotoListItem = {
   cropBottom: number;
   cropLeft: number;
   cropRight: number;
+  /** Original image dimensions at upload time (after client resize).
+      Used to compute the real crop aspect so the display scales
+      uniformly instead of distorting. Null on legacy rows. */
+  origWidth: number | null;
+  origHeight: number | null;
   createdAt: string;
 };
 
@@ -107,7 +118,7 @@ export async function listPhotos(): Promise<PhotoListItem[]> {
   const { data } = await supabase
     .from("progress_photos")
     .select(
-      "id, photo_date, storage_path, weight_kg, note, crop_top, crop_bottom, crop_left, crop_right, created_at"
+      "id, photo_date, storage_path, weight_kg, note, crop_top, crop_bottom, crop_left, crop_right, orig_width, orig_height, created_at"
     )
     .order("photo_date", { ascending: false })
     .order("created_at", { ascending: false });
@@ -130,6 +141,8 @@ export async function listPhotos(): Promise<PhotoListItem[]> {
     cropBottom: Number(r.crop_bottom ?? 1),
     cropLeft: Number(r.crop_left ?? 0),
     cropRight: Number(r.crop_right ?? 1),
+    origWidth: r.orig_width !== null ? Number(r.orig_width) : null,
+    origHeight: r.orig_height !== null ? Number(r.orig_height) : null,
     createdAt: r.created_at as string,
   }));
 }

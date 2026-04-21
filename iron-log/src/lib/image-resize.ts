@@ -8,10 +8,16 @@
  * 1200×900 — plenty of detail for progression photos without blowing
  * Storage budget.
  */
+export type ResizedImage = {
+  file: File;
+  width: number;
+  height: number;
+};
+
 export async function resizeImage(
   file: File,
   { maxEdge = 1200, quality = 0.8 }: { maxEdge?: number; quality?: number } = {}
-): Promise<File> {
+): Promise<ResizedImage> {
   // createImageBitmap with imageOrientation:'from-image' applies EXIF
   // rotation so iPhone portrait photos aren't sideways. Falls back to
   // a regular Image element on the rare browser that doesn't support
@@ -51,7 +57,8 @@ export async function resizeImage(
 
   // Clean original name, force .jpg since we just re-encoded.
   const base = file.name.replace(/\.[a-z0-9]+$/i, "") || "photo";
-  return new File([blob], `${base}.jpg`, { type: "image/jpeg" });
+  const out = new File([blob], `${base}.jpg`, { type: "image/jpeg" });
+  return { file: out, width: w, height: h };
 }
 
 function loadImage(file: File): Promise<HTMLImageElement> {

@@ -2,13 +2,15 @@ import Link from "next/link";
 import { ArrowLeftRight, Camera, ChevronLeft, Plus } from "lucide-react";
 import { listPhotos } from "./actions";
 import { PhotoThumbnail } from "./PhotoThumbnail";
+import { ComparePhotos } from "./comparar/ComparePhotos";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Photos grid. Groups photos by month so the user has a chronological
- * sense of the timeline; each row inside a month is a 2-column grid
- * of thumbnails. Empty state wires directly to /fotos/novo.
+ * Photos landing — compare tool at the top when there are 2+ photos,
+ * monthly grid below. The inline compare replaces the need to navigate
+ * to /fotos/comparar; that route still works as a deep link but the
+ * primary surface is right here.
  */
 export default async function FotosPage() {
   const photos = await listPhotos();
@@ -48,28 +50,17 @@ export default async function FotosPage() {
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          {photos.length >= 2 && (
-            <Link
-              href="/fotos/comparar"
-              aria-label="Comparar fotos"
-              className="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
-            >
-              <ArrowLeftRight size={16} strokeWidth={2} />
-            </Link>
-          )}
-          <Link
-            href="/fotos/novo"
-            aria-label="Nova foto"
-            className="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full"
-            style={{
-              background: "var(--accent)",
-              color: "var(--accent-fg)",
-            }}
-          >
-            <Plus size={18} strokeWidth={2.5} />
-          </Link>
-        </div>
+        <Link
+          href="/fotos/novo"
+          aria-label="Nova foto"
+          className="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full"
+          style={{
+            background: "var(--accent)",
+            color: "var(--accent-fg)",
+          }}
+        >
+          <Plus size={18} strokeWidth={2.5} />
+        </Link>
       </header>
 
       {photos.length === 0 ? (
@@ -94,27 +85,53 @@ export default async function FotosPage() {
           </Link>
         </div>
       ) : (
-        <div className="flex flex-col gap-6 mb-10">
-          {monthKeys.map((monthKey) => {
-            const items = byMonth.get(monthKey) ?? [];
-            return (
-              <section key={monthKey}>
-                <p className="tlog-eyebrow text-[var(--text-muted)] mb-2">
-                  {formatMonthLabel(monthKey)} · {items.length}
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {items.map((p) => (
-                    <PhotoThumbnail
-                      key={p.id}
-                      photo={p}
-                      href={`/fotos/${p.id}`}
-                    />
-                  ))}
+        <>
+          {/* Inline compare — top of the page when 2+ photos. Lets the
+              user pick any two dates and see them side-by-side without
+              leaving /fotos. */}
+          {photos.length >= 2 && (
+            <section className="mb-8">
+              <div className="mb-3 flex items-baseline justify-between">
+                <div className="flex items-center gap-2">
+                  <ArrowLeftRight
+                    size={14}
+                    strokeWidth={2}
+                    className="text-[var(--accent)]"
+                  />
+                  <p className="tlog-eyebrow text-[var(--text-muted)]">
+                    Antes × Depois
+                  </p>
                 </div>
-              </section>
-            );
-          })}
-        </div>
+                <p className="text-[11px] text-[var(--text-muted)]">
+                  Toque num slot pra trocar
+                </p>
+              </div>
+              <ComparePhotos photos={photos} />
+            </section>
+          )}
+
+          <div className="flex flex-col gap-6 mb-10">
+            {monthKeys.map((monthKey) => {
+              const items = byMonth.get(monthKey) ?? [];
+              return (
+                <section key={monthKey}>
+                  <p className="tlog-eyebrow text-[var(--text-muted)] mb-2">
+                    {formatMonthLabel(monthKey)} · {items.length}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {items.map((p) => (
+                      <PhotoThumbnail
+                        key={p.id}
+                        photo={p}
+                        href={`/fotos/${p.id}`}
+                      />
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        </>
       )}
     </div>
   );
