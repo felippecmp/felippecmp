@@ -20,7 +20,7 @@ export function PhotoThumbnail({
       href={href}
       className="group relative block overflow-hidden rounded-[14px] border border-[var(--border)] bg-[var(--bg-card)] active:scale-[0.99] transition-transform"
     >
-      <CroppedPhoto photo={photo} forceAspect={3 / 4} className="rounded-[14px]">
+      <CroppedPhoto photo={photo} className="rounded-[14px]">
         {/* Darker legibility band — stronger gradient than before so
             the date/weight caption stays punchy against bright shots. */}
         <div

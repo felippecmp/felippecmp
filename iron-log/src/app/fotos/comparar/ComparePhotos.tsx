@@ -128,7 +128,7 @@ export function ComparePhotos({ photos }: { photos: PhotoListItem[] }) {
                       : "border-[var(--border)]"
                   }`}
                 >
-                  <CroppedPhoto photo={p} forceAspect={3 / 4}>
+                  <CroppedPhoto photo={p}>
                     {active && (
                       <span
                         aria-hidden="true"
@@ -183,7 +183,7 @@ function CompareSlot({
 
   return (
     <div className="relative overflow-hidden rounded-[14px] border border-[var(--border)] bg-[var(--bg-card)]">
-      <CroppedPhoto photo={photo} forceAspect={3 / 4}>
+      <CroppedPhoto photo={photo}>
         {/* Darker gradient for caption legibility against bright photos. */}
         <div
           aria-hidden="true"
