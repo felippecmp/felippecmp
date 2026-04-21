@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { ChevronLeft, Camera } from "lucide-react";
+import { Camera, ChevronLeft, Plus } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Placeholder — full grid + upload flow land in PRs 2-3 of the photos
- * series. This keeps the route 200-OK so the TodayChecklist goal chip
- * can link here without a 404 while the UI is being built.
+ * Photos landing — PR 2 only wires the "nova foto" CTA. The grid + compare
+ * flows land in PRs 3-4 and will replace the empty-state card below.
  */
 export default function FotosPage() {
   return (
@@ -20,22 +19,45 @@ export default function FotosPage() {
           Hoje
         </Link>
       </div>
-      <header className="mb-5">
-        <p className="text-xs font-semibold text-[var(--text-muted)] mb-1">
-          Progresso visual
-        </p>
-        <h1 className="tlog-title">Fotos</h1>
+      <header className="mb-5 flex items-start justify-between">
+        <div>
+          <p className="text-xs font-semibold text-[var(--text-muted)] mb-1">
+            Progresso visual
+          </p>
+          <h1 className="tlog-title">Fotos</h1>
+        </div>
+        <Link
+          href="/fotos/novo"
+          aria-label="Nova foto"
+          className="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full"
+          style={{
+            background: "var(--accent)",
+            color: "var(--accent-fg)",
+          }}
+        >
+          <Plus size={18} strokeWidth={2.5} />
+        </Link>
       </header>
 
       <div className="rounded-2xl border border-dashed border-[var(--border-strong)] p-10 text-center">
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] mb-4">
           <Camera size={20} strokeWidth={1.75} />
         </div>
-        <p className="text-sm font-semibold mb-1">Em construção</p>
-        <p className="text-xs text-[var(--text-muted)] leading-relaxed max-w-[280px] mx-auto">
-          Upload, crop (topo/fundo), peso, lado-a-lado — chegam nas próximas
-          PRs do port.
+        <p className="text-sm font-semibold mb-1">Sem fotos ainda</p>
+        <p className="text-xs text-[var(--text-muted)] leading-relaxed max-w-[280px] mx-auto mb-5">
+          Tira a primeira. A partir da segunda, abre o modo comparar.
         </p>
+        <Link
+          href="/fotos/novo"
+          className="inline-flex items-center gap-2 font-extrabold text-sm px-5 py-2.5 rounded-xl"
+          style={{
+            background: "var(--accent)",
+            color: "var(--accent-fg)",
+          }}
+        >
+          <Camera size={14} strokeWidth={2.25} />
+          Nova foto
+        </Link>
       </div>
     </div>
   );
