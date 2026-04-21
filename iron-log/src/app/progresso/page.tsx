@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, Footprints } from "lucide-react";
+import { ChevronDown, ChevronRight, Footprints } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { muscleLabel } from "@/lib/muscles";
 import {
@@ -777,6 +777,24 @@ export default async function ProgressoPage({
             </Link>
           )}
 
+          {/* Detailed analytics — collapsed by default. /progresso gets
+              scroll-heavy once you have 30+ sessions; the headline
+              numbers above stay front-and-center, the deep breakdowns
+              wait behind a single toggle. Native <details>/<summary>
+              for zero client-JS cost. */}
+          <details className="mb-10 group">
+            <summary className="flex items-center justify-center gap-1.5 cursor-pointer list-none rounded-xl border border-dashed border-[var(--border-strong)] py-3 text-[12px] font-bold tracking-wide text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--text-muted)] transition-colors select-none">
+              <ChevronDown
+                size={14}
+                strokeWidth={2}
+                className="transition-transform group-open:rotate-180"
+              />
+              <span className="group-open:hidden">Ver análise completa</span>
+              <span className="hidden group-open:inline">Recolher</span>
+            </summary>
+
+            <div className="mt-5 flex flex-col">
+
           {/* Donut chart — volume distribution */}
           {donutData.length > 0 && (
             <section className="mb-6">
@@ -897,6 +915,9 @@ export default async function ProgressoPage({
               </ul>
             </section>
           )}
+
+            </div>
+          </details>
         </>
       )}
     </div>
