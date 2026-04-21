@@ -112,10 +112,12 @@ export function PhotoUploader({
         <p className="text-[12px] text-[var(--text-muted)] leading-relaxed text-center max-w-[260px]">
           A foto fica privada (URL com expiração). Original não é editado — crop é ajustável depois.
         </p>
+        {/* No `capture` attribute — iOS/Android show the native chooser
+            with Camera + Photo Library + Files instead of forcing the
+            camera. Tapping the card opens that sheet. */}
         <input
           type="file"
           accept="image/*"
-          capture="environment"
           className="sr-only"
           onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
         />
