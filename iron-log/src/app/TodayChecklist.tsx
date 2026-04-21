@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import {
   Bed,
+  Camera,
   Check,
   Dumbbell,
   Footprints,
@@ -21,6 +22,7 @@ export type TodayChecklistProps = {
   hasStrength: boolean;
   hasCardio: boolean;
   hasSteps: boolean;
+  hasPhoto: boolean;
   isRestDay: boolean;
   todayWeightKg: number | null;
   todayStepsCount: number | null;
@@ -55,6 +57,7 @@ export function TodayChecklist({
   hasStrength,
   hasCardio,
   hasSteps,
+  hasPhoto,
   isRestDay,
   todayWeightKg,
   todayStepsCount,
@@ -106,6 +109,15 @@ export function TodayChecklist({
       kind: "form",
       expand: "steps",
       color: "var(--status-building)",
+    },
+    {
+      key: "photo",
+      label: "foto",
+      done: hasPhoto,
+      Icon: Camera,
+      kind: "link",
+      href: "/fotos/novo",
+      color: "var(--accent)",
     },
   ];
 

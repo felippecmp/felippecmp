@@ -244,6 +244,15 @@ export default async function HomePage() {
   );
   const hasStepsToday = (todaySteps?.steps ?? 0) >= 8000;
 
+  // Photo goal — checks if the user has logged a progress photo today.
+  // Lightweight: a single count query, no Storage round-trip. No image
+  // surfaces on Home — the chip just links out to /fotos/novo.
+  const { count: photoCountToday } = await supabase
+    .from("progress_photos")
+    .select("id", { count: "exact", head: true })
+    .eq("photo_date", todayKey);
+  const hasPhotoToday = (photoCountToday ?? 0) > 0;
+
   // --- Weekly recap (rolling 7 days, only rendered Sunday/Monday) ---
   const sevenDaysAgo = new Date(now);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // inclusive 7-day window
@@ -1019,8 +1028,9 @@ export default async function HomePage() {
               (hasWeightToday ? 1 : 0) +
               (hasCardioToday ? 1 : 0) +
               (hasStepsToday ? 1 : 0) +
+              (hasPhotoToday ? 1 : 0) +
               (!isRestDayToday && hasStrengthToday ? 1 : 0);
-            const goalsMax = isRestDayToday ? 3 : 4;
+            const goalsMax = isRestDayToday ? 4 : 5;
             return <TodayGoalsRing done={goalsDone} max={goalsMax} />;
           })()}
           <TodayChecklist
@@ -1028,6 +1038,7 @@ export default async function HomePage() {
             hasStrength={hasStrengthToday}
             hasCardio={hasCardioToday}
             hasSteps={hasStepsToday}
+            hasPhoto={hasPhotoToday}
             isRestDay={isRestDayToday}
             todayWeightKg={
               todayWeight ? Number(todayWeight.weight_kg) : null

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   Brain,
+  Camera,
   ChevronRight,
   Dumbbell,
   Footprints,
@@ -40,6 +41,13 @@ const GROUPS: Array<{ group: string; items: Item[] }> = [
         desc: "Histórico de pesagens e meta.",
         Icon: Scale,
         iconColor: "var(--status-progressed)",
+      },
+      {
+        href: "/fotos",
+        label: "Fotos de progresso",
+        desc: "Registro visual — privado, com crop ajustável.",
+        Icon: Camera,
+        iconColor: "var(--accent)",
       },
     ],
   },

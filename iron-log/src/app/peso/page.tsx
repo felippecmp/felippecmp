@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { Camera, ChevronLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { WeightEntries } from "./WeightEntries";
 
@@ -38,13 +38,23 @@ export default async function PesoPage() {
         Progresso
       </Link>
 
-      <header className="mb-8">
-        <p className="label mb-2">Registro</p>
-        <h1 className="display text-4xl leading-none">Peso corporal</h1>
-        <p className="text-sm text-[var(--text-muted)] mt-2 tnum">
-          {entries.length}{" "}
-          {entries.length === 1 ? "registro" : "registros"} salvos
-        </p>
+      <header className="mb-8 flex items-start justify-between">
+        <div>
+          <p className="label mb-2">Registro</p>
+          <h1 className="display text-4xl leading-none">Peso corporal</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-2 tnum">
+            {entries.length}{" "}
+            {entries.length === 1 ? "registro" : "registros"} salvos
+          </p>
+        </div>
+        <Link
+          href="/fotos"
+          aria-label="Ver fotos de progresso"
+          className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-full bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--text-muted)] border border-[var(--border)] transition-colors"
+        >
+          <Camera size={12} strokeWidth={2} />
+          Fotos
+        </Link>
       </header>
 
       <WeightEntries entries={entries} />
