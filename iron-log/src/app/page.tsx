@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  ChevronDown,
   ChevronRight,
   Play,
   Settings as SettingsIcon,
@@ -1073,7 +1074,9 @@ export default async function HomePage() {
       {/* AI sidekick — violet glass prompt card, links to /coach/chat. */}
       {!firstRun && <AISidekick />}
 
-      {/* Diary timeline */}
+      {/* Diary timeline — first 2 days always visible; the rest collapses
+          behind a "Ver mais" toggle so Home doesn't become an infinite
+          scroll once a few weeks of history pile up. */}
       {dayKeys.length > 0 && (
         <section className="mb-10">
           <div className="flex items-baseline justify-between mb-4">
@@ -1087,7 +1090,7 @@ export default async function HomePage() {
           </div>
 
           <div className="space-y-5">
-            {dayKeys.map((key) => {
+            {dayKeys.slice(0, 2).map((key) => {
               const entries = days.get(key) ?? [];
               return (
                 <div key={key}>
@@ -1103,6 +1106,41 @@ export default async function HomePage() {
               );
             })}
           </div>
+
+          {dayKeys.length > 2 && (
+            <details className="mt-5 group">
+              <summary
+                className="flex items-center justify-center gap-1.5 cursor-pointer list-none rounded-xl border border-dashed border-[var(--border-strong)] py-3 text-[12px] font-bold tracking-wide text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--text-muted)] transition-colors select-none"
+              >
+                <ChevronDown
+                  size={14}
+                  strokeWidth={2}
+                  className="transition-transform group-open:rotate-180"
+                />
+                <span className="group-open:hidden">
+                  Ver mais ({dayKeys.length - 2} {dayKeys.length - 2 === 1 ? "dia" : "dias"})
+                </span>
+                <span className="hidden group-open:inline">Recolher</span>
+              </summary>
+              <div className="mt-5 space-y-5">
+                {dayKeys.slice(2).map((key) => {
+                  const entries = days.get(key) ?? [];
+                  return (
+                    <div key={key}>
+                      <p className="text-[10px] uppercase tracking-wider text-[var(--text-dim)] tnum mb-2">
+                        {formatDayLabel(key)}
+                      </p>
+                      <ul className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden divide-y divide-[var(--border)]">
+                        {entries.map((entry) => (
+                          <DiaryRow key={`${entry.kind}-${entry.id}`} entry={entry} />
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
+          )}
         </section>
       )}
     </div>
