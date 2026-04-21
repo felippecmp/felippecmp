@@ -14,13 +14,14 @@ export function PhotoThumbnail({
   photo: PhotoListItem;
   href: string;
 }) {
-  const window = Math.max(0.001, photo.cropBottom - photo.cropTop);
-  const scale = 1 / window;
-  // translateY is expressed as a % of the TRANSFORMED (scaled) image.
-  // We want the visible tile to start at crop_top of the original, so
-  // we shift up by (cropTop * originalH) pixels = cropTop * 100% of
-  // original = (cropTop / window) * 100% of the scaled image.
-  const translatePct = -(photo.cropTop / window) * 100;
+  const windowH = Math.max(0.001, photo.cropBottom - photo.cropTop);
+  const windowW = Math.max(0.001, photo.cropRight - photo.cropLeft);
+  const scaleX = 1 / windowW;
+  const scaleY = 1 / windowH;
+  // translate expressed as a % of the TRANSFORMED (scaled) axis. We shift
+  // the image so the cropped window lines up with the tile's top-left.
+  const translateX = -(photo.cropLeft / windowW) * 100;
+  const translateY = -(photo.cropTop / windowH) * 100;
 
   return (
     <Link
@@ -33,7 +34,7 @@ export function PhotoThumbnail({
         alt={photo.note ?? `Foto de ${photo.photoDate}`}
         className="absolute left-0 top-0 w-full h-auto select-none"
         style={{
-          transform: `translateY(${translatePct}%) scale(${scale})`,
+          transform: `translate(${translateX}%, ${translateY}%) scale(${scaleX}, ${scaleY})`,
           transformOrigin: "top left",
         }}
         loading="lazy"

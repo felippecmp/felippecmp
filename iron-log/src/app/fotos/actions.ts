@@ -33,6 +33,8 @@ export async function uploadPhoto(formData: FormData): Promise<UploadPhotoResult
   const note = String(formData.get("note") ?? "").trim() || null;
   const cropTop = Number(formData.get("crop_top") ?? 0);
   const cropBottom = Number(formData.get("crop_bottom") ?? 1);
+  const cropLeft = Number(formData.get("crop_left") ?? 0);
+  const cropRight = Number(formData.get("crop_right") ?? 1);
 
   const ext =
     file.type === "image/webp"
@@ -65,6 +67,8 @@ export async function uploadPhoto(formData: FormData): Promise<UploadPhotoResult
       note,
       crop_top: Math.max(0, Math.min(1, cropTop)),
       crop_bottom: Math.max(0, Math.min(1, cropBottom)),
+      crop_left: Math.max(0, Math.min(1, cropLeft)),
+      crop_right: Math.max(0, Math.min(1, cropRight)),
     })
     .select("id")
     .single();
@@ -88,6 +92,8 @@ export type PhotoListItem = {
   note: string | null;
   cropTop: number;
   cropBottom: number;
+  cropLeft: number;
+  cropRight: number;
   createdAt: string;
 };
 
@@ -101,7 +107,7 @@ export async function listPhotos(): Promise<PhotoListItem[]> {
   const { data } = await supabase
     .from("progress_photos")
     .select(
-      "id, photo_date, storage_path, weight_kg, note, crop_top, crop_bottom, created_at"
+      "id, photo_date, storage_path, weight_kg, note, crop_top, crop_bottom, crop_left, crop_right, created_at"
     )
     .order("photo_date", { ascending: false })
     .order("created_at", { ascending: false });
@@ -122,6 +128,8 @@ export async function listPhotos(): Promise<PhotoListItem[]> {
     note: (r.note as string | null) ?? null,
     cropTop: Number(r.crop_top ?? 0),
     cropBottom: Number(r.crop_bottom ?? 1),
+    cropLeft: Number(r.crop_left ?? 0),
+    cropRight: Number(r.crop_right ?? 1),
     createdAt: r.created_at as string,
   }));
 }
@@ -132,6 +140,8 @@ export type UpdatePhotoInput = {
   note?: string | null;
   cropTop?: number;
   cropBottom?: number;
+  cropLeft?: number;
+  cropRight?: number;
   photoDate?: string;
 };
 
@@ -146,6 +156,10 @@ export async function updatePhoto(
     patch.crop_top = Math.max(0, Math.min(1, input.cropTop));
   if (input.cropBottom !== undefined)
     patch.crop_bottom = Math.max(0, Math.min(1, input.cropBottom));
+  if (input.cropLeft !== undefined)
+    patch.crop_left = Math.max(0, Math.min(1, input.cropLeft));
+  if (input.cropRight !== undefined)
+    patch.crop_right = Math.max(0, Math.min(1, input.cropRight));
   if (input.photoDate !== undefined) patch.photo_date = input.photoDate;
 
   const { error } = await supabase

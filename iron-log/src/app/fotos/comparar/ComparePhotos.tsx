@@ -225,10 +225,13 @@ function CompareSlot({
 }
 
 function CroppedImg({ photo }: { photo: PhotoListItem }) {
-  // Same math as PhotoThumbnail — apply stored crop to display.
-  const window = Math.max(0.001, photo.cropBottom - photo.cropTop);
-  const scale = 1 / window;
-  const translatePct = -(photo.cropTop / window) * 100;
+  // Same math as PhotoThumbnail — apply stored 4-sided crop to display.
+  const windowH = Math.max(0.001, photo.cropBottom - photo.cropTop);
+  const windowW = Math.max(0.001, photo.cropRight - photo.cropLeft);
+  const scaleX = 1 / windowW;
+  const scaleY = 1 / windowH;
+  const translateX = -(photo.cropLeft / windowW) * 100;
+  const translateY = -(photo.cropTop / windowH) * 100;
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
@@ -236,7 +239,7 @@ function CroppedImg({ photo }: { photo: PhotoListItem }) {
       alt={photo.note ?? `Foto de ${photo.photoDate}`}
       className="absolute left-0 top-0 w-full h-auto select-none pointer-events-none"
       style={{
-        transform: `translateY(${translatePct}%) scale(${scale})`,
+        transform: `translate(${translateX}%, ${translateY}%) scale(${scaleX}, ${scaleY})`,
         transformOrigin: "top left",
       }}
       loading="lazy"

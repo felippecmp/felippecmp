@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Trash2 } from "lucide-react";
-import { CropBars } from "@/components/CropBars";
+import { CropFrame, type CropRect } from "@/components/CropFrame";
 import type { PhotoListItem } from "../actions";
 import { deletePhoto, updatePhoto } from "../actions";
 
@@ -14,9 +14,11 @@ import { deletePhoto, updatePhoto } from "../actions";
  */
 export function PhotoDetail({ photo }: { photo: PhotoListItem }) {
   const router = useRouter();
-  const [crop, setCrop] = useState({
+  const [crop, setCrop] = useState<CropRect>({
     top: photo.cropTop,
     bottom: photo.cropBottom,
+    left: photo.cropLeft,
+    right: photo.cropRight,
   });
   const [weight, setWeight] = useState<string>(
     photo.weightKg !== null ? photo.weightKg.toString() : ""
@@ -31,6 +33,8 @@ export function PhotoDetail({ photo }: { photo: PhotoListItem }) {
   const dirty =
     crop.top !== photo.cropTop ||
     crop.bottom !== photo.cropBottom ||
+    crop.left !== photo.cropLeft ||
+    crop.right !== photo.cropRight ||
     weight !== (photo.weightKg !== null ? photo.weightKg.toString() : "") ||
     note !== (photo.note ?? "") ||
     date !== photo.photoDate;
@@ -44,6 +48,8 @@ export function PhotoDetail({ photo }: { photo: PhotoListItem }) {
         id: photo.id,
         cropTop: crop.top,
         cropBottom: crop.bottom,
+        cropLeft: crop.left,
+        cropRight: crop.right,
         weightKg: weight.trim() === "" ? null : Number(weight),
         note: note.trim() === "" ? null : note.trim(),
         photoDate: date,
@@ -74,7 +80,7 @@ export function PhotoDetail({ photo }: { photo: PhotoListItem }) {
 
   return (
     <form onSubmit={handleSave} className="flex flex-col gap-4">
-      <CropBars value={crop} onChange={setCrop}>
+      <CropFrame value={crop} onChange={setCrop}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={photo.signedUrl}
@@ -82,7 +88,7 @@ export function PhotoDetail({ photo }: { photo: PhotoListItem }) {
           className="block w-full h-auto select-none pointer-events-none"
           draggable={false}
         />
-      </CropBars>
+      </CropFrame>
 
       <div className="grid grid-cols-2 gap-2.5">
         <label className="flex flex-col gap-1">

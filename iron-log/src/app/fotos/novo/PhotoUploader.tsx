@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Check, Loader2, X } from "lucide-react";
-import { CropBars } from "@/components/CropBars";
+import { CropFrame, type CropRect } from "@/components/CropFrame";
 import { resizeImage } from "@/lib/image-resize";
 import { uploadPhoto } from "../actions";
 
@@ -27,7 +27,12 @@ export function PhotoUploader({
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [crop, setCrop] = useState({ top: 0, bottom: 1 });
+  const [crop, setCrop] = useState<CropRect>({
+    top: 0,
+    bottom: 1,
+    left: 0,
+    right: 1,
+  });
   const [weight, setWeight] = useState<string>(
     prefillWeightKg !== null ? prefillWeightKg.toString() : ""
   );
@@ -59,7 +64,7 @@ export function PhotoUploader({
     }
     setFile(picked);
     // Reset crop so each new photo starts full-frame.
-    setCrop({ top: 0, bottom: 1 });
+    setCrop({ top: 0, bottom: 1, left: 0, right: 1 });
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -79,6 +84,8 @@ export function PhotoUploader({
         fd.set("note", note);
         fd.set("crop_top", String(crop.top));
         fd.set("crop_bottom", String(crop.bottom));
+        fd.set("crop_left", String(crop.left));
+        fd.set("crop_right", String(crop.right));
         const result = await uploadPhoto(fd);
         if (result.ok) {
           router.push("/fotos");
@@ -131,7 +138,7 @@ export function PhotoUploader({
   // Crop + form state.
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <CropBars value={crop} onChange={setCrop}>
+      <CropFrame value={crop} onChange={setCrop}>
         {previewUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -141,7 +148,7 @@ export function PhotoUploader({
             draggable={false}
           />
         )}
-      </CropBars>
+      </CropFrame>
 
       <button
         type="button"
