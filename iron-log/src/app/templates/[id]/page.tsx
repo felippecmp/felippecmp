@@ -42,6 +42,42 @@ export default async function EditTemplatePage({
 
   const progression = await getTemplateProgression(id);
 
+  // Machine autocomplete: for each exercise in this template, surface
+  // every distinct machine value the user has ever used (from past
+  // template slots OR logged sets). Single batch query — buckets the
+  // results by exercise_id client-side.
+  const exerciseIds = (templateExercises ?? [])
+    .map((te) => te.exercise_id)
+    .filter((v): v is string => v !== null);
+  const machineSuggestions: Record<string, string[]> = {};
+  if (exerciseIds.length > 0) {
+    const [{ data: tpl }, { data: sets }] = await Promise.all([
+      supabase
+        .from("template_exercises")
+        .select("exercise_id, machine")
+        .in("exercise_id", exerciseIds)
+        .not("machine", "is", null),
+      supabase
+        .from("workout_sets")
+        .select("exercise_id, machine")
+        .in("exercise_id", exerciseIds)
+        .not("machine", "is", null),
+    ]);
+    type Row = { exercise_id: string | null; machine: string | null };
+    const seen = new Map<string, Set<string>>();
+    for (const row of [...((tpl ?? []) as Row[]), ...((sets ?? []) as Row[])]) {
+      if (!row.exercise_id || !row.machine) continue;
+      const bucket = seen.get(row.exercise_id) ?? new Set<string>();
+      bucket.add(row.machine);
+      seen.set(row.exercise_id, bucket);
+    }
+    for (const [exId, set] of seen) {
+      machineSuggestions[exId] = Array.from(set).sort((a, b) =>
+        a.localeCompare(b)
+      );
+    }
+  }
+
   return (
     <div className="px-6 pt-10">
       <Link
@@ -66,6 +102,7 @@ export default async function EditTemplatePage({
           exercise: Array.isArray(te.exercises) ? te.exercises[0] : te.exercises,
         }))}
         availableExercises={availableExercises ?? []}
+        machineSuggestions={machineSuggestions}
       />
 
       <TemplateHistory progression={progression} />

@@ -62,10 +62,14 @@ export function TemplateEditor({
   template,
   templateExercises,
   availableExercises,
+  machineSuggestions = {},
 }: {
   template: Template;
   templateExercises: TemplateExercise[];
   availableExercises: Exercise[];
+  /** Map of exerciseId → distinct machine values seen in past
+      templates/sets. Wired into a <datalist> for autocomplete. */
+  machineSuggestions?: Record<string, string[]>;
 }) {
   const [picking, setPicking] = useState(false);
   const [swappingTeId, setSwappingTeId] = useState<string | null>(null);
@@ -208,6 +212,7 @@ export function TemplateEditor({
                 onRemove={handleRemove}
                 onReorder={handleReorder}
                 onSwap={handleSwap}
+                machineOptions={machineSuggestions[te.exercise_id] ?? []}
               />
             ))}
           </ul>
@@ -285,6 +290,7 @@ function TemplateExerciseCard({
   onRemove,
   onReorder,
   onSwap,
+  machineOptions,
 }: {
   te: TemplateExercise;
   isFirst: boolean;
@@ -293,6 +299,7 @@ function TemplateExerciseCard({
   onRemove: (id: string) => void;
   onReorder: (id: string, direction: "up" | "down") => void;
   onSwap: (id: string) => void;
+  machineOptions: string[];
 }) {
   const [expanded, setExpanded] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -389,8 +396,16 @@ function TemplateExerciseCard({
               defaultValue={te.machine ?? ""}
               placeholder="Cimerian, Allfit, Hammer Strength…"
               maxLength={40}
+              list={`machine-options-${te.id}`}
               className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--text-muted)]"
             />
+            {machineOptions.length > 0 && (
+              <datalist id={`machine-options-${te.id}`}>
+                {machineOptions.map((opt) => (
+                  <option key={opt} value={opt} />
+                ))}
+              </datalist>
+            )}
           </label>
           <button
             type="submit"
