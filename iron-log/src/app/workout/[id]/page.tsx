@@ -45,6 +45,7 @@ type TemplateExerciseJoin = {
   rep_range_low: number;
   rep_range_high: number;
   rest_seconds: number;
+  machine: string | null;
   exercise_id: string | null;
   exercises: ExerciseJoin | ExerciseJoin[] | null;
 };
@@ -129,7 +130,7 @@ export default async function WorkoutSessionPage({
     ? await supabase
         .from("template_exercises")
         .select(
-          "id, slot_order, target_sets, rep_range_low, rep_range_high, rest_seconds, exercise_id, exercises(id, name, primary_muscle, load_increment)"
+          "id, slot_order, target_sets, rep_range_low, rep_range_high, rest_seconds, machine, exercise_id, exercises(id, name, primary_muscle, load_increment)"
         )
         .eq("template_id", session.template_id)
         .order("slot_order", { ascending: true })
@@ -370,6 +371,7 @@ export default async function WorkoutSessionPage({
       repRangeLow: te.rep_range_low,
       repRangeHigh: te.rep_range_high,
       restSeconds: te.rest_seconds,
+      machine: te.machine ?? null,
       previousSets: referenceByExercise.get(te.exercise_id) ?? [],
       previousSetsAt:
         latestSessionByExercise.get(te.exercise_id)?.startedAt ?? null,
@@ -418,6 +420,7 @@ export default async function WorkoutSessionPage({
       repRangeLow: settings.default_rep_range_low,
       repRangeHigh: settings.default_rep_range_high,
       restSeconds: settings.default_rest_seconds,
+      machine: null,
       previousSets: referenceByExercise.get(adhocId) ?? [],
       previousSetsAt: latestSessionByExercise.get(adhocId)?.startedAt ?? null,
       existingSets: existing,

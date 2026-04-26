@@ -34,6 +34,9 @@ export type LogSetInput = {
   reps: number;
   rir: number | null;
   isWarmup: boolean;
+  /** Optional machine annotation copied from the slot at log time so the
+      historical set preserves which machine was used. */
+  machine?: string | null;
 };
 
 export type LogSetResult =
@@ -71,6 +74,7 @@ export async function logSet(input: LogSetInput): Promise<LogSetResult> {
       reps: input.reps,
       rir: input.rir,
       is_warmup: input.isWarmup,
+      machine: input.machine ?? null,
     })
     .select("id")
     .single();

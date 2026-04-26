@@ -351,11 +351,13 @@ export async function updateTemplateExercise(
     int(formData.get("rep_range_high"), 8)
   );
   const rest_seconds = Math.max(0, int(formData.get("rest_seconds"), 180));
+  const machineRaw = String(formData.get("machine") ?? "").trim();
+  const machine = machineRaw === "" ? null : machineRaw.slice(0, 40);
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("template_exercises")
-    .update({ target_sets, rep_range_low, rep_range_high, rest_seconds })
+    .update({ target_sets, rep_range_low, rep_range_high, rest_seconds, machine })
     .eq("id", id);
 
   if (error) return { ok: false, error: error.message };

@@ -47,6 +47,7 @@ type TemplateExercise = {
   rep_range_low: number;
   rep_range_high: number;
   rest_seconds: number;
+  machine: string | null;
   exercise_id: string;
   exercise: Exercise | null;
 };
@@ -332,6 +333,11 @@ function TemplateExerciseCard({
           <div className="font-medium text-[15px] leading-tight truncate">
             {te.exercise?.name ?? "Exercício removido"}
           </div>
+          {te.machine && (
+            <div className="text-[11px] mt-0.5 truncate" style={{ color: "var(--accent)" }}>
+              {te.machine}
+            </div>
+          )}
           <div className="text-xs text-[var(--text-muted)] mt-1 flex items-center gap-2 tnum">
             <span>{te.target_sets} sets</span>
             <span className="text-[var(--text-faint)]">·</span>
@@ -373,6 +379,19 @@ function TemplateExerciseCard({
             min={0}
             step={15}
           />
+          <label className="block">
+            <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1 block">
+              Máquina
+            </span>
+            <input
+              name="machine"
+              type="text"
+              defaultValue={te.machine ?? ""}
+              placeholder="Cimerian, Allfit, Hammer Strength…"
+              maxLength={40}
+              className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--text-muted)]"
+            />
+          </label>
           <button
             type="submit"
             disabled={isPending}

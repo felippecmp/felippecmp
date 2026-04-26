@@ -28,7 +28,7 @@ export default async function EditTemplatePage({
   const { data: templateExercises } = await supabase
     .from("template_exercises")
     .select(
-      "id, slot_order, target_sets, rep_range_low, rep_range_high, rest_seconds, exercise_id, exercises(id, name, primary_muscle, equipment, session_type)"
+      "id, slot_order, target_sets, rep_range_low, rep_range_high, rest_seconds, machine, exercise_id, exercises(id, name, primary_muscle, equipment, session_type)"
     )
     .eq("template_id", id)
     .order("slot_order", { ascending: true });
@@ -61,6 +61,7 @@ export default async function EditTemplatePage({
           rep_range_low: te.rep_range_low,
           rep_range_high: te.rep_range_high,
           rest_seconds: te.rest_seconds,
+          machine: te.machine ?? null,
           exercise_id: te.exercise_id,
           exercise: Array.isArray(te.exercises) ? te.exercises[0] : te.exercises,
         }))}

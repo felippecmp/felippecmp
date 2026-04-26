@@ -54,6 +54,10 @@ export type ExerciseBlockData = {
   repRangeLow: number;
   repRangeHigh: number;
   restSeconds: number;
+  /** Machine annotation from the template slot. Null when the user
+      hasn't pinned a specific machine for this slot yet. Surfaces
+      below the exercise name on the active card. */
+  machine: string | null;
   previousSets: ReferenceSet[];
   /** ISO timestamp of the session previousSets came from, when known. */
   previousSetsAt: string | null;
@@ -316,6 +320,7 @@ export function WorkoutSession({
         repRangeLow: swapping?.repRangeLow ?? 4,
         repRangeHigh: swapping?.repRangeHigh ?? 8,
         restSeconds: swapping?.restSeconds ?? 180,
+        machine: swapping?.machine ?? null,
         previousSets: [],
         previousSetsAt: null,
         existingSets: [],
@@ -362,6 +367,7 @@ export function WorkoutSession({
       repRangeLow: 4,
       repRangeHigh: 8,
       restSeconds: 180,
+      machine: null,
       previousSets: [],
       previousSetsAt: null,
       existingSets: [],
@@ -872,6 +878,7 @@ function ExerciseCard({
           reps,
           rir: row.rir,
           isWarmup: row.isWarmup,
+          machine: exercise.machine,
         });
         if (result.ok) {
           patchRow(row.key, {
@@ -1108,6 +1115,16 @@ function ExerciseCard({
                 </button>
               )}
             </div>
+            {/* Machine label — pinned brand for this slot. Surfaces above
+                the meta line so it's visible at a glance without scanning. */}
+            {exercise.machine && (
+              <div
+                className="text-[11px] mt-0.5 font-semibold truncate"
+                style={{ color: "var(--accent)" }}
+              >
+                {exercise.machine}
+              </div>
+            )}
             {/* Single compact line: muscle · sets · reps · suggested weight */}
             <div className="text-xs text-[var(--text-muted)] mt-1 tnum flex items-center gap-1.5 flex-wrap">
               <span>{muscleLabel(exercise.primaryMuscle)}</span>
