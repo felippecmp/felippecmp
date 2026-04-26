@@ -6,6 +6,7 @@ import { muscleLabel } from "@/lib/muscles";
 import { getUserSettings, type RotationMode } from "@/lib/settings";
 import { Ring } from "@/components/Ring";
 import { AIWorkoutGenerator } from "./AIWorkoutGenerator";
+import { CopyTemplateText } from "./CopyTemplateText";
 import { PreWorkoutBriefing } from "./PreWorkoutBriefing";
 import { StartSessionButton } from "./StartSessionButton";
 import { TemplateFilter } from "./TemplateFilter";
@@ -294,12 +295,19 @@ export default async function TreinarPage() {
                 Adicione exercícios ao template antes de iniciar.
               </p>
             ) : (
-              <div className="relative mt-4">
+              <div className="relative mt-4 flex flex-col gap-2">
                 <StartSessionButton
                   templateId={suggestion.template.id}
                   label={`Iniciar ${suggestion.template.name}`}
                   disabled={false}
                 />
+                {/* Pre-workout: copy textual template to fill on Notes */}
+                <div className="flex justify-center">
+                  <CopyTemplateText
+                    templateId={suggestion.template.id}
+                    variant="filled"
+                  />
+                </div>
               </div>
             )}
           </div>
