@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, Dumbbell, Layers, Play } from "lucide-react";
+import { ChevronRight, ClipboardPaste, Dumbbell, Layers, Play } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { isAIAvailable } from "@/lib/coach/ai-client";
 import { muscleLabel } from "@/lib/muscles";
@@ -191,13 +191,22 @@ export default async function TreinarPage() {
           )}
           <h1 className="tlog-title">Treinar</h1>
         </div>
-        <Link
-          href="/templates"
-          aria-label="Gerenciar templates"
-          className="shrink-0 w-9 h-9 rounded-full bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text)] flex items-center justify-center transition-colors"
-        >
-          <Layers size={16} strokeWidth={1.75} />
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/treinar/colar"
+            aria-label="Colar treino feito"
+            className="shrink-0 w-9 h-9 rounded-full bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text)] flex items-center justify-center transition-colors"
+          >
+            <ClipboardPaste size={16} strokeWidth={1.75} />
+          </Link>
+          <Link
+            href="/templates"
+            aria-label="Gerenciar templates"
+            className="shrink-0 w-9 h-9 rounded-full bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text)] flex items-center justify-center transition-colors"
+          >
+            <Layers size={16} strokeWidth={1.75} />
+          </Link>
+        </div>
       </header>
 
       {/* Active session banner */}
